@@ -39,8 +39,12 @@ if __name__ == "__main__":
 
     log_stage("Building trigonometric mask")
     # Normalize orientation to 0–255 and show
-    target_angle = -60.0  # target direction for DRP
-    img = (0.5 * (np.cos(np.radians(deg_map - target_angle)) + 1) * 255).astype(np.uint8)
+    target_angle = -90.0  # target direction for DRP
+    sigma_deg = 12.0
+    # shortest signed angular difference in [-180, 180]
+    ang = (deg_map - target_angle + 180) % 360 - 180
+    resp = np.exp(-(ang ** 2) / (2 * sigma_deg ** 2))
+    img = (resp * 255).astype(np.uint8)
     plt.imshow(img, cmap="gray")
     plt.title("Direction Map (0–255 normalized)")
     plt.show()
@@ -153,6 +157,9 @@ if __name__ == "__main__":
     # for peak in peaks_by_height[:keep]:
     #     plt.plot([peak, peak], [0, img.shape[0]], color="red", linewidth=1)
     # plt.show()
+
+
+
 
 
 

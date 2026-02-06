@@ -6,4 +6,4 @@ ph_min: 0
 ph_max: 355
 ph_num: 72
 square_crop: False
-subtract_background: False
+subtract_background: True

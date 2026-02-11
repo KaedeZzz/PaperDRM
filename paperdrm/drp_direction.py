@@ -97,74 +97,136 @@ def spherical_descriptor(
     include_sin_theta: bool = False,
     eps: float = 1e-9,
     verbose: bool = False,
+    *,
+    chunk_phi: int | None = None,
+    chunk_theta: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Per-pixel first-order (vector) and second-order (covariance) spherical moments.
+
+    Memory-efficient implementation that avoids materializing the full [h, w, phi, theta]
+    float64 stack by streaming across phi/theta blocks.
 
     Returns:
         m1_map: [h, w, 3] first-order moment (dominant 3D direction, not normalised).
         cov_map: [h, w, 3, 3] second-order spread around m1.
         weight_sum: [h, w] sum of absolute weights used for normalisation.
     """
-    # Stack layout: [h, w, phi, theta]
     if verbose:
-        print("spherical_descriptor: preparing stack")
-    stack = imp.drp_stack.astype(np.float64)
-    if subtract_mean:
-        stack = stack - stack.mean(axis=(2, 3), keepdims=True)
+        print("spherical_descriptor: streaming over DRP stack")
+
+    h, w = imp.h, imp.w
+    ph_num = imp.param.ph_num
+    th_num = imp.param.th_num
 
     # Angle grids in radians (inclusive endpoints to match ph/th counts)
-    phi = np.deg2rad(np.linspace(imp.param.ph_min, imp.param.ph_max, imp.param.ph_num, endpoint=True))
-    theta = np.deg2rad(np.linspace(imp.param.th_min, imp.param.th_max, imp.param.th_num, endpoint=True))
-    phi_grid = phi[:, None]  # [phi, 1]
-    theta_grid = theta[None, :]  # [1, theta]
+    phi = np.deg2rad(np.linspace(imp.param.ph_min, imp.param.ph_max, ph_num, endpoint=True))
+    theta = np.deg2rad(np.linspace(imp.param.th_min, imp.param.th_max, th_num, endpoint=True))
 
-    # Unit direction vectors for each (phi, theta) sample
-    sin_theta = np.sin(theta_grid)
-    sin_phi = np.sin(phi_grid)
-    cos_theta = np.cos(theta_grid)
-    cos_phi = np.cos(phi_grid)
-    dir_grid = np.stack(
-        [
-            cos_theta * cos_phi,  # x
-            cos_theta * sin_phi,  # y
-            np.broadcast_to(sin_theta, (imp.param.ph_num, imp.param.th_num)),  # z
-        ],
-        axis=-1,
-    )  # [phi, theta, 3]
+    # Chunk sizes (default: full)
+    if chunk_phi is None:
+        chunk_phi = ph_num
+    if chunk_theta is None:
+        chunk_theta = th_num
 
-    # Weights: DRP values (minus mean) optionally scaled by sin(theta) for spherical area element
+    # Precompute per-pixel mean if requested (stream to reduce peak memory)
+    if subtract_mean:
+        if verbose:
+            print("spherical_descriptor: computing per-pixel mean")
+        sum_map = np.zeros((h, w), dtype=np.float32)
+        count = 0
+        for p0 in range(0, ph_num, chunk_phi):
+            p1 = min(p0 + chunk_phi, ph_num)
+            for t0 in range(0, th_num, chunk_theta):
+                t1 = min(t0 + chunk_theta, th_num)
+                block = imp.drp_stack[:, :, p0:p1, t0:t1].astype(np.float32, copy=False)
+                sum_map += block.sum(axis=(2, 3))
+                count += (p1 - p0) * (t1 - t0)
+        mean_map = sum_map / max(count, 1)
+    else:
+        mean_map = None
+
+    # Accumulators
     if verbose:
-        print("spherical_descriptor: computing weights")
-    weight = stack
-    if include_sin_theta:
-        weight = weight * np.sin(theta_grid)
+        print("spherical_descriptor: accumulating first-order moment")
+    weight_sum = np.zeros((h, w), dtype=np.float32)
+    m1_map = np.zeros((h, w, 3), dtype=np.float32)
 
-    # Normalise weights per pixel to avoid bias from brightness
-    if verbose:
-        print("spherical_descriptor: normalising weights")
-    weight_sum = np.sum(np.abs(weight), axis=(2, 3), keepdims=True)
-    norm_weight = weight / (weight_sum + eps)
+    for p0 in range(0, ph_num, chunk_phi):
+        p1 = min(p0 + chunk_phi, ph_num)
+        phi_block = phi[p0:p1]
+        cos_phi = np.cos(phi_block)[:, None]
+        sin_phi = np.sin(phi_block)[:, None]
+        for t0 in range(0, th_num, chunk_theta):
+            t1 = min(t0 + chunk_theta, th_num)
+            theta_block = theta[t0:t1]
+            cos_theta = np.cos(theta_block)[None, :]
+            sin_theta = np.sin(theta_block)[None, :]
 
-    # First-order moment (3D vector)
-    if verbose:
-        print("spherical_descriptor: computing first-order moment")
-    m1_map = np.sum(norm_weight[..., None] * dir_grid[None, None, ...], axis=(2, 3))
+            dir_x = cos_theta * cos_phi
+            dir_y = cos_theta * sin_phi
+            dir_z = np.broadcast_to(sin_theta, dir_x.shape)
 
-    # Centered directions for covariance
+            weight = imp.drp_stack[:, :, p0:p1, t0:t1].astype(np.float32, copy=False)
+            if subtract_mean:
+                weight = weight - mean_map[:, :, None, None]
+            if include_sin_theta:
+                weight = weight * sin_theta
+
+            weight_sum += np.sum(np.abs(weight), axis=(2, 3))
+            m1_map[..., 0] += np.sum(weight * dir_x[None, None, ...], axis=(2, 3))
+            m1_map[..., 1] += np.sum(weight * dir_y[None, None, ...], axis=(2, 3))
+            m1_map[..., 2] += np.sum(weight * dir_z[None, None, ...], axis=(2, 3))
+
+    # Normalize first-order moment by per-pixel weight sum
+    norm = weight_sum + eps
+    m1_map = m1_map / norm[..., None]
+
+    # Covariance accumulation
     if verbose:
-        print("spherical_descriptor: computing covariance")
-    centered = dir_grid[None, None, ...] - m1_map[..., None, None, :]
-    cov_map = np.einsum(
-        "hwpt,hwpti,hwptj->hwij",
-        norm_weight,
-        centered,
-        centered,
-    )
+        print("spherical_descriptor: accumulating covariance")
+    cov_map = np.zeros((h, w, 3, 3), dtype=np.float32)
+    for p0 in range(0, ph_num, chunk_phi):
+        p1 = min(p0 + chunk_phi, ph_num)
+        phi_block = phi[p0:p1]
+        cos_phi = np.cos(phi_block)[:, None]
+        sin_phi = np.sin(phi_block)[:, None]
+        for t0 in range(0, th_num, chunk_theta):
+            t1 = min(t0 + chunk_theta, th_num)
+            theta_block = theta[t0:t1]
+            cos_theta = np.cos(theta_block)[None, :]
+            sin_theta = np.sin(theta_block)[None, :]
+
+            dir_x = cos_theta * cos_phi
+            dir_y = cos_theta * sin_phi
+            dir_z = np.broadcast_to(sin_theta, dir_x.shape)
+
+            weight = imp.drp_stack[:, :, p0:p1, t0:t1].astype(np.float32, copy=False)
+            if subtract_mean:
+                weight = weight - mean_map[:, :, None, None]
+            if include_sin_theta:
+                weight = weight * sin_theta
+
+            # Normalized weights for covariance
+            w_norm = weight / (norm[..., None, None])
+
+            cx = dir_x[None, None, ...] - m1_map[..., 0][..., None, None]
+            cy = dir_y[None, None, ...] - m1_map[..., 1][..., None, None]
+            cz = dir_z[None, None, ...] - m1_map[..., 2][..., None, None]
+
+            cov_map[..., 0, 0] += np.sum(w_norm * cx * cx, axis=(2, 3))
+            cov_map[..., 0, 1] += np.sum(w_norm * cx * cy, axis=(2, 3))
+            cov_map[..., 0, 2] += np.sum(w_norm * cx * cz, axis=(2, 3))
+            cov_map[..., 1, 0] += np.sum(w_norm * cy * cx, axis=(2, 3))
+            cov_map[..., 1, 1] += np.sum(w_norm * cy * cy, axis=(2, 3))
+            cov_map[..., 1, 2] += np.sum(w_norm * cy * cz, axis=(2, 3))
+            cov_map[..., 2, 0] += np.sum(w_norm * cz * cx, axis=(2, 3))
+            cov_map[..., 2, 1] += np.sum(w_norm * cz * cy, axis=(2, 3))
+            cov_map[..., 2, 2] += np.sum(w_norm * cz * cz, axis=(2, 3))
 
     if verbose:
         print("spherical_descriptor: done")
-    return m1_map, cov_map, weight_sum[..., 0, 0]
+    return m1_map, cov_map, weight_sum
 
 
 def spherical_descriptor_maps(
@@ -173,6 +235,9 @@ def spherical_descriptor_maps(
     include_sin_theta: bool = False,
     eps: float = 1e-9,
     verbose: bool = False,
+    *,
+    chunk_phi: int | None = None,
+    chunk_theta: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Convenience wrapper to compute direction, projection, and strength maps
@@ -191,6 +256,8 @@ def spherical_descriptor_maps(
         include_sin_theta=include_sin_theta,
         eps=eps,
         verbose=verbose,
+        chunk_phi=chunk_phi,
+        chunk_theta=chunk_theta,
     )
 
     # Direction (unit vector) and strength (norm)

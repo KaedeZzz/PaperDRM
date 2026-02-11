@@ -39,6 +39,24 @@ if __name__ == "__main__":
 
     log_stage("Building trigonometric mask")
     # Normalize orientation to 0–255 and show
+    w_patch_count = 4
+    h_patch_count = 4
+    w_indices = range(0, mag_map.shape[1], mag_map.shape[1] // w_patch_count)
+    h_indices = range(0, mag_map.shape[0], mag_map.shape[0] // h_patch_count)
+    for i, j in [(i, j) for i in range(w_patch_count) for j in range(h_patch_count)]:
+        patch = deg_map[h_indices[j] : h_indices[j] + mag_map.shape[0] // h_patch_count,
+                         w_indices[i] : w_indices[i] + mag_map.shape[1] // w_patch_count]
+        theta = np.deg2rad(patch)
+        S = np.sum(np.sin(theta))
+        C = np.sum(np.cos(theta))
+        mu = np.arctan2(S, C)
+        patch = np.deg2rad(patch) - mu
+        patch = np.cos(patch)
+        plt.imshow(patch, cmap="gray")
+        plt.title(f"Trigonometric Mask Patch ({i}, {j})")
+        plt.axis("off")
+        plt.show()
+
     target_angle = -90.0  # target direction for DRP
     sigma_deg = 12.0
     # shortest signed angular difference in [-180, 180]

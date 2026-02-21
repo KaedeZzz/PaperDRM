@@ -14,6 +14,7 @@ from .drp_compute import (
 )
 from .drp_plot import plot_drp
 from .image_io import (
+    open_drp_memmap,
     prepare_cache,
     resolve_config_path,
     resolve_image_folder,
@@ -137,9 +138,8 @@ class ImagePack:
             # Force recreation with new slice parameters
             self._log(f"Cache slice {cache_slice} != requested {self.angle_slice}; recreating memmap")
             self._close_memmap(self.drp_stack)
-            self.drp_stack = np.memmap(
+            self.drp_stack = open_drp_memmap(
                 self.paths.cache / "drp.dat",
-                dtype="uint8",
                 mode="w+",
                 shape=stack_shape,
             )
@@ -164,9 +164,8 @@ class ImagePack:
             reason = "shape mismatch" if self.drp_stack.shape != expected_shape else "use_cached_stack=False"
             self._log(f"Recreating DRP memmap due to {reason}; expected {expected_shape}, found {self.drp_stack.shape}")
             self._close_memmap(self.drp_stack)
-            self.drp_stack = np.memmap(
+            self.drp_stack = open_drp_memmap(
                 self.paths.cache / "drp.dat",
-                dtype="uint8",
                 mode="w+",
                 shape=expected_shape,
             )

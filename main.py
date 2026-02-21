@@ -1,24 +1,21 @@
-import sys
-import numpy as np
-import scipy
-from matplotlib import pyplot as plt
 import cv2
 
 from paperdrm import ImagePack, Settings
-from paperdrm.drp_direction import drp_direction_map, drp_mask_angle
-from paperdrm.spectral_tv import split_text_background
-from paperdrm.line_detection import (
-        hough_transform,
-        find_hough_peaks,
-        dominant_orientation_from_accumulator,
-        rotate_image_to_orientation,
-        overlay_hough_lines,
-    )
+from paperdrm.drp_direction import drp_direction_map
 from paperdrm.gabor_laidlines import (
-        estimate_laidline_frequency_gabor,
         estimate_laidline_frequency_gabor_patches,
         overlay_laid_lines,
     )
+from paperdrm.trig_mask import (
+    azimuth_to_laidline_gray,
+    orientation_comparison_maps,
+    patchwise_trigonometric_mask,
+)
+from paperdrm.visualization import (
+    plot_orientation_comparison,
+    plot_patch_best_score_map,
+    plot_trig_mask_comparison,
+)
 
 
 if __name__ == "__main__":
@@ -34,39 +31,62 @@ if __name__ == "__main__":
     images = ImagePack(settings=settings)
 
     log_stage("Computing direction map + mask")
-    # Direction map + mask
+    # DRP direction output:
+    # - mag_map: confidence/anisotropy-like strength per pixel
+    # - deg_map: dominant orientation angle (degrees) per pixel
     mag_map, deg_map = drp_direction_map(images, verbose=settings.verbose)
 
     log_stage("Building trigonometric mask")
-    # Normalize orientation to 0–255 and show
-    w_patch_count = 4
-    h_patch_count = 4
-    w_indices = range(0, mag_map.shape[1], mag_map.shape[1] // w_patch_count)
-    h_indices = range(0, mag_map.shape[0], mag_map.shape[0] // h_patch_count)
-    for i, j in [(i, j) for i in range(w_patch_count) for j in range(h_patch_count)]:
-        patch = deg_map[h_indices[j] : h_indices[j] + mag_map.shape[0] // h_patch_count,
-                         w_indices[i] : w_indices[i] + mag_map.shape[1] // w_patch_count]
-        theta = np.deg2rad(patch)
-        S = np.sum(np.sin(theta))
-        C = np.sum(np.cos(theta))
-        mu = np.arctan2(S, C)
-        patch = np.deg2rad(patch) - mu
-        patch = np.cos(patch)
-        plt.imshow(patch, cmap="gray")
-        plt.title(f"Trigonometric Mask Patch ({i}, {j})")
-        plt.axis("off")
-        plt.show()
+    # Build both:
+    # 1) previous single-target trig mask (baseline),
+    # 2) patch-adaptive trig mask (current approach).
+    sigma_deg = 10.0
+    target_angle = 90.0
+    prev_raw_img, prev_img = azimuth_to_laidline_gray(
+        deg_map,
+        target_deg=target_angle,
+        sigma_deg=sigma_deg,
+        enhance=True,
+    )
 
-    target_angle = -90.0  # target direction for DRP
-    sigma_deg = 12.0
-    # shortest signed angular difference in [-180, 180]
-    ang = (deg_map - target_angle + 180) % 360 - 180
-    resp = np.exp(-(ang ** 2) / (2 * sigma_deg ** 2))
-    img = (resp * 255).astype(np.uint8)
-    plt.imshow(img, cmap="gray")
-    plt.title("Direction Map (0–255 normalized)")
-    plt.show()
+    patch_size = (512, 512)
+    stride = (256, 256)
+    patch_raw_img, patch_img, patch_target_deg_map, target_img = patchwise_trigonometric_mask(
+        deg_map,
+        patch_size=patch_size,
+        stride=stride,
+        sigma_deg=sigma_deg,
+        enhance=True,
+    )
 
+    # Absolute difference map to highlight where patchwise diverges from baseline.
+    diff_img = cv2.absdiff(prev_img, patch_img)
+
+    # Compare patch dominant orientation with raw azimuthal map from earlier method.
+    raw_azimuth_orientation_8u, orientation_diff_deg = orientation_comparison_maps(
+        deg_map, patch_target_deg_map
+    )
+    plot_orientation_comparison(raw_azimuth_orientation_8u, target_img, orientation_diff_deg)
+    plot_trig_mask_comparison(
+        prev_raw_img,
+        patch_raw_img,
+        target_img,
+        prev_img,
+        patch_img,
+        diff_img,
+        target_angle,
+    )
+
+    print(
+        "Patchwise trig params:",
+        f"patch_size={patch_size}",
+        f"stride={stride}",
+        f"sigma_deg={sigma_deg}",
+    )
+    print("Difference stats:", f"mean_abs_diff={diff_img.mean():.2f}", f"max_abs_diff={diff_img.max()}")
+
+    # Use patchwise trig enhanced grayscale map for downstream Gabor estimation.
+    gabor_input_gray = patch_img
     # log_stage("Running spectral TV decomposition")
     # # Spectral TV decomposition to split text vs paper background
     # img_float = img.astype(np.float32)
@@ -101,35 +121,19 @@ if __name__ == "__main__":
     # plt.show()
 
     log_stage("Gabor filter for laid line frequency estimation")
-    
+    # Patch-based Gabor scan:
+    # estimate local dominant spacing (period in pixels), then aggregate.
     out = estimate_laidline_frequency_gabor_patches(
-        img,
+        gabor_input_gray,
         line_dir_deg=90.0,
-        patch_size=(1024, 1024),
-        stride=(512, 512),
+        patch_size=patch_size,
+        stride=stride,
         periods_px=list(range(6, 41, 2)),
         min_score=0.02,
         weight_scale=3.0
     )
-    # Visualize per-patch best score on a grid.
-    patch_map = {}
-    for p in out["patch_results"]:
-        patch_map[(p["y"], p["x"])] = p["best_score"]
-    ys = sorted(set([p["y"] for p in out["patch_results"]]))
-    xs = sorted(set([p["x"] for p in out["patch_results"]]))
-    if len(ys) > 0 and len(xs) > 0:
-        period_grid = np.full((len(ys), len(xs)), np.nan, dtype=np.float32)
-        for yi, y in enumerate(ys):
-            for xi, x in enumerate(xs):
-                period_grid[yi, xi] = patch_map.get((y, x), np.nan)
-        plt.figure(figsize=(6, 5))
-        plt.imshow(period_grid, cmap="magma", aspect="auto")
-        plt.colorbar(label="Best score")
-        plt.title("Patch Best-Score Map")
-        plt.xlabel("Patch column")
-        plt.ylabel("Patch row")
-        plt.tight_layout()
-        plt.show()
+    # Visualize per-patch best score (higher means stronger periodic evidence).
+    plot_patch_best_score_map(out["patch_results"])
     print(
         "dominant orientation: ",
         out["line_dir_deg"],
@@ -139,8 +143,10 @@ if __name__ == "__main__":
         out["dominant_freq_cpp"],
         "cpp",
     )
+
+    # Overlay the inferred laid-line grid on the grayscale likelihood image.
     overlay, peaks_x = overlay_laid_lines(
-        img,
+        gabor_input_gray,
         line_dir_deg=out["line_dir_deg"],
         best_signal_1d=out["dominant_signal_1d"],
         best_period_px=out["dominant_period_px"],
@@ -175,9 +181,3 @@ if __name__ == "__main__":
     # for peak in peaks_by_height[:keep]:
     #     plt.plot([peak, peak], [0, img.shape[0]], color="red", linewidth=1)
     # plt.show()
-
-
-
-
-
-

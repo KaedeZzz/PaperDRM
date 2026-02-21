@@ -215,7 +215,7 @@ def estimate_laidline_frequency_gabor_patches(
     # Patch strategy motivation:
     # - Laid lines can be locally clearer in some regions than others.
     # - Estimating per patch reduces the impact of local stains/ink/defects.
-    # - Aggregating patch proposals yields a more robust global period.
+    # - Use the single highest-confidence patch as the global proposal.
     if img.ndim != 2:
         raise ValueError("estimate_laidline_frequency_gabor_patches expects a 2D image.")
 
@@ -284,20 +284,11 @@ def estimate_laidline_frequency_gabor_patches(
             "line_dir_deg": float(line_dir_deg),
         }
 
-    periods = np.array([r["best_period_px"] for r in valid], dtype=np.float32)
-    scores = np.array([r["best_score"] for r in valid], dtype=np.float32)
-    thetas = np.array([r["best_theta_deg"] for r in valid], dtype=np.float32)
-
-    # Weighted mean of periods using exp(score * weight_scale) as weights.
-    # Use a max-shift for numerical stability (softmax-style).
-    if not np.isfinite(weight_scale):
-        raise ValueError("weight_scale must be finite.")
-    scaled = scores * float(weight_scale)
-    scaled = scaled - float(np.max(scaled))
-    weights = np.exp(scaled)
-    dominant_period = _weighted_mean(periods, weights)
-    # Median theta is a simple robust summary of patch orientations.
-    dominant_theta = float(np.median(thetas))
+    # Select dominant period from the single highest-confidence patch.
+    # Keep weight_scale in signature for backward API compatibility.
+    best_patch = max(valid, key=lambda r: float(r["best_score"]))
+    dominant_period = float(best_patch["best_period_px"])
+    dominant_theta = float(best_patch["best_theta_deg"])
     # Recompute best response on the full image at the dominant period.
     img01 = _normalize01(img)
     dominant_best = _best_for_period(

@@ -58,7 +58,18 @@ def open_drp_memmap(path: Path, shape: tuple[int, int, int, int], mode: str) -> 
     Open a memmap for the DRP stack, creating parent directories if needed.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    return np.memmap(path, dtype="uint8", mode=mode, shape=shape) # type: ignore
+    # On Windows, opening an already-mapped file with mode='w+' (truncate)
+    # can fail when another process still holds a map. To avoid destructive
+    # truncation, reuse the existing file in r+ and only expand if needed.
+    if mode == "w+" and path.exists():
+        required_bytes = int(np.prod(shape, dtype=np.int64)) * np.dtype("uint8").itemsize
+        current_bytes = path.stat().st_size
+        if current_bytes < required_bytes:
+            with path.open("r+b") as fh:
+                fh.truncate(required_bytes)
+        return np.memmap(path, dtype="uint8", mode="r+", shape=shape)  # type: ignore
+
+    return np.memmap(path, dtype="uint8", mode=mode, shape=shape)  # type: ignore
 
 
 def prepare_cache(

@@ -1,94 +1,120 @@
 # PaperDRM
 
-Python toolkit for working with directional reflectance profile (DRP) image stacks. It handles data prep (RGB to grayscale and blurred background generation), fast DRP stack construction with on-disk caching, per-pixel orientation/moment analysis, and simple visualisation utilities.
+PaperDRM is a Python toolkit for directional reflectance profile (DRP) image stacks, with a workflow focused on laid-line analysis.
 
-## Repository layout
-- `main.py` - minimal example that loads an image stack, plots the mean DRP, computes direction maps, and does a quick peak-finding pass.
-- `paperdrm/` - core library code:
-  - `imagepack.py` - `ImagePack` loader with caching, background subtraction, angle slicing, DRP extraction, and plotting helpers.
-  - `drp_compute.py`, `drp_direction.py`, `drp_plot.py` - DRP stack creation, spherical moment/direction maps, and plotting utilities.
-  - `line_detection.py` - Hough-based line/angle detection helpers.
-  - `config.py`, `image_io.py`, `paths.py` - configuration, I/O, and data path helpers.
-  - `roi.py`, `imageparam.py` - lightweight ROI and parameter helpers kept for compatibility.
-- `scripts/` - standalone preprocessing scripts:
-  - `rgb2grey.py` converts `data/raw` RGB images to grayscale into `data/processed`.
-  - `bg_blur.py` builds a heavily blurred background set in `data/background` for subtraction.
-- `data/` - expected data root; contains `raw/`, `processed/`, `background/`, and `cache/` (memmap + metadata written automatically).
-- `exp_param.yaml` - DRP acquisition parameters for the dataset (phi/theta ranges and counts).
-- `main.ipynb`, `map_visualise.ipynb` - interactive exploration notebooks.
+It includes:
+- image stack loading and optional background subtraction,
+- DRP stack caching to disk,
+- per-pixel DRP direction estimation,
+- patchwise trigonometric orientation masks,
+- patchwise Gabor frequency estimation,
+- orientation and score visualizations.
 
-## Quick start
-1) Install dependencies (Python 3.11+ recommended):
-```bash
+## Current Pipeline
+`main.py` runs this sequence:
+1. Load settings from `exp_param.yaml`.
+2. Build/load an `ImagePack` (and cached DRP memmap).
+3. Compute DRP direction map (`deg_map`).
+4. Build:
+- baseline trig mask (`azimuth_to_laidline_gray`),
+- patchwise trig mask (`patchwise_trigonometric_mask`).
+5. Visualize:
+- raw azimuth vs patch dominant orientation,
+- trig baseline vs patchwise trig outputs,
+- patchwise Gabor confidence map.
+6. Run patchwise Gabor using the **patchwise trig enhanced grayscale image** as input.
+7. Overlay inferred laid-line grid and save `laid_lines_overlay_grid.png`.
+
+## Repository Layout
+- `main.py`: end-to-end runnable pipeline.
+- `paperdrm/`: core library modules.
+- `paperdrm/imagepack.py`: image loading, background subtraction, angle slicing, DRP cache management.
+- `paperdrm/drp_compute.py`, `paperdrm/drp_direction.py`, `paperdrm/drp_plot.py`: DRP compute and direction/plot utilities.
+- `paperdrm/trig_mask.py`: trig-mask builders and orientation comparison map helpers.
+- `paperdrm/gabor_laidlines.py`: Gabor-based laid-line period/orientation estimation and overlay utilities.
+- `paperdrm/visualization.py`: plotting helpers used by the pipeline.
+- `scripts/rgb2grey.py`: convert `data/raw` images to grayscale in `data/processed`.
+- `scripts/bg_blur.py`: generate blurred backgrounds in `data/background`.
+- `exp_param.yaml`: DRP and runtime settings.
+
+## Installation
+Python 3.10+ is required.
+
+PowerShell:
+```powershell
 python -m venv .venv
-.venv\Scripts\activate   # PowerShell on Windows
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-2) Prepare data:
-- Place raw RGB captures in `data/raw` (filenames will be reused).
-- Convert to grayscale: `python scripts/rgb2grey.py` (writes to `data/processed`).
-- Generate blurred backgrounds (optional but enables subtraction): `python scripts/bg_blur.py` (writes to `data/background`).
+## Data Preparation
+Expected folders under `data/`:
+- `data/raw`
+- `data/processed`
+- `data/background`
+- `data/cache` (auto-created)
 
-3) Configure angles in `exp_param.yaml`:
-```yaml
-data_serial: 7        # bump this to invalidate cached DRP when data changes
-th_min: 10            # theta start (deg)
-th_max: 65            # theta end   (deg)
-th_num: 12            # theta samples
-ph_min: 0             # phi start (deg)
-ph_max: 351           # phi end   (deg)
-ph_num: 40            # phi samples
+Typical prep:
+```powershell
+python scripts/rgb2grey.py
+python scripts/bg_blur.py
 ```
-`data_serial` is stored alongside the cached memmap; changing it forces a rebuild.
 
-4) Run the example pipeline:
-```bash
+## Configuration
+Edit `exp_param.yaml`.
+
+Important fields:
+- `th_min`, `th_max`, `th_num`: theta sampling.
+- `ph_min`, `ph_max`, `ph_num`: phi sampling.
+- `data_serial`: bump to force DRP cache rebuild when dataset changes.
+- `subtract_background`: enable/disable subtraction.
+- `square_crop`: optional center crop to square.
+
+`main.py` currently overrides settings with:
+- `angle_slice=(2, 2)`
+- `verbose=True`
+
+## Run
+```powershell
 python main.py
 ```
-This loads grayscale images from `data/processed`, subtracts blurred backgrounds if present, builds (or reuses) a cached DRP stack in `data/cache/drp.dat`, plots the mean DRP, computes a direction map + mask, and shows a simple column-intensity peak overlay.
 
-## Core usage (library)
+Outputs:
+- orientation comparison plot,
+- trig mask comparison plot,
+- patchwise Gabor score heatmap,
+- saved overlay image: `laid_lines_overlay_grid.png`.
+
+## Library Usage Example
 ```python
 from paperdrm import ImagePack, Settings
-from paperdrm.drp_direction import drp_direction_map, drp_mask_angle
+from paperdrm.drp_direction import drp_direction_map
+from paperdrm.trig_mask import patchwise_trigonometric_mask
+from paperdrm.gabor_laidlines import estimate_laidline_frequency_gabor_patches
 
-# Centralised settings loaded from YAML; override angle_slice in code
 settings = Settings.from_yaml("exp_param.yaml").with_overrides(angle_slice=(2, 2))
-
-# Load images with optional angle down-sampling and background subtraction
 imp = ImagePack(settings=settings)
 
-# Mean DRP over the image or from a single pixel
-mean_drp = imp.get_mean_drp()      # shape [phi, theta]
-pixel_drp = imp.drp((100, 200))    # per-pixel DRP from the cached stack
+_, deg_map = drp_direction_map(imp, verbose=False)
+_, patch_img, _, _ = patchwise_trigonometric_mask(deg_map, patch_size=(512, 512), stride=(256, 256))
 
-# Per-pixel DRP direction and a magnitude-weighted mask near 90 +/- 45 deg
-mag_map, deg_map = drp_direction_map(imp, display=False)
-mask = drp_mask_angle(mag_map, deg_map, orientation=90, threshold=45)
-
-# Apply a mask to images (e.g., to focus on an ROI) and rebuild metrics
-imp.mask_images(mask, normalize=True)
+out = estimate_laidline_frequency_gabor_patches(
+    patch_img,
+    line_dir_deg=90.0,
+    patch_size=(512, 512),
+    stride=(256, 256),
+    periods_px=list(range(6, 41, 2)),
+)
+print(out["dominant_period_px"], out["dominant_freq_cpp"])
 ```
 
-### Additional helpers
-- `paperdrm.line_detection.hough_transform` / `find_hough_peaks` / `rotate_image_to_orientation` for line detection and alignment.
-- `paperdrm.drp_direction.spherical_descriptor` and `spherical_descriptor_maps` for per-pixel 3D orientation descriptors, anisotropy scores, and dominant plane angles.
-- `ImagePack.plot_drp` (wraps `drp_plot.plot_drp`) to visualise any DRP array in stereo or direct projection.
-
-## Data & caching notes
-- Data is addressed via `data_root` (defaults to `data/` relative to the repo) with expected subfolders `raw/`, `processed/`, `background/`, and `cache/`.
-- The DRP stack is stored as a NumPy memmap at `data/cache/drp.dat` with metadata in `data/cache/data_config.yaml`. The cache is automatically rebuilt when:
-  - the angle slice passed to `ImagePack` differs from the cached slice, or
-  - `data_serial` in `exp_param.yaml` changes, or
-  - the on-disk shape mismatches the expected phi/theta counts.
-- `angle_slice` lets you down-sample the phi/theta grid (e.g., `(2, 2)` halves both resolutions) before stack construction for faster experimentation.
-
-## Notebooks
-- `main.ipynb` follows the scripted pipeline with richer plots.
-- `map_visualise.ipynb` contains interactive DRP/angle visualisations. Activate the virtual environment first so notebooks use the same dependencies.
+## Caching Notes
+- DRP stack is stored at `data/cache/drp.dat` (NumPy memmap).
+- Cache metadata is stored in `data/cache/data_config.yaml`.
+- Cache rebuild occurs when serial/slice/shape expectations do not match.
 
 ## Troubleshooting
-- No images found: ensure grayscale images exist in `data/processed` (correct extension set by `img_format`).
-- Background subtraction errors: background counts and dimensions must match the processed set; regenerate via `scripts/bg_blur.py`.
-- Cache mismatch errors: bump `data_serial` or delete `data/cache` to force a clean rebuild.
+- No images loaded: verify `data/processed` contains files matching configured format.
+- Background mismatch errors: regenerate `data/background` from the same processed set.
+- Unexpected stale results: bump `data_serial` or clear `data/cache`.
+- `cv2.imshow` window issues (headless environments): comment GUI display lines in `main.py` and rely on saved outputs.

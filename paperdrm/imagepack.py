@@ -6,6 +6,7 @@ import numpy as np
 from .settings import CacheConfig, DRPConfig, load_drp_config, save_cache_config
 from .drp_compute import (
     apply_angle_slice,
+    apply_theta_min_filter,
     build_drp_stack,
     drp_from_images,
     drp_from_stack,
@@ -155,8 +156,13 @@ class ImagePack:
 
         # Apply slicing to images and config
         self.images, self.param = apply_angle_slice(self.images, self.base_config, self.angle_slice)
+        self.images, self.param = apply_theta_min_filter(self.images, self.param, self.settings.theta_min_deg)
         self.num_images = len(self.images)
-        self._log(f"Applied angle slice -> ph_num={self.param.ph_num}, th_num={self.param.th_num}")
+        self._log(
+            "Applied angular filtering -> "
+            f"ph_num={self.param.ph_num}, th_num={self.param.th_num}, "
+            f"th_min={self.param.th_min}, th_max={self.param.th_max}"
+        )
 
         expected_shape = (self.h, self.w, self.param.ph_num, self.param.th_num)
         if self.drp_stack.shape != expected_shape or not self.settings.use_cached_stack:

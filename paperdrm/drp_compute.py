@@ -50,6 +50,53 @@ def apply_angle_slice(
     return sliced_images, new_cfg
 
 
+def apply_theta_min_filter(
+    images: list[np.ndarray],
+    config: DRPConfig,
+    theta_min_deg: float | None,
+) -> tuple[list[np.ndarray], DRPConfig]:
+    """
+    Keep only theta samples >= theta_min_deg (after any angle slicing).
+    """
+    if theta_min_deg is None:
+        return images, config
+
+    expected = config.ph_num * config.th_num
+    if len(images) != expected:
+        raise ValueError(f"Number of images {len(images)} does not match number of angles {expected}.")
+
+    theta_vals = np.linspace(float(config.th_min), float(config.th_max), int(config.th_num), endpoint=True)
+    keep_theta_idx = np.where(theta_vals >= float(theta_min_deg))[0]
+    if keep_theta_idx.size < 2:
+        raise ValueError(
+            f"theta_min_deg={theta_min_deg} leaves fewer than 2 theta samples "
+            f"(th range {config.th_min}..{config.th_max}, th_num={config.th_num})."
+        )
+    if keep_theta_idx.size == config.th_num:
+        return images, config
+
+    # Image order is [phi major, theta minor], so filter theta columns in a [phi, theta] grid.
+    indices = np.arange(expected).reshape(config.ph_num, config.th_num)
+    kept_indices = indices[:, keep_theta_idx].ravel()
+    filtered_images = [images[int(i)] for i in kept_indices]
+
+    th_min_new = float(theta_vals[int(keep_theta_idx[0])])
+    th_max_new = float(theta_vals[int(keep_theta_idx[-1])])
+    if float(th_min_new).is_integer():
+        th_min_new = int(th_min_new)
+    if float(th_max_new).is_integer():
+        th_max_new = int(th_max_new)
+
+    new_cfg = replace(
+        config,
+        th_min=th_min_new,
+        th_max=th_max_new,
+        th_num=int(keep_theta_idx.size),
+    )
+    new_cfg.validate()
+    return filtered_images, new_cfg
+
+
 def mask_images(images: list[np.ndarray], mask: np.ndarray, normalize: bool = False) -> list[np.ndarray]:
     if not images:
         return []

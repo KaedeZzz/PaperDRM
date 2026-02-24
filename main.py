@@ -143,6 +143,20 @@ if __name__ == "__main__":
         out["dominant_freq_cpp"],
         "cpp",
     )
+    if settings.fov_width_cm is not None:
+        image_width_px = gabor_input_gray.shape[1]
+        cm_per_px = float(settings.fov_width_cm) / float(image_width_px)
+        laid_interval_cm = float(out["dominant_period_px"]) * cm_per_px
+        lines_per_cm = (1.0 / laid_interval_cm) if laid_interval_cm > 0 else float("inf")
+        print(
+            "estimated laid line interval =",
+            f"{laid_interval_cm:.4f}",
+            "cm",
+            f"(using fov_width_cm={float(settings.fov_width_cm):.4f}, image_width_px={image_width_px})",
+        )
+        print("estimated laid line density =", f"{lines_per_cm:.4f}", "lines/cm")
+    else:
+        print("No fov_width_cm set in exp_param.yaml; skipping laid line interval and density in centimeters.")
 
     # Overlay the inferred laid-line grid on the grayscale likelihood image.
     overlay, peaks_x = overlay_laid_lines(

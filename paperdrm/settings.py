@@ -141,6 +141,8 @@ class Settings:
     config_path: str | Path | None = None
     drp: DRPConfig | None = None
     square_crop: bool = False
+    theta_min_deg: float | None = None
+    fov_width_cm: float | None = None
     verbose: bool = False
 
     def __post_init__(self) -> None:
@@ -158,6 +160,10 @@ class Settings:
         if self.drp is None:
             raise ValueError("Settings.drp must be provided (load via Settings.from_yaml or supply DRPConfig).")
         self.drp.validate()
+        if self.theta_min_deg is not None and float(self.theta_min_deg) > float(self.drp.th_max):
+            raise ValueError("theta_min_deg cannot exceed DRP th_max.")
+        if self.fov_width_cm is not None and float(self.fov_width_cm) <= 0:
+            raise ValueError("fov_width_cm must be positive when provided.")
         if len(self.angle_slice) != 2:
             raise ValueError("angle_slice must be a 2-tuple of (phi_slice, theta_slice).")
         ph_slice, th_slice = self.angle_slice
@@ -195,5 +201,7 @@ class Settings:
             config_path=cfg_path,
             drp=drp_cfg,
             square_crop=raw.get("square_crop", False),
+            theta_min_deg=raw.get("theta_min_deg"),
+            fov_width_cm=raw.get("fov_width_cm"),
             verbose=raw.get("verbose", False),
         )

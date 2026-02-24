@@ -69,6 +69,8 @@ Important fields:
 - `data_serial`: bump to force DRP cache rebuild when dataset changes.
 - `subtract_background`: enable/disable subtraction.
 - `square_crop`: optional center crop to square.
+- `theta_min_deg`: optional lower bound; keeps only theta samples greater than or equal to this value.
+- `fov_width_cm`: horizontal field-of-view width in centimeters (optional, used to report laid-line interval in cm).
 
 `main.py` currently overrides settings with:
 - `angle_slice=(2, 2)`
@@ -83,6 +85,7 @@ Outputs:
 - orientation comparison plot,
 - trig mask comparison plot,
 - patchwise Gabor score heatmap,
+- console estimates of laid-line interval (`cm`) and density (`lines/cm`) when `fov_width_cm` is set,
 - saved overlay image: `laid_lines_overlay_grid.png`.
 
 ## Library Usage Example

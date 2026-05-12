@@ -1,4 +1,19 @@
 data/
-__pycache__
-.venv
+__pycache__/
+.venv/
 .DS_Store
+
+# Pipeline output overlays at repo root (notebooks/results go elsewhere)
+/*.png
+
+# Notebooks are treated as personal scratch space, not source
+*.ipynb
+.ipynb_checkpoints/
+
+# Build / package artefacts
+*.egg-info/
+build/
+dist/
+
+# Editor/tool backups
+*.bak

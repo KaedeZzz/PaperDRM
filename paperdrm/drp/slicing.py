@@ -1,9 +1,16 @@
+"""
+Angular slicing of the DRP image list.
+
+These operate on the *list of images* (one per (phi, theta) sample) and on the
+companion DRPConfig describing the angular grid. They produce a reduced image
+list and an updated config that downstream stack-building consumes.
+"""
+
 from dataclasses import replace
 
 import numpy as np
-from tqdm import tqdm
 
-from .settings import DRPConfig
+from paperdrm.loader.settings import DRPConfig
 
 
 def slice_indices(config: DRPConfig, angle_slice: tuple[int, int]) -> np.ndarray:
@@ -31,7 +38,6 @@ def apply_angle_slice(
     if len(images) != expected:
         raise ValueError(f"Number of images {len(images)} does not match number of angles {expected}.")
 
-    # Select one image per slice step to reduce angular resolution
     indices = slice_indices(config, angle_slice)
     sliced_images = [images[i] for i in indices]
 
@@ -75,7 +81,6 @@ def apply_theta_min_filter(
     if keep_theta_idx.size == config.th_num:
         return images, config
 
-    # Image order is [phi major, theta minor], so filter theta columns in a [phi, theta] grid.
     indices = np.arange(expected).reshape(config.ph_num, config.th_num)
     kept_indices = indices[:, keep_theta_idx].ravel()
     filtered_images = [images[int(i)] for i in kept_indices]
@@ -95,62 +100,3 @@ def apply_theta_min_filter(
     )
     new_cfg.validate()
     return filtered_images, new_cfg
-
-
-def mask_images(images: list[np.ndarray], mask: np.ndarray, normalize: bool = False) -> list[np.ndarray]:
-    if not images:
-        return []
-    if mask.shape != images[0].shape:
-        raise ValueError(f"Mask shape {mask.shape} must match image shape {images[0].shape}.")
-    res_list: list[np.ndarray] = []
-    for image in tqdm(images, desc="masking images"):
-        arr = image.astype(np.float64)
-        arr *= mask
-        if normalize:
-            denom = arr.max() - arr.min()
-            arr = 255 * (arr - arr.min()) / denom if denom != 0 else arr
-        arr = np.clip(arr, 0, 255).astype(np.uint8)
-        res_list.append(arr)
-    return res_list
-
-
-def drp_from_images(images: list[np.ndarray], config: DRPConfig, loc: tuple[int, int]) -> np.ndarray:
-    """
-    Vectorized DRP extraction at a single pixel across the image stack.
-    """
-    y, x = loc
-    # Stack to [N, h, w] then reshape to [phi, theta, h, w] and slice pixel
-    arr = np.stack(images, axis=0).reshape(config.ph_num, config.th_num, images[0].shape[0], images[0].shape[1])
-    return arr[:, :, y, x]
-
-
-def drp_from_stack(stack: np.ndarray, loc: tuple[int, int]) -> np.ndarray:
-    y, x = loc
-    return stack[y, x, :, :]
-
-
-def build_drp_stack(
-    images: list[np.ndarray],
-    config: DRPConfig,
-    memmap: np.memmap,
-    *,
-    verbose: bool = False,
-) -> np.memmap:
-    ph, th = config.ph_num, config.th_num
-    if len(images) != ph * th:
-        raise ValueError(f"Number of images {len(images)} does not match number of angles {ph * th}.")
-    if verbose:
-        print(f"[DRP] building DRP stack from {len(images)} images -> shape ({ph}, {th})")
-    arr = np.stack(images, axis=0, dtype=np.uint8)
-    h, w = arr.shape[1:]
-    # Build a contiguous phi/theta-first view then move axes once when copying to the memmap.
-    phi_theta_view = arr.reshape((ph, th, h, w))
-    np.copyto(memmap, np.moveaxis(phi_theta_view, (0, 1), (2, 3)))
-    memmap.flush()
-    if verbose:
-        print("[DRP] DRP stack build complete and flushed to disk")
-    return memmap
-
-
-def mean_drp_from_stack(stack: np.ndarray) -> np.ndarray:
-    return np.mean(stack, axis=(0, 1))

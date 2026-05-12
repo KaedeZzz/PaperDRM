@@ -1,4 +1,6 @@
-from __future__ import annotations
+"""
+Comparison plots for Stage 2 (trig masks) and Stage 3 (Gabor patches).
+"""
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -9,20 +11,20 @@ def plot_orientation_comparison(
     patch_target_8u: np.ndarray,
     orientation_diff_deg: np.ndarray,
 ) -> None:
-    fig_orient, axes_orient = plt.subplots(1, 3, figsize=(15, 5))
-    axes_orient[0].imshow(raw_azimuth_orientation_8u, cmap="hsv", vmin=0, vmax=255)
-    axes_orient[0].set_title("Raw Azimuthal Orientation")
-    axes_orient[0].axis("off")
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    axes[0].imshow(raw_azimuth_orientation_8u, cmap="hsv", vmin=0, vmax=255)
+    axes[0].set_title("Raw Azimuthal Orientation")
+    axes[0].axis("off")
 
-    axes_orient[1].imshow(patch_target_8u, cmap="hsv", vmin=0, vmax=255)
-    axes_orient[1].set_title("Patch Dominant Orientation")
-    axes_orient[1].axis("off")
+    axes[1].imshow(patch_target_8u, cmap="hsv", vmin=0, vmax=255)
+    axes[1].set_title("Patch Dominant Orientation")
+    axes[1].axis("off")
 
-    im_diff = axes_orient[2].imshow(orientation_diff_deg, cmap="inferno", vmin=0, vmax=180)
-    axes_orient[2].set_title("Absolute Angular Difference (deg)")
-    axes_orient[2].axis("off")
+    im_diff = axes[2].imshow(orientation_diff_deg, cmap="inferno", vmin=0, vmax=180)
+    axes[2].set_title("Absolute Angular Difference (deg)")
+    axes[2].axis("off")
 
-    cbar = fig_orient.colorbar(im_diff, ax=axes_orient[2], fraction=0.046, pad=0.04)
+    cbar = fig.colorbar(im_diff, ax=axes[2], fraction=0.046, pad=0.04)
     cbar.set_label("deg")
     plt.tight_layout()
     plt.show()
@@ -62,22 +64,21 @@ def plot_trig_mask_comparison(
 
 
 def plot_patch_best_score_map(patch_results: list[dict]) -> None:
-    patch_map = {}
-    for p in patch_results:
-        patch_map[(p["y"], p["x"])] = p["best_score"]
+    """Per-patch confidence (best Gabor score) shown as a 2D heatmap."""
+    patch_map = {(p["y"], p["x"]): p["best_score"] for p in patch_results}
 
-    ys = sorted(set([p["y"] for p in patch_results]))
-    xs = sorted(set([p["x"] for p in patch_results]))
-    if len(ys) == 0 or len(xs) == 0:
+    ys = sorted({p["y"] for p in patch_results})
+    xs = sorted({p["x"] for p in patch_results})
+    if not ys or not xs:
         return
 
-    period_grid = np.full((len(ys), len(xs)), np.nan, dtype=np.float32)
+    score_grid = np.full((len(ys), len(xs)), np.nan, dtype=np.float32)
     for yi, y in enumerate(ys):
         for xi, x in enumerate(xs):
-            period_grid[yi, xi] = patch_map.get((y, x), np.nan)
+            score_grid[yi, xi] = patch_map.get((y, x), np.nan)
 
     plt.figure(figsize=(6, 5))
-    plt.imshow(period_grid, cmap="magma", aspect="auto")
+    plt.imshow(score_grid, cmap="magma", aspect="auto")
     plt.colorbar(label="Best score")
     plt.title("Patch Best-Score Map")
     plt.xlabel("Patch column")

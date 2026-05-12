@@ -19,5 +19,5 @@ dependencies = [
     "PyYAML",
 ]
 
-[tool.setuptools]
-packages = ["paperdrm", "src"]
+[tool.setuptools.packages.find]
+include = ["paperdrm*"]

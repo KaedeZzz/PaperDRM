@@ -1,7 +1,9 @@
+"""Plot a DRP array in stereo or direct projection on the unit hemisphere."""
+
 import numpy as np
 from matplotlib import pyplot as plt
 
-from .settings import DRPConfig
+from paperdrm.loader.settings import DRPConfig
 
 
 def plot_drp(drp_array: np.ndarray, config: DRPConfig, cmap: str = "jet", project: str = "stereo", ax=None):

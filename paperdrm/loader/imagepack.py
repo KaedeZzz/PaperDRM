@@ -3,8 +3,16 @@ import warnings
 
 import numpy as np
 
-from .settings import CacheConfig, DRPConfig, load_drp_config, save_cache_config
-from .drp_compute import (
+from paperdrm.loader.settings import CacheConfig, DRPConfig, Settings, load_drp_config, save_cache_config
+from paperdrm.loader.image_io import (
+    open_drp_memmap,
+    prepare_cache,
+    resolve_config_path,
+    resolve_image_folder,
+    load_images,
+)
+from paperdrm.loader.paths import DataPaths
+from paperdrm.drp import (
     apply_angle_slice,
     apply_theta_min_filter,
     build_drp_stack,
@@ -13,16 +21,7 @@ from .drp_compute import (
     mask_images as compute_mask_images,
     mean_drp_from_stack,
 )
-from .drp_plot import plot_drp
-from .image_io import (
-    open_drp_memmap,
-    prepare_cache,
-    resolve_config_path,
-    resolve_image_folder,
-    load_images,
-)
-from .paths import DataPaths
-from .settings import Settings
+from paperdrm.viz.drp import plot_drp
 
 
 class ImagePack:

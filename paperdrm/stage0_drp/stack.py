@@ -7,7 +7,7 @@ reflectance profile as a function of light direction.
 
 import numpy as np
 
-from paperdrm.loader.settings import DRPConfig
+from paperdrm.stage0_loader.settings import DRPConfig
 
 
 def drp_from_images(images: list[np.ndarray], config: DRPConfig, loc: tuple[int, int]) -> np.ndarray:

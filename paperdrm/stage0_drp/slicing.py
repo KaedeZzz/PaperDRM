@@ -10,7 +10,7 @@ from dataclasses import replace
 
 import numpy as np
 
-from paperdrm.loader.settings import DRPConfig
+from paperdrm.stage0_loader.settings import DRPConfig
 
 
 def slice_indices(config: DRPConfig, angle_slice: tuple[int, int]) -> np.ndarray:

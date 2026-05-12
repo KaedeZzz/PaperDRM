@@ -6,7 +6,7 @@ Submodules:
          phase-fit grid construction, and overlay generation.
 """
 
-from paperdrm.detect.gabor import (
+from paperdrm.stage3_detect.gabor import (
     estimate_laidline_frequency_gabor,
     estimate_laidline_frequency_gabor_patches,
     overlay_laid_lines,

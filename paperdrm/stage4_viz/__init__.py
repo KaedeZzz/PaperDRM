@@ -7,9 +7,9 @@ Submodules:
 - comparison: Stage 2/3 mask + Gabor patch score comparisons
 """
 
-from paperdrm.viz.drp import plot_drp
-from paperdrm.viz.direction import plot_direction_map
-from paperdrm.viz.comparison import (
+from paperdrm.stage4_viz.drp import plot_drp
+from paperdrm.stage4_viz.direction import plot_direction_map
+from paperdrm.stage4_viz.comparison import (
     plot_orientation_comparison,
     plot_trig_mask_comparison,
     plot_patch_best_score_map,

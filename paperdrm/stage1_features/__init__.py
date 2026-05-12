@@ -6,12 +6,12 @@ Submodules:
 - spherical: per-pixel spherical moments and anisotropy descriptors
 """
 
-from paperdrm.features.direction import (
+from paperdrm.stage1_features.direction import (
     drp_direction_map,
     drp_mask_angle,
     get_drp_direction,
 )
-from paperdrm.features.spherical import (
+from paperdrm.stage1_features.spherical import (
     spherical_descriptor,
     spherical_descriptor_maps,
     anisotropy_map_from_cov,

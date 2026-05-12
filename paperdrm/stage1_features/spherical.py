@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from paperdrm.loader.imagepack import ImagePack
+    from paperdrm.stage0_loader.imagepack import ImagePack
 
 
 def spherical_descriptor(

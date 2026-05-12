@@ -3,7 +3,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from paperdrm.loader.settings import DRPConfig
+from paperdrm.stage0_loader.settings import DRPConfig
 
 
 def plot_drp(drp_array: np.ndarray, config: DRPConfig, cmap: str = "jet", project: str = "stereo", ax=None):

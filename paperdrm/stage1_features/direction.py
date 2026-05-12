@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from paperdrm.loader.imagepack import ImagePack
+    from paperdrm.stage0_loader.imagepack import ImagePack
 
 
 def get_drp_direction(drp_mat: np.ndarray, ph_num: int, attenuation: float = 1.0) -> np.ndarray:
@@ -34,7 +34,7 @@ def drp_direction_map(imp: "ImagePack", verbose: bool = False) -> tuple[np.ndarr
     """
     Per-pixel azimuthal direction map from the DRP stack.
 
-    Returns (mag_map, deg_map). Use paperdrm.viz.direction.plot_direction_map
+    Returns (mag_map, deg_map). Use paperdrm.stage4_viz.direction.plot_direction_map
     to visualize.
     """
     if verbose:

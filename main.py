@@ -1,27 +1,29 @@
 """
 End-to-end laid-line detection pipeline.
 
-Stages (each maps to a paperdrm.<stage> subpackage):
-  0. loader   -- load DRP stack from disk
-  1. features -- per-pixel DRP direction map
-  2. enhance  -- orientation -> laid-line-likelihood grayscale
-  3. detect   -- patchwise Gabor period estimation + grid overlay
+Stages (each maps to a paperdrm.stageN_* subpackage):
+  0. stage0_loader     -- load DRP stack from disk
+  1. stage1_features   -- per-pixel DRP direction map
+  2. stage2_enhance    -- orientation -> laid-line-likelihood grayscale
+  3. stage3_detect     -- patchwise Gabor period estimation + grid overlay
+  4. stage4_viz        -- plotting helpers (called from inside the stages)
+  5. stage5_evaluation -- evaluation tooling (not used in this end-to-end script)
 """
 
 import cv2
 
 from paperdrm import ImagePack, Settings
-from paperdrm.features.direction import drp_direction_map
-from paperdrm.enhance.trig_mask import (
+from paperdrm.stage1_features.direction import drp_direction_map
+from paperdrm.stage2_enhance.trig_mask import (
     azimuth_to_laidline_gray,
     orientation_comparison_maps,
     patchwise_trigonometric_mask,
 )
-from paperdrm.detect.gabor import (
+from paperdrm.stage3_detect.gabor import (
     estimate_laidline_frequency_gabor_patches,
     overlay_laid_lines,
 )
-from paperdrm.viz.comparison import (
+from paperdrm.stage4_viz.comparison import (
     plot_orientation_comparison,
     plot_patch_best_score_map,
     plot_trig_mask_comparison,

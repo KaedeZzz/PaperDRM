@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 
-from paperdrm.loader.settings import CacheConfig, load_cache_config, save_cache_config
-from paperdrm.loader.paths import DataPaths
+from paperdrm.stage0_loader.settings import CacheConfig, load_cache_config, save_cache_config
+from paperdrm.stage0_loader.paths import DataPaths
 
 
 def resolve_config_path(config_path: str | Path | None) -> Path:

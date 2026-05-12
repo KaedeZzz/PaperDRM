@@ -128,6 +128,42 @@ def _weighted_mean(values: np.ndarray, weights: np.ndarray) -> float:
     return float(np.sum(values * weights) / wsum)
 
 
+def _weighted_mode_period(
+    valid_patches: list[dict],
+    weight_scale: float = 1.0,
+) -> tuple[float, float]:
+    """
+    Score-weighted mode of the per-patch `best_period_px` across patches.
+
+    For each candidate period, accumulate ``best_score ** weight_scale`` over
+    patches that selected it, then return the period with the largest total
+    weight. Ties are broken by the highest single-patch score at that period
+    (deterministic).
+
+    Returns (mode_period_px, total_weight_at_mode). NaN/0 when no patches.
+    """
+    if not valid_patches:
+        return float("nan"), 0.0
+    periods = np.array([float(p["best_period_px"]) for p in valid_patches], dtype=np.float64)
+    scores = np.array([float(p["best_score"]) for p in valid_patches], dtype=np.float64)
+    weights = np.power(scores, float(weight_scale))
+
+    unique_periods = np.unique(periods)
+    totals = np.array([weights[periods == u].sum() for u in unique_periods])
+    max_total = float(np.max(totals))
+
+    # Tie-break: among periods with maximum total weight, pick the one whose
+    # single best patch had the highest score.
+    tied_mask = np.isclose(totals, max_total)
+    if int(tied_mask.sum()) > 1:
+        max_singles = np.array([scores[periods == u].max() for u in unique_periods])
+        candidate_singles = np.where(tied_mask, max_singles, -np.inf)
+        best_idx = int(np.argmax(candidate_singles))
+    else:
+        best_idx = int(np.argmax(totals))
+    return float(unique_periods[best_idx]), max_total
+
+
 def estimate_laidline_frequency_gabor(
     img: np.ndarray,
     *,
@@ -208,6 +244,17 @@ def estimate_laidline_frequency_gabor_patches(
     """
     Estimate laid-line frequency per patch and aggregate to a dominant period.
 
+    Aggregation is score-weighted: for each candidate period, sum
+    ``best_score ** weight_scale`` over the patches that picked it, and take
+    the period with the largest accumulated weight (i.e. score-weighted mode
+    on the candidate-period grid). With ``weight_scale=0`` every valid patch
+    contributes one vote; ``weight_scale=1`` weights linearly by score; large
+    ``weight_scale`` values approach winner-takes-all.
+
+    The returned ``dominant_theta_deg`` and ``dominant_signal_1d`` come from
+    re-running the Gabor scan on the *full image* at the consensus period, so
+    they are self-consistent with ``dominant_response``.
+
     Returns a dict with:
     dominant_period_px, dominant_freq_cpp, dominant_theta_deg, dominant_signal_1d,
     dominant_response, patch_results, line_dir_deg
@@ -284,12 +331,17 @@ def estimate_laidline_frequency_gabor_patches(
             "line_dir_deg": float(line_dir_deg),
         }
 
-    # Select dominant period from the single highest-confidence patch.
-    # Keep weight_scale in signature for backward API compatibility.
-    best_patch = max(valid, key=lambda r: float(r["best_score"]))
-    dominant_period = float(best_patch["best_period_px"])
-    dominant_theta = float(best_patch["best_theta_deg"])
-    # Recompute best response on the full image at the dominant period.
+    # Score-weighted mode across patches:
+    # for each candidate period, sum (best_score ** weight_scale) over patches
+    # that picked it, then pick the period with maximum accumulated weight.
+    # - weight_scale = 0  -> equal vote per patch (majority vote)
+    # - weight_scale = 1  -> linear score weighting
+    # - weight_scale -> inf -> approaches winner-takes-all
+    dominant_period, _ = _weighted_mode_period(valid, weight_scale=weight_scale)
+
+    # Recompute the best filter response at the consensus period on the full
+    # image. The returned theta is taken from this full-image scan so it is
+    # consistent with the response we expose downstream.
     img01 = _normalize01(img)
     dominant_best = _best_for_period(
         img01,
@@ -306,7 +358,7 @@ def estimate_laidline_frequency_gabor_patches(
     return {
         "dominant_period_px": float(dominant_period),
         "dominant_freq_cpp": float(1.0 / dominant_period),
-        "dominant_theta_deg": dominant_theta,
+        "dominant_theta_deg": float(dominant_best["best_theta_deg"]),
         "dominant_signal_1d": dominant_best["best_signal_1d"],
         "dominant_response": dominant_best["best_response"],
         "patch_results": patch_results,

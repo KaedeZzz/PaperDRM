@@ -28,6 +28,12 @@ from paperdrm.stage4_viz.comparison import (
     plot_patch_best_score_map,
     plot_trig_mask_comparison,
 )
+from paperdrm.stage5_evaluation.consistency import (
+    patch_consistency_report,
+    plot_patch_consistency,
+    print_consistency_report,
+    save_consistency_report,
+)
 
 
 def stage_load(yaml_path: str) -> ImagePack:
@@ -90,6 +96,15 @@ def stage_detect(gabor_input_gray, *, patch_size, stride, fov_width_cm=None):
     return out
 
 
+def stage_evaluate(detect_out, *, score_threshold=0.02, report_path="evaluation_report.json"):
+    print("[Stage 5] Evaluating patch consistency")
+    report = patch_consistency_report(detect_out, score_threshold=score_threshold)
+    print_consistency_report(report)
+    save_consistency_report(report, report_path)
+    plot_patch_consistency(detect_out, report, score_threshold=score_threshold)
+    return report
+
+
 def stage_overlay(gabor_input_gray, detect_out, *, out_path="laid_lines_overlay_grid.png"):
     print(f"[Stage 4] Overlay laid-line grid -> {out_path}")
     overlay, _ = overlay_laid_lines(
@@ -122,4 +137,5 @@ if __name__ == "__main__":
         stride=stride,
         fov_width_cm=pack.settings.fov_width_cm,
     )
+    stage_evaluate(detect_out)
     stage_overlay(gabor_input, detect_out)

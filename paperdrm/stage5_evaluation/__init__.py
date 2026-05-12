@@ -1,11 +1,29 @@
 """
 Evaluating laid-line detection results.
 
-Planned submodules (add as you build them):
-- consistency: per-patch period statistics, spatial consistency maps
-- phantom:     synthetic test images with known laid-line period for sanity tests
-- ground_truth: comparison against manual line annotations
-- baselines:   alternative methods (radial FFT, autocorrelation) for cross-validation
+Submodules:
+- consistency: per-patch agreement statistics for period and orientation.
 
-Start by adding to paperdrm/evaluation/consistency.py.
+Planned (not yet implemented):
+- phantom:      synthetic test images with known laid-line period
+- ground_truth: comparison against manual line annotations
+- baselines:    alternative methods (radial FFT, autocorrelation) for cross-validation
 """
+
+from paperdrm.stage5_evaluation.consistency import (
+    patch_period_stats,
+    patch_orientation_stats,
+    patch_consistency_report,
+    print_consistency_report,
+    save_consistency_report,
+    plot_patch_consistency,
+)
+
+__all__ = [
+    "patch_period_stats",
+    "patch_orientation_stats",
+    "patch_consistency_report",
+    "print_consistency_report",
+    "save_consistency_report",
+    "plot_patch_consistency",
+]

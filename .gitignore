@@ -2,12 +2,15 @@ data/
 __pycache__/
 .venv/
 .DS_Store
+.claude/
 
 # Pipeline output overlays at repo root (notebooks/results go elsewhere)
 /*.png
 
 # Evaluation reports produced by Stage 5 runs
 /evaluation_report*.json
+/interval_distribution*.json
+/fit_quality*.json
 
 # Notebooks are treated as personal scratch space, not source
 *.ipynb

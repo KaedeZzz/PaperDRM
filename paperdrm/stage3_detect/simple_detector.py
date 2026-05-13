@@ -1,0 +1,280 @@
+"""
+Minimal laid-line detector based on radial FFT period estimation.
+
+Replaces the broken patch-wise Gabor scan in stage3_detect.gabor by using
+the maximum-likelihood frequency estimator (the periodogram peak), then
+optionally uses a single Gabor pass at the detected period (with
+`use_abs_response=False`) to produce a clean 1D signal for phase fitting
+and grid placement.
+
+Pipeline:
+    radial FFT  ->  dominant period
+    Gabor at known period (use_abs=False) -> clean 1D signal
+    phase fit (polarity-aware) -> phase
+    grid x positions -> overlay
+
+Public API:
+    detect_laid_lines_simple    -- end-to-end
+    radial_fft_period           -- period only
+    gabor_clean_signal          -- clean 1D signal at known period
+    phase_fit                   -- polarity-aware phase estimate
+    grid_positions              -- grid x coordinates from phase
+    overlay_grid                -- draw grid lines on an image
+"""
+
+from __future__ import annotations
+
+import cv2
+import numpy as np
+
+from paperdrm.stage3_detect.gabor import _best_for_period, _normalize01
+
+
+def _rotate_to_vertical(image: np.ndarray, line_dir_deg: float) -> np.ndarray:
+    """Rotate so laid lines run vertically (line_dir_deg -> 90deg)."""
+    rot_angle = 90.0 - float(line_dir_deg)
+    if abs(rot_angle) < 1e-6:
+        return image
+    h, w = image.shape[:2]
+    M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), rot_angle, 1.0)
+    return cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+
+
+def radial_fft_period(
+    image: np.ndarray,
+    line_dir_deg: float = 90.0,
+    *,
+    period_range_px: tuple[float, float] = (8.0, 80.0),
+) -> dict:
+    """
+    Find the dominant period by integrating the 2D power spectrum along the
+    laid-line direction and locating the peak in the perpendicular axis.
+
+    Returns dict with:
+        dominant_period_px
+        dominant_freq_cpp
+        radial_freqs: 1D array, positive freqs inside the search range
+        radial_power: 1D array, P_rad(u) at those freqs
+    """
+    img = _rotate_to_vertical(image, line_dir_deg).astype(np.float64)
+    img = img - img.mean()
+
+    # 2D power spectrum, DC-centred
+    F = np.fft.fftshift(np.fft.fft2(img))
+    P = np.abs(F) ** 2
+
+    # Lines are vertical (along v); integrate over v to find peak along u.
+    prof = P.sum(axis=0)
+    W = img.shape[1]
+    freqs = np.fft.fftshift(np.fft.fftfreq(W, d=1.0))
+
+    pos = freqs > 0
+    freqs_pos = freqs[pos]
+    prof_pos = prof[pos]
+    f_min = 1.0 / float(period_range_px[1])
+    f_max = 1.0 / float(period_range_px[0])
+    mask = (freqs_pos >= f_min) & (freqs_pos <= f_max)
+    band_freqs = freqs_pos[mask]
+    band_prof = prof_pos[mask]
+
+    if band_freqs.size == 0:
+        raise ValueError(f"No frequency bins in range {period_range_px}; image too small?")
+
+    peak_idx = int(np.argmax(band_prof))
+    peak_f = float(band_freqs[peak_idx])
+
+    return {
+        "dominant_period_px": 1.0 / peak_f,
+        "dominant_freq_cpp": peak_f,
+        "radial_freqs": band_freqs,
+        "radial_power": band_prof,
+    }
+
+
+def gabor_clean_signal(
+    image: np.ndarray,
+    period_px: float,
+    line_dir_deg: float = 90.0,
+    *,
+    ksize: int | None = None,
+    angle_jitter_deg: float = 6.0,
+    angle_step_deg: float = 2.0,
+    sigma_factor: float = 0.6,
+    gamma: float = 0.4,
+) -> dict:
+    """
+    Single Gabor filter pass at known period with use_abs_response=False
+    (no harmonic doubling). Returns a clean 1D signal suitable for phase
+    fitting.
+
+    Returns dict with: score, best_theta_deg, best_signal_1d, best_response.
+    """
+    if ksize is None:
+        # Kernel large enough to span ~1.5 periods; force odd.
+        ksize = int(np.ceil(1.5 * period_px))
+        if ksize % 2 == 0:
+            ksize += 1
+    img01 = _normalize01(image)
+    return _best_for_period(
+        img01,
+        line_dir_deg=line_dir_deg,
+        period_px=float(period_px),
+        angle_jitter_deg=angle_jitter_deg,
+        angle_step_deg=angle_step_deg,
+        sigma_factor=sigma_factor,
+        gamma=gamma,
+        ksize=ksize,
+        use_abs_response=False,  # KEY: linear, no 2x harmonic
+    )
+
+
+def phase_fit(signal_1d: np.ndarray, period_px: float, *, wire_is_darker: bool = True) -> float:
+    """
+    Estimate the phase of a cosine of given period in the signal.
+
+    If wire_is_darker=True, the fit is done on -signal so that the cosine
+    maxima of the model correspond to signal *minima* (= wire positions in
+    a raw bg-subtracted image where wires cast shadows).
+    """
+    s = np.asarray(signal_1d, dtype=np.float64)
+    s = s - s.mean()
+    if wire_is_darker:
+        s = -s
+    n = s.size
+    x = np.arange(n, dtype=np.float64)
+    omega = 2.0 * np.pi / float(period_px)
+    c = float(np.sum(s * np.cos(omega * x)))
+    si = float(np.sum(s * np.sin(omega * x)))
+    return float(np.arctan2(si, c))
+
+
+def grid_positions(phase: float, period_px: float, length: int) -> np.ndarray:
+    """
+    x positions where cos(omega*x + phase) attains +1.
+
+    With phase from phase_fit(wire_is_darker=True), these are wire positions
+    in the original-image coordinate frame.
+    """
+    omega = 2.0 * np.pi / float(period_px)
+    x0 = -phase / omega
+    k_start = int(np.floor((0.0 - x0) / period_px))
+    k_end = int(np.ceil((length - x0) / period_px))
+    xs = x0 + period_px * np.arange(k_start, k_end + 1)
+    xs = xs[(xs >= 0.0) & (xs < float(length))]
+    return np.round(xs).astype(int)
+
+
+def overlay_grid(
+    image: np.ndarray,
+    grid_x: np.ndarray,
+    *,
+    line_dir_deg: float = 90.0,
+    color: tuple[int, int, int] = (0, 0, 255),
+    thickness: int = 1,
+    alpha: float = 0.55,
+) -> np.ndarray:
+    """
+    Draw lines along the laid-line direction at grid_x positions and alpha-
+    blend onto the image. Returns a 3-channel BGR overlay.
+
+    grid_x are positions in the rotated frame (where lines are vertical).
+    """
+    base = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) if image.ndim == 2 else image.copy()
+    h, w = base.shape[:2]
+
+    rot_angle = 90.0 - float(line_dir_deg)
+    if abs(rot_angle) > 1e-6:
+        M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), rot_angle, 1.0)
+        base_rot = cv2.warpAffine(base, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    else:
+        base_rot = base.copy()
+
+    overlay_rot = base_rot.copy()
+    for x in grid_x:
+        cv2.line(overlay_rot, (int(x), 0), (int(x), h - 1), color, thickness, cv2.LINE_AA)
+
+    if abs(rot_angle) > 1e-6:
+        M_back = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -rot_angle, 1.0)
+        overlay_back = cv2.warpAffine(overlay_rot, M_back, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    else:
+        overlay_back = overlay_rot
+
+    return cv2.addWeighted(base, 1.0 - alpha, overlay_back, alpha, 0.0)
+
+
+def detect_laid_lines_simple(
+    image: np.ndarray,
+    line_dir_deg: float = 90.0,
+    *,
+    period_range_px: tuple[float, float] = (8.0, 80.0),
+    wire_is_darker: bool = True,
+    use_gabor_refinement: bool = True,
+    gabor_ksize: int | None = None,
+) -> dict:
+    """
+    End-to-end simple detector. Single-image, no patches.
+
+    Args:
+        image: 2D grayscale, ideally bg-subtracted. wire = darker than
+            surroundings if wire_is_darker=True (true for raw reflective
+            grazing images).
+        line_dir_deg: laid-line direction (90 = vertical).
+        period_range_px: plausible period search range (low, high).
+        wire_is_darker: True => phase fit lands grid on signal minima
+            (wire). False => grid on signal maxima.
+        use_gabor_refinement: True => single Gabor pass for clean 1D signal.
+            False => use plain column-mean (less clean but faster).
+        gabor_ksize: kernel size override. Default = ceil(1.5 * period).
+
+    Returns a dict with:
+        dominant_period_px, dominant_freq_cpp     -- from radial FFT
+        dominant_signal_1d                         -- clean 1D signal
+        grid_positions_x                            -- wire x positions
+        phase                                       -- fitted cosine phase
+        line_dir_deg, wire_is_darker               -- echoed
+        radial_freqs, radial_power                  -- for diagnostic plots
+        gabor_score, gabor_theta_deg                -- if refinement used
+    """
+    fft_result = radial_fft_period(image, line_dir_deg=line_dir_deg,
+                                   period_range_px=period_range_px)
+    period_px = fft_result["dominant_period_px"]
+
+    if use_gabor_refinement:
+        gabor_result = gabor_clean_signal(
+            image, period_px=period_px, line_dir_deg=line_dir_deg,
+            ksize=gabor_ksize,
+        )
+        signal_1d = np.asarray(gabor_result["best_signal_1d"])
+        gabor_score = float(gabor_result["score"])
+        gabor_theta = float(gabor_result["best_theta_deg"])
+    else:
+        # Plain column mean (in rotated frame) with high-pass detrend.
+        img_rot = _rotate_to_vertical(image, line_dir_deg)
+        s = img_rot.astype(np.float32).mean(axis=0)
+        win = min(301, max(31, (len(s) // 20) | 1))
+        k = np.ones(win, dtype=np.float32) / win
+        signal_1d = s - np.convolve(s, k, mode="same")
+        gabor_score = None
+        gabor_theta = None
+
+    phi = phase_fit(signal_1d, period_px, wire_is_darker=wire_is_darker)
+
+    # Grid is generated in the rotated frame where lines are vertical.
+    # image.shape[1] is the width of the original; after rotation the
+    # vertical-line frame has the same width up to BORDER_REFLECT effects.
+    length = image.shape[1]
+    grid_x = grid_positions(phi, period_px, length)
+
+    return {
+        "dominant_period_px": period_px,
+        "dominant_freq_cpp": fft_result["dominant_freq_cpp"],
+        "dominant_signal_1d": signal_1d,
+        "grid_positions_x": grid_x,
+        "phase": phi,
+        "line_dir_deg": float(line_dir_deg),
+        "wire_is_darker": bool(wire_is_darker),
+        "radial_freqs": fft_result["radial_freqs"],
+        "radial_power": fft_result["radial_power"],
+        "gabor_score": gabor_score,
+        "gabor_theta_deg": gabor_theta,
+    }

@@ -11,6 +11,7 @@ __pycache__/
 /evaluation_report*.json
 /interval_distribution*.json
 /fit_quality*.json
+/wire_width_stats*.json
 
 # Notebooks are treated as personal scratch space, not source
 *.ipynb

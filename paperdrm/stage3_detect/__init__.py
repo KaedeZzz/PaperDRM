@@ -26,7 +26,9 @@ from paperdrm.stage3_detect.simple_detector import (
     phase_fit,
     grid_positions,
     overlay_grid,
+    overlay_grid_bands,
 )
+from paperdrm.stage3_detect.wire_width import estimate_wire_width
 
 __all__ = [
     "estimate_laidline_frequency_gabor",
@@ -41,4 +43,6 @@ __all__ = [
     "phase_fit",
     "grid_positions",
     "overlay_grid",
+    "overlay_grid_bands",
+    "estimate_wire_width",
 ]

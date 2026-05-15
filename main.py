@@ -27,6 +27,7 @@ Stages used by each track:
 import cv2
 
 from paperdrm import ImagePack, Settings
+from paperdrm.stage0_drp.slicing import apply_angle_slice, apply_theta_min_filter
 from paperdrm.stage1_features.direction import drp_direction_map
 from paperdrm.stage2_enhance.trig_mask import (
     azimuth_to_laidline_gray,
@@ -40,6 +41,7 @@ from paperdrm.stage3_detect.gabor import (
 from paperdrm.stage3_detect.simple_detector import (
     detect_laid_lines_simple,
     overlay_grid,
+    overlay_grid_bands,
 )
 from paperdrm.stage4_viz.comparison import (
     plot_orientation_comparison,
@@ -63,6 +65,12 @@ from paperdrm.stage5_evaluation.fit_quality import (
     plot_fit_quality_curve,
     print_fit_quality,
     save_fit_quality,
+)
+from paperdrm.stage5_evaluation.wire_width_stats import (
+    wire_width_statistics,
+    print_wire_width_statistics,
+    save_wire_width_statistics,
+    plot_wire_width_statistics,
 )
 
 
@@ -94,6 +102,25 @@ def pick_grazing_image(pack: ImagePack, *, phi_index: int = 0) -> "tuple[np.ndar
     if idx >= len(pack.images):
         idx = len(pack.images) - 1
     return pack.images[idx], idx
+
+
+def pick_grazing_image_raw(pack: ImagePack, *, phi_index: int = 0) -> "tuple[np.ndarray, int]":
+    """
+    Same selection as `pick_grazing_image`, but loads the **raw** image from
+    disk (pre background-subtraction). Used for visual overlays so the
+    underlying paper texture is preserved.
+    """
+    paths = sorted(pack.folder.glob(f"*.{pack.settings.img_format}"))
+    paths_sliced, cfg = apply_angle_slice(paths, pack.base_config, pack.angle_slice)
+    paths_kept, _ = apply_theta_min_filter(paths_sliced, cfg, pack.settings.theta_min_deg)
+    th_num = pack.param.th_num
+    idx = phi_index * th_num + (th_num - 1)
+    if idx >= len(paths_kept):
+        idx = len(paths_kept) - 1
+    raw = cv2.imread(str(paths_kept[idx]), cv2.IMREAD_GRAYSCALE)
+    if raw is None:
+        raise IOError(f"Could not load raw image at {paths_kept[idx]}")
+    return raw, idx
 
 
 # ---------------------------------------------------------------------------
@@ -172,10 +199,20 @@ def stage_detect_simple(image, *, line_dir_deg=90.0, fov_width_cm=None,
     period_px = result["dominant_period_px"]
     print(f"period={period_px:.2f} px  freq={result['dominant_freq_cpp']:.5f} cpp"
           f"  gabor_score={result['gabor_score']:.3f}")
-    if fov_width_cm is not None:
-        cm_per_px = float(fov_width_cm) / float(image.shape[1])
+    cm_per_px = (float(fov_width_cm) / float(image.shape[1])) if fov_width_cm else None
+    if cm_per_px is not None:
         interval_cm = period_px * cm_per_px
         print(f"laid line interval = {interval_cm:.4f} cm | density = {1.0/interval_cm:.4f} lines/cm")
+    if result["wire_model_ok"]:
+        fwhm_px = result["wire_fwhm_px"]
+        if cm_per_px is not None:
+            print(f"wire FWHM = {fwhm_px:.2f} px = {fwhm_px * cm_per_px * 10.0:.3f} mm")
+        else:
+            print(f"wire FWHM = {fwhm_px:.2f} px")
+        if result["wire_warning"]:
+            print(f"  [wire-width warning] {result['wire_warning']}")
+    else:
+        print(f"wire width: model failed ({result['wire_warning']})")
     return result
 
 
@@ -190,18 +227,44 @@ def stage_overlay_simple(image, detect_out, *, out_path="laid_lines_overlay.png"
     cv2.imwrite(out_path, overlay)
 
 
+def stage_overlay_simple_bands(
+    image, detect_out, ww_stats=None,
+    *, out_path="laid_lines_overlay_bands.png", alpha=0.4,
+):
+    """Filled band overlay; band width = FWHM (segment-median if available)."""
+    if ww_stats and ww_stats["aggregate"]["fwhm_px"]["n_valid"] >= 1:
+        fwhm = ww_stats["aggregate"]["fwhm_px"]["median"]
+        source = "segment-median"
+    else:
+        fwhm = detect_out["wire_fwhm_px"]
+        source = "global"
+    print(f"[Stage 4 SIMPLE] Band overlay (FWHM={fwhm:.2f} px from {source}) -> {out_path}")
+    overlay = overlay_grid_bands(
+        image,
+        detect_out["grid_positions_x"],
+        fwhm,
+        line_dir_deg=detect_out["line_dir_deg"],
+        color=(0, 0, 255),
+        alpha=alpha,
+    )
+    cv2.imwrite(out_path, overlay)
+
+
 # ---------------------------------------------------------------------------
 # Stage 5 (shared, gracefully skips patch consistency when not applicable)
 # ---------------------------------------------------------------------------
 def stage_evaluate(
     detect_out,
     *,
+    image=None,
     score_threshold=0.02,
     fov_width_cm=None,
     image_width_px=None,
     consistency_path="evaluation_report.json",
     intervals_path="interval_distribution.json",
     fit_quality_path="fit_quality.json",
+    wire_width_path="wire_width_stats.json",
+    n_segments=16,
 ):
     has_patches = bool(detect_out.get("patch_results"))
     if has_patches:
@@ -230,7 +293,21 @@ def stage_evaluate(
     print_fit_quality(fq)
     save_fit_quality(fq, fit_quality_path)
     plot_fit_quality_curve(fq)
-    return report, gap_stats, fq
+
+    ww = None
+    if image is not None:
+        print(f"[Stage 5] Wire-width statistics ({n_segments} segments)")
+        ww = wire_width_statistics(
+            image,
+            detect_out["dominant_period_px"],
+            line_dir_deg=detect_out["line_dir_deg"],
+            n_segments=n_segments,
+            fov_width_cm=fov_width_cm,
+        )
+        print_wire_width_statistics(ww)
+        save_wire_width_statistics(ww, wire_width_path)
+        plot_wire_width_statistics(ww, save_path="wire_width_segments.png")
+    return report, gap_stats, fq, ww
 
 
 # ---------------------------------------------------------------------------
@@ -241,16 +318,19 @@ if __name__ == "__main__":
 
     if USE_SIMPLE_DETECTOR:
         image, idx = pick_grazing_image(pack, phi_index=0)
+        raw_image, _ = pick_grazing_image_raw(pack, phi_index=0)
         print(f"[Main] Using image index {idx} (phi=0 column, steepest theta)")
         detect_out = stage_detect_simple(
             image, line_dir_deg=90.0, fov_width_cm=pack.settings.fov_width_cm,
         )
-        stage_evaluate(
+        _, _, _, ww = stage_evaluate(
             detect_out,
+            image=image,
             fov_width_cm=pack.settings.fov_width_cm,
             image_width_px=image.shape[1],
         )
-        stage_overlay_simple(image, detect_out)
+        stage_overlay_simple(raw_image, detect_out)
+        stage_overlay_simple_bands(raw_image, detect_out, ww)
     else:
         _mag, deg_map = stage_direction(pack)
         patch_size, stride = (512, 512), (256, 256)

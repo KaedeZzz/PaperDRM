@@ -8,6 +8,56 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-15 — feat(pipeline): wire-shadow width via Gaussian-comb harmonic fit
+
+**Discussed.** First wire-shadow *width* estimator end-to-end. Until now the
+pipeline only produced period + grid positions; this adds the third
+parameter (σ / FWHM of each wire's shadow) and a parametric consistency
+check against the broadband signal.
+
+**Why.** Period + phase alone leaves the wire shape unspecified. For
+paleographic comparison we need the *thickness* of the laid-line shadow
+(reflects the original wire's diameter and how deep it pressed into the
+mould). Also: the existing fit-quality R² was measured against the
+Gabor-cleaned narrow-band signal, which by construction has no harmonics,
+so high R² was uninformative.
+
+**How.** A periodic comb of Gaussians of width σ at spacing T has Fourier
+coefficients `|c_n| ~ exp(-2π²σ²n²/T²)`. So `ln|c_n|` is linear in `n²`
+with slope `-2π²σ²/T²` → σ from least-squares. To avoid spectral leakage
+from FFT bins at non-integer 1/T, the DTFT is sampled directly at the
+exact harmonic frequencies `n/T`.
+
+**Changes.**
+- `paperdrm/stage3_detect/wire_width.py` (new): `estimate_wire_width`
+  returns σ, FWHM, harmonic amplitudes, regression diagnostics, model_ok
+  flag. Requires broadband signal (Gabor-cleaned input is rejected with
+  a warning because harmonics are suppressed).
+- `paperdrm/stage3_detect/simple_detector.py`: factored out
+  `_broadband_signal_1d` (always computed); `detect_laid_lines_simple`
+  now also returns `broadband_signal_1d` and the wire-width fields. New
+  `overlay_grid_bands` draws filled FWHM bands instead of 1-px lines.
+- `paperdrm/stage5_evaluation/wire_width_stats.py` (new, 326 lines):
+  per-segment wire-width with two CIs (t-based mean CI + percentile
+  spread). Print/save/plot helpers.
+- `paperdrm/stage5_evaluation/fit_quality.py`: switched to read
+  `broadband_signal_1d`; added `gaussian_comb_r2` (template with T,
+  phase, σ all fixed — checks (period, phase, width) consistency
+  jointly); default `n_harmonics` 2 → 4; report now carries three R²
+  values with a "Gaussian-fit gap" diagnostic.
+- `main.py`: loads pre-bg-subtraction raw image for overlays
+  (`pick_grazing_image_raw`); `stage_evaluate` returns ww stats and
+  takes `image=`; new `stage_overlay_simple_bands` uses
+  segment-median FWHM.
+- `.gitignore`: ignore `/wire_width_stats*.json` (matches existing
+  Stage 5 report ignores).
+
+**Follow-up.** A/B JSON artifacts (`.before`, `.prev`) are kept locally
+but ignored. Real-data σ values from segment statistics still need
+validation against the phantom test images planned for Stage 5.
+
+---
+
 ## 2026-05-15 — refactor(scripts): simplify bg_blur + add freq-response comparison
 
 **Discussed.** Replaced the multi-step background-blur in `scripts/bg_blur.py`

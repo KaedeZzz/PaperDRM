@@ -28,6 +28,7 @@ import cv2
 import numpy as np
 
 from paperdrm.stage3_detect.gabor import _best_for_period, _normalize01
+from paperdrm.stage3_detect.wire_width import estimate_wire_width
 
 
 def _rotate_to_vertical(image: np.ndarray, line_dir_deg: float) -> np.ndarray:
@@ -38,6 +39,20 @@ def _rotate_to_vertical(image: np.ndarray, line_dir_deg: float) -> np.ndarray:
     h, w = image.shape[:2]
     M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), rot_angle, 1.0)
     return cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+
+
+def _broadband_signal_1d(image: np.ndarray, line_dir_deg: float) -> np.ndarray:
+    """Column-mean of the rotated image with moving-average high-pass detrend.
+
+    This is broadband (contains harmonics 2/T, 3/T, ...) and is required for
+    wire-width estimation. The Gabor-cleaned signal is narrow-band and
+    unsuitable for that purpose.
+    """
+    img_rot = _rotate_to_vertical(image, line_dir_deg)
+    s = img_rot.astype(np.float64).mean(axis=0)
+    win = min(301, max(31, (len(s) // 20) | 1))
+    k = np.ones(win, dtype=np.float64) / win
+    return s - np.convolve(s, k, mode="same")
 
 
 def radial_fft_period(
@@ -202,6 +217,51 @@ def overlay_grid(
     return cv2.addWeighted(base, 1.0 - alpha, overlay_back, alpha, 0.0)
 
 
+def overlay_grid_bands(
+    image: np.ndarray,
+    grid_x: np.ndarray,
+    band_width_px: float,
+    *,
+    line_dir_deg: float = 90.0,
+    color: tuple[int, int, int] = (0, 0, 255),
+    alpha: float = 0.40,
+) -> np.ndarray:
+    """
+    Draw filled bands of total width `band_width_px` along the laid-line
+    direction at each grid_x position, alpha-blended onto the image.
+
+    Unlike `overlay_grid` (1-px lines at wire centers), this renders the
+    full estimated wire-shadow extent. Pass FWHM (= 2.355 sigma) for a
+    visual match with the perceived dark band.
+
+    grid_x are positions in the rotated frame (lines vertical).
+    """
+    base = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) if image.ndim == 2 else image.copy()
+    h, w = base.shape[:2]
+    half = float(band_width_px) / 2.0
+
+    rot_angle = 90.0 - float(line_dir_deg)
+    if abs(rot_angle) > 1e-6:
+        M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), rot_angle, 1.0)
+        base_rot = cv2.warpAffine(base, M, (w, h), flags=cv2.INTER_LINEAR,
+                                  borderMode=cv2.BORDER_REFLECT)
+    else:
+        base_rot = base.copy()
+
+    fill = base_rot.copy()
+    for x in grid_x:
+        x0 = int(round(float(x) - half))
+        x1 = int(round(float(x) + half))
+        cv2.rectangle(fill, (x0, 0), (x1, h - 1), color, thickness=cv2.FILLED)
+    blended = cv2.addWeighted(base_rot, 1.0 - alpha, fill, alpha, 0.0)
+
+    if abs(rot_angle) > 1e-6:
+        M_back = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -rot_angle, 1.0)
+        return cv2.warpAffine(blended, M_back, (w, h), flags=cv2.INTER_LINEAR,
+                              borderMode=cv2.BORDER_REFLECT)
+    return blended
+
+
 def detect_laid_lines_simple(
     image: np.ndarray,
     line_dir_deg: float = 90.0,
@@ -228,16 +288,26 @@ def detect_laid_lines_simple(
 
     Returns a dict with:
         dominant_period_px, dominant_freq_cpp     -- from radial FFT
-        dominant_signal_1d                         -- clean 1D signal
+        dominant_signal_1d                         -- clean 1D signal (Gabor
+                                                      if refinement, else
+                                                      broadband)
+        broadband_signal_1d                        -- column-mean + high-pass,
+                                                      used for wire width
         grid_positions_x                            -- wire x positions
         phase                                       -- fitted cosine phase
         line_dir_deg, wire_is_darker               -- echoed
         radial_freqs, radial_power                  -- for diagnostic plots
         gabor_score, gabor_theta_deg                -- if refinement used
+        wire_sigma_px, wire_fwhm_px                 -- Gaussian wire width
+        wire_harmonic_orders, wire_harmonic_amplitudes
+        wire_regression_slope, wire_regression_residuals
+        wire_model_ok, wire_warning                 -- Gaussian-fit diagnostics
     """
     fft_result = radial_fft_period(image, line_dir_deg=line_dir_deg,
                                    period_range_px=period_range_px)
     period_px = fft_result["dominant_period_px"]
+
+    broadband_1d = _broadband_signal_1d(image, line_dir_deg)
 
     if use_gabor_refinement:
         gabor_result = gabor_clean_signal(
@@ -248,12 +318,7 @@ def detect_laid_lines_simple(
         gabor_score = float(gabor_result["score"])
         gabor_theta = float(gabor_result["best_theta_deg"])
     else:
-        # Plain column mean (in rotated frame) with high-pass detrend.
-        img_rot = _rotate_to_vertical(image, line_dir_deg)
-        s = img_rot.astype(np.float32).mean(axis=0)
-        win = min(301, max(31, (len(s) // 20) | 1))
-        k = np.ones(win, dtype=np.float32) / win
-        signal_1d = s - np.convolve(s, k, mode="same")
+        signal_1d = broadband_1d.astype(np.float32)
         gabor_score = None
         gabor_theta = None
 
@@ -265,10 +330,15 @@ def detect_laid_lines_simple(
     length = image.shape[1]
     grid_x = grid_positions(phi, period_px, length)
 
+    # Wire width from harmonic amplitudes of the broadband signal.
+    # Gabor signal is narrow-band -> harmonics suppressed -> unusable here.
+    width = estimate_wire_width(broadband_1d, period_px)
+
     return {
         "dominant_period_px": period_px,
         "dominant_freq_cpp": fft_result["dominant_freq_cpp"],
         "dominant_signal_1d": signal_1d,
+        "broadband_signal_1d": broadband_1d,
         "grid_positions_x": grid_x,
         "phase": phi,
         "line_dir_deg": float(line_dir_deg),
@@ -277,4 +347,12 @@ def detect_laid_lines_simple(
         "radial_power": fft_result["radial_power"],
         "gabor_score": gabor_score,
         "gabor_theta_deg": gabor_theta,
+        "wire_sigma_px": width["sigma_px"],
+        "wire_fwhm_px": width["fwhm_px"],
+        "wire_harmonic_orders": width["harmonic_orders"],
+        "wire_harmonic_amplitudes": width["harmonic_amplitudes"],
+        "wire_regression_slope": width["regression_slope"],
+        "wire_regression_residuals": width["regression_residuals"],
+        "wire_model_ok": width["model_ok"],
+        "wire_warning": width["warning"],
     }

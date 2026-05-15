@@ -36,10 +36,9 @@ if __name__ == "__main__":
             img = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
             if img is None:
                 raise ValueError(f"Failed to read {img_path}")
-            img = cv2.GaussianBlur(img, (0, 0), 5)
-            small = cv2.resize(img, None, fx=0.2, fy=0.2, interpolation=cv2.INTER_AREA)
-            blurred = cv2.GaussianBlur(small, (0, 0), 20)
-            lowpass = cv2.resize(blurred, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_LINEAR)
+            lowpass = cv2.GaussianBlur(
+                img, (0, 0), sigmaX=100, borderType=cv2.BORDER_REFLECT_101
+            )
             images.append(lowpass)
 
             if debug_first and idx == 0:

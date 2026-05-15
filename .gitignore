@@ -23,3 +23,6 @@ dist/
 
 # Editor/tool backups
 *.bak
+
+# Local diagnostic outputs from scripts/
+scripts/_bg_blur_freq_out/

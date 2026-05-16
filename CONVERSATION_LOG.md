@@ -8,6 +8,144 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-16 — feat(pipeline): multi-phi spectral aggregation + split-half / self-contrast evaluators
+
+**Discussed.** Reintroduced DRP information into the predictor without
+falling back to the bias-prone LEGACY track. The SIMPLE detector uses
+exactly one grazing image and throws away the other ~19 per-phi
+observations; the LEGACY detector uses all of them but via a trig-mask +
+patchwise Gabor path that detects half the true period. New track sits
+between: keeps the simple-detector machinery, but feeds it averaged
+information from N phi images.
+
+**Why.** Single-image weaknesses: (1) ink/text occludes whichever
+section of laid lines that frame happens to capture; (2) SNR at the
+period peak is just whatever that one phi gives. The laid-line peak is
+phi-stationary (wires sit at the same physical pixels in every image),
+while ink reflectance and texture noise vary across phi. Power-spectrum
+averaging therefore boosts the signal coherently and washes out the
+contamination.
+
+**How.**
+- For each phi (steepest theta), compute the radial power spectrum
+  P_phi(f) by integrating the 2D FFT magnitude along the line direction.
+- Normalise each P_phi (default: divide by total in-band power so a
+  bright phi doesn't dominate) and sum across phi → P_agg(f). Pick the
+  peak on P_agg, not on any single image.
+- Period locked from P_agg, per-image phase at that period is amplitude-
+  weighted into a circular mean. Wire-width / broadband signal use the
+  highest-weight phi as representative.
+- **Polarity correction at the phase-aggregation step**: per-image phases
+  are first computed with the `wire_is_darker` convention, then aligned
+  to the highest-weight phi (anchor). Any per-image phase whose
+  anchor-relative offset exceeds π/2 is flipped by π before the weighted
+  circular mean is taken. This handles the (real, observed) phenomenon
+  where some phi values show wires as *brighter* than substrate, giving
+  a π-shifted phase that would otherwise destroy the circular-mean
+  consensus.
+
+Two evaluators added since there is no ground truth:
+- **Split-half stability**: random A/B partitions of the 20 phi images,
+  aggregate each half, compare period estimates. Quantifies "is the
+  aggregated detector measuring something stable?"
+- **Self-consistency contrast**: in the spatial domain, compare mean
+  intensity at predicted grid columns vs. half-period-shifted columns.
+  Independent of FFT — corroborates that the grid landed on real wires.
+
+**Changes.**
+- `paperdrm/stage3_detect/multi_phi_detector.py` (new): `collect_grazing_per_phi`,
+  `aggregate_radial_power`, `detect_laid_lines_multi_phi`. Returns the
+  same keys as `detect_laid_lines_simple` plus per-image phases/weights,
+  per-image polarity-flip mask, anchor index, raw vs. aligned phase
+  resultant length, and per-image spectra.
+- `paperdrm/stage5_evaluation/split_half.py` (new): `split_half_period_stability`
+  + print/save/plot. Reuses pre-computed per-image normalised spectra so
+  200 splits is cheap.
+- `paperdrm/stage5_evaluation/self_contrast.py` (new): `self_consistency_contrast`
+  + print/save/plot. Works on any track's output (multi-phi or simple).
+- `main.py`: replaced binary `USE_SIMPLE_DETECTOR` with string
+  `DETECTOR_TRACK = "multi_phi" | "simple" | "legacy"`. Added
+  `stage_detect_multi_phi`, `stage_split_half`, `stage_self_contrast`.
+  SIMPLE track now also runs self-contrast (writing to
+  `self_contrast.simple.{json,png}`) for apples-to-apples comparison.
+- Stage 3 / Stage 5 `__init__.py`: export new symbols.
+
+**Numbers (data_serial=9, 20 phi × 4 theta after filter).**
+- Period 55.35 px → 0.1169 cm → **8.55 lines/cm** (consistent with the
+  paleographic 8–14 lines/cm range).
+- Split-half (200 splits, half=10): diff std = **0.684 px** (CV 1.2%);
+  100% of splits agree within ±1 px, 19% within ±0.5 px.
+- Self-contrast: z = **+2.27**, contrast_rel = +5.55% — grid columns
+  are systematically darker than half-period-shifted columns.
+- Phase coherence: **R_raw = 0.280 → R_aligned = 0.981** after anchor-
+  based polarity correction (8/20 phi were polarity-flipped). The first
+  run without correction had R = 0.28 (circ_var 0.72), confirming the
+  flip hypothesis empirically.
+
+**Head-to-head on all 5 detectors (data_serial=9, ref = phi index 0).**
+Reproducible via `python scripts/compare_detectors.py`.
+
+| detector       | period_px | lines/cm | R²(k=4) | med\|z\| | med z | frac+ | sc_ref | time_s |
+|----------------|----------:|---------:|--------:|--------:|------:|------:|-------:|-------:|
+| radial_fft     |    56.110 |    8.439 |  0.0203 |    1.55 | −0.56 |   50% |  +1.29 |   0.25 |
+| gabor_full     |    30.000 |   15.784 |  0.0003 |    0.19 | −0.06 |   40% |  −0.49 |  66.19 |
+| gabor_patches  |    26.000 |   18.213 |  0.0002 |    0.34 | +0.17 |   65% |  +0.40 | 252.64 |
+| simple         |    56.110 |    8.439 |  0.0203 |    1.52 | −0.54 |   50% |  +1.27 |   1.17 |
+| **multi_phi**  |    55.351 |    8.555 |  0.0097 |    1.13 | +0.19 |   55% |  −1.22 |   5.23 |
+
+Reading:
+- `gabor_full` / `gabor_patches`: still period/2-biased (30 / 26 vs. the
+  correct ≈55), `med|z|` essentially noise-level — confirms the legacy
+  track is unrecoverable on this data.
+- `radial_fft` ≈ `simple` ≈ `multi_phi` on lines/cm (8.44 vs 8.44 vs
+  8.55, agreement within 1.4%). The radial-FFT family is the only
+  family producing a usable answer.
+- `R²` and `sc_ref` are computed on phi=0's broadband signal, so methods
+  whose period/phase were derived from phi=0 score higher by
+  construction. `med|z|` (median |z| across all 20 phi) is the
+  polarity-robust apples-to-apples score; `multi_phi` is slightly lower
+  because its grid is a cross-phi consensus rather than phi=0-optimal.
+- `frac+` ≈ 50% for the single-image methods independently corroborates
+  that ~half the phi observations have polarity opposite the assumed
+  `wire_is_darker`. This is the same phenomenon the multi-phi anchor
+  alignment fixes internally.
+
+**Polarity-flip diagnostic figure.**
+- `scripts/plot_polarity_flip.py`: picks the anchor (max-weight phi) and
+  the highest-weight polarity-flipped phi, plots their broadband
+  column-mean signals over 4 periods with the global grid overlaid.
+  In data_serial=9: anchor = phi 72°, flipped exemplar = phi 0°,
+  Δ_phase = −162.9° (≈ −π). Output: `polarity_flip.png`.
+
+**Verdict on multi_phi reliability vs. SIMPLE.**
+
+| dimension                 | SIMPLE                  | MULTI_PHI                    |
+|---------------------------|-------------------------|------------------------------|
+| period estimate           | 56.11 px (one image)    | 55.35 px (20 images)         |
+| period confidence         | none                    | ±0.68 px (split-half CV ≈ 1.2%) |
+| robustness to ink         | one image fails silently | 1/20 contribution            |
+| polarity handling         | implicit single-image    | explicit anchor + π-flip     |
+| wall time                 | 1.2 s                   | 5.2 s                        |
+| beats legacy gabor?       | yes                     | yes                          |
+
+The headline numerical change is small (≈1.4% on lines/cm) but multi_phi
+is the first track with an *internal* reliability measure. SIMPLE could
+silently return the wrong answer if its single grazing image happens to
+be occluded; multi_phi cannot fail the same way.
+
+**Follow-up.**
+1. The 0.76 px gap between `simple` (56.11) and `multi_phi` (55.35) —
+   is multi_phi's cross-phi consensus *more* accurate, or is phi=0
+   alone? Need an independent measure (e.g. manual count over a region,
+   or comparison against another phi). Split-half says multi_phi's 55.35
+   is reproducible to ±0.68 px so it's not noise.
+2. Wire-width still uses the representative phi only. Could average
+   harmonic amplitudes `|c_n|` across phi for a multi-phi σ estimate.
+3. Add peak SNR (P_agg peak / median in-band power) as a third
+   reliability metric, and compare against worst-case single-phi P_phi.
+
+---
+
 ## 2026-05-15 — feat(pipeline): wire-shadow width via Gaussian-comb harmonic fit
 
 **Discussed.** First wire-shadow *width* estimator end-to-end. Until now the

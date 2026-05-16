@@ -12,6 +12,9 @@ __pycache__/
 /interval_distribution*.json
 /fit_quality*.json
 /wire_width_stats*.json
+/split_half_stability*.json
+/self_contrast*.json
+/detector_comparison*.json
 
 # Notebooks are treated as personal scratch space, not source
 *.ipynb

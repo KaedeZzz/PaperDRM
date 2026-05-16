@@ -2,13 +2,16 @@
 Laid-line detection: estimate period, orientation, and grid positions.
 
 Submodules:
-- gabor:           Gabor filter bank + 1D FFT scoring, patchwise period
-                   estimation, phase-fit grid construction, and overlay
-                   generation. NOTE: known to be biased toward
-                   period/2 on this data (use_abs + score band-width).
-                   Kept for reference and as fallback.
-- simple_detector: Radial-FFT-based period detection, ML-optimal,
-                   parameter-free. Use this by default.
+- gabor:               Gabor filter bank + 1D FFT scoring, patchwise period
+                       estimation, phase-fit grid construction, and overlay
+                       generation. NOTE: known to be biased toward
+                       period/2 on this data (use_abs + score band-width).
+                       Kept for reference and as fallback.
+- simple_detector:     Radial-FFT-based period detection on one image.
+- multi_phi_detector:  Same as simple_detector but aggregates normalised
+                       power spectra across N grazing phi images for an
+                       SNR boost. Use this by default when a DRP stack
+                       is available.
 """
 
 from paperdrm.stage3_detect.gabor import (
@@ -28,6 +31,11 @@ from paperdrm.stage3_detect.simple_detector import (
     overlay_grid,
     overlay_grid_bands,
 )
+from paperdrm.stage3_detect.multi_phi_detector import (
+    detect_laid_lines_multi_phi,
+    aggregate_radial_power,
+    collect_grazing_per_phi,
+)
 from paperdrm.stage3_detect.wire_width import estimate_wire_width
 
 __all__ = [
@@ -44,5 +52,8 @@ __all__ = [
     "grid_positions",
     "overlay_grid",
     "overlay_grid_bands",
+    "detect_laid_lines_multi_phi",
+    "aggregate_radial_power",
+    "collect_grazing_per_phi",
     "estimate_wire_width",
 ]

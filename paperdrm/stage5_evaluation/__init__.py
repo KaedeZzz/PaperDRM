@@ -43,6 +43,18 @@ from paperdrm.stage5_evaluation.wire_width_stats import (
     save_wire_width_statistics,
     plot_wire_width_statistics,
 )
+from paperdrm.stage5_evaluation.split_half import (
+    split_half_period_stability,
+    print_split_half,
+    save_split_half,
+    plot_split_half,
+)
+from paperdrm.stage5_evaluation.self_contrast import (
+    self_consistency_contrast,
+    print_self_contrast,
+    save_self_contrast,
+    plot_self_contrast,
+)
 
 __all__ = [
     "patch_period_stats",
@@ -67,4 +79,12 @@ __all__ = [
     "print_wire_width_statistics",
     "save_wire_width_statistics",
     "plot_wire_width_statistics",
+    "split_half_period_stability",
+    "print_split_half",
+    "save_split_half",
+    "plot_split_half",
+    "self_consistency_contrast",
+    "print_self_contrast",
+    "save_self_contrast",
+    "plot_self_contrast",
 ]

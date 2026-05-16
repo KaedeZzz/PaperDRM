@@ -1,26 +1,33 @@
 """
-End-to-end laid-line detection pipeline (dual-track).
+End-to-end laid-line detection pipeline (three tracks).
 
-Two detection paths are supported via USE_SIMPLE_DETECTOR:
+Tracks are selected by the DETECTOR_TRACK constant below:
 
-SIMPLE TRACK (default, recommended)
+MULTI_PHI TRACK (default, recommended when a DRP stack is available)
+  N grazing images (one per phi) -> per-image radial FFT ->
+  normalise + sum spectra -> dominant period -> per-image phase fit ->
+  weighted circular mean phase -> grid. Boosts period SNR by averaging
+  phi-stationary signal across phi-random noise.
+
+SIMPLE TRACK
   Single grazing-light image -> radial FFT -> Gabor cleanup -> grid.
-  Bypasses DRP direction map and trig-mask preprocessing.
-  Fast (~1 sec for period), ML-optimal, correct on this data.
+  Bypasses DRP direction map and trig-mask preprocessing. Kept as an
+  ablation baseline against MULTI_PHI.
 
-LEGACY TRACK (USE_SIMPLE_DETECTOR = False)
+LEGACY TRACK
   DRP stack -> direction map -> trig mask -> patchwise Gabor -> grid.
   Slow (~4.5 min), KNOWN BIASED: detects half the true period due to
   abs-response harmonic doubling + proportional band-width bias in the
-  Gabor scoring. Kept for reference / ablation.
+  Gabor scoring. Kept for reference / ablation only.
 
 Stages used by each track:
-  0. stage0_loader     -- DRP stack loading             (both)
+  0. stage0_loader     -- DRP stack loading             (all)
   1. stage1_features   -- DRP direction map             (legacy only)
   2. stage2_enhance    -- trig mask                     (legacy only)
-  3. stage3_detect     -- period + grid                 (both, different)
-  4. (drawing)         -- overlay onto image            (both)
-  5. stage5_evaluation -- gap distribution + fit-quality (both)
+  3. stage3_detect     -- period + grid                 (all, different)
+  4. (drawing)         -- overlay onto image            (all)
+  5. stage5_evaluation -- gap distribution + fit-quality (all)
+                          + split-half + self-contrast  (multi_phi + simple)
                           + patch consistency           (legacy only)
 """
 
@@ -42,6 +49,10 @@ from paperdrm.stage3_detect.simple_detector import (
     detect_laid_lines_simple,
     overlay_grid,
     overlay_grid_bands,
+)
+from paperdrm.stage3_detect.multi_phi_detector import (
+    collect_grazing_per_phi,
+    detect_laid_lines_multi_phi,
 )
 from paperdrm.stage4_viz.comparison import (
     plot_orientation_comparison,
@@ -72,12 +83,24 @@ from paperdrm.stage5_evaluation.wire_width_stats import (
     save_wire_width_statistics,
     plot_wire_width_statistics,
 )
+from paperdrm.stage5_evaluation.split_half import (
+    plot_split_half,
+    print_split_half,
+    save_split_half,
+    split_half_period_stability,
+)
+from paperdrm.stage5_evaluation.self_contrast import (
+    plot_self_contrast,
+    print_self_contrast,
+    save_self_contrast,
+    self_consistency_contrast,
+)
 
 
 # ---------------------------------------------------------------------------
-# Track selector
+# Track selector: "multi_phi" | "simple" | "legacy"
 # ---------------------------------------------------------------------------
-USE_SIMPLE_DETECTOR = True
+DETECTOR_TRACK = "multi_phi"
 
 
 # ---------------------------------------------------------------------------
@@ -311,15 +334,138 @@ def stage_evaluate(
 
 
 # ---------------------------------------------------------------------------
+# Stage 3 MULTI_PHI TRACK
+# ---------------------------------------------------------------------------
+def stage_detect_multi_phi(
+    images,
+    *,
+    line_dir_deg: float = 90.0,
+    period_range_px: tuple[float, float] = (8.0, 80.0),
+    wire_is_darker: bool = True,
+    fov_width_cm: float | None = None,
+):
+    print(f"[Stage 3 MULTI_PHI] Aggregating power spectra across {len(images)} phi images")
+    result = detect_laid_lines_multi_phi(
+        images,
+        line_dir_deg=line_dir_deg,
+        period_range_px=period_range_px,
+        wire_is_darker=wire_is_darker,
+        use_gabor_refinement=True,
+    )
+    period_px = result["dominant_period_px"]
+    rep = result["representative_index"]
+    R_raw = result["phase_resultant_length_raw"]
+    R = result["phase_resultant_length"]
+    n_flipped = result["n_polarity_flipped"]
+    n = result["n_images"]
+    print(f"period={period_px:.2f} px  freq={result['dominant_freq_cpp']:.5f} cpp"
+          f"  representative_phi_idx={rep}  anchor={result['anchor_index']}")
+    print(f"  phase coherence: R_raw={R_raw:.3f} -> R_aligned={R:.3f}"
+          f"  (circ_var={result['phase_circular_var']:.4f},"
+          f"  polarity-flipped {n_flipped}/{n} phi)")
+    image_width = images[rep].shape[1]
+    cm_per_px = (float(fov_width_cm) / float(image_width)) if fov_width_cm else None
+    if cm_per_px is not None:
+        interval_cm = period_px * cm_per_px
+        print(f"laid line interval = {interval_cm:.4f} cm | density = {1.0/interval_cm:.4f} lines/cm")
+    if result["wire_model_ok"]:
+        fwhm_px = result["wire_fwhm_px"]
+        if cm_per_px is not None:
+            print(f"wire FWHM = {fwhm_px:.2f} px = {fwhm_px * cm_per_px * 10.0:.3f} mm")
+        else:
+            print(f"wire FWHM = {fwhm_px:.2f} px")
+        if result["wire_warning"]:
+            print(f"  [wire-width warning] {result['wire_warning']}")
+    else:
+        print(f"wire width: model failed ({result['wire_warning']})")
+    return result
+
+
+def stage_split_half(
+    images,
+    *,
+    line_dir_deg: float = 90.0,
+    period_range_px: tuple[float, float] = (8.0, 80.0),
+    fov_width_cm: float | None = None,
+    n_splits: int = 100,
+    seed: int = 0,
+    out_path: str = "split_half_stability.json",
+    plot_path: str | None = "split_half_stability.png",
+):
+    print(f"[Stage 5] Split-half period stability ({n_splits} splits)")
+    stats = split_half_period_stability(
+        images,
+        line_dir_deg=line_dir_deg,
+        period_range_px=period_range_px,
+        n_splits=n_splits,
+        seed=seed,
+        fov_width_cm=fov_width_cm,
+    )
+    print_split_half(stats)
+    save_split_half(stats, out_path)
+    plot_split_half(stats, save_path=plot_path)
+    return stats
+
+
+def stage_self_contrast(
+    image,
+    detect_out,
+    *,
+    band_half_width_px: int = 1,
+    out_path: str = "self_contrast.json",
+    plot_path: str | None = "self_contrast.png",
+):
+    print("[Stage 5] Self-consistency contrast")
+    stats = self_consistency_contrast(
+        image,
+        detect_out["grid_positions_x"],
+        detect_out["dominant_period_px"],
+        line_dir_deg=detect_out["line_dir_deg"],
+        band_half_width_px=band_half_width_px,
+        wire_is_darker=detect_out["wire_is_darker"],
+    )
+    print_self_contrast(stats)
+    save_self_contrast(stats, out_path)
+    plot_self_contrast(stats, save_path=plot_path)
+    return stats
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     pack = stage_load("exp_param.yaml")
 
-    if USE_SIMPLE_DETECTOR:
+    if DETECTOR_TRACK == "multi_phi":
+        images, phi_deg = collect_grazing_per_phi(pack)
+        rep_overlay_idx = 0  # raw image used for the visual overlay
+        raw_image, _ = pick_grazing_image_raw(pack, phi_index=rep_overlay_idx)
+        print(f"[Main] MULTI_PHI track: {len(images)} grazing phi images "
+              f"(phi range {phi_deg[0]:.1f}..{phi_deg[-1]:.1f} deg)")
+        detect_out = stage_detect_multi_phi(
+            images,
+            line_dir_deg=90.0,
+            fov_width_cm=pack.settings.fov_width_cm,
+        )
+        ref_image = images[detect_out["representative_index"]]
+        _, _, _, ww = stage_evaluate(
+            detect_out,
+            image=ref_image,
+            fov_width_cm=pack.settings.fov_width_cm,
+            image_width_px=ref_image.shape[1],
+        )
+        stage_split_half(
+            images,
+            fov_width_cm=pack.settings.fov_width_cm,
+            n_splits=200,
+        )
+        stage_self_contrast(ref_image, detect_out)
+        stage_overlay_simple(raw_image, detect_out)
+        stage_overlay_simple_bands(raw_image, detect_out, ww)
+    elif DETECTOR_TRACK == "simple":
         image, idx = pick_grazing_image(pack, phi_index=0)
         raw_image, _ = pick_grazing_image_raw(pack, phi_index=0)
-        print(f"[Main] Using image index {idx} (phi=0 column, steepest theta)")
+        print(f"[Main] SIMPLE track: image index {idx} (phi=0 column, steepest theta)")
         detect_out = stage_detect_simple(
             image, line_dir_deg=90.0, fov_width_cm=pack.settings.fov_width_cm,
         )
@@ -329,9 +475,14 @@ if __name__ == "__main__":
             fov_width_cm=pack.settings.fov_width_cm,
             image_width_px=image.shape[1],
         )
+        stage_self_contrast(
+            image, detect_out,
+            out_path="self_contrast.simple.json",
+            plot_path="self_contrast.simple.png",
+        )
         stage_overlay_simple(raw_image, detect_out)
         stage_overlay_simple_bands(raw_image, detect_out, ww)
-    else:
+    elif DETECTOR_TRACK == "legacy":
         _mag, deg_map = stage_direction(pack)
         patch_size, stride = (512, 512), (256, 256)
         gabor_input = stage_enhance(deg_map, patch_size=patch_size, stride=stride)
@@ -345,3 +496,6 @@ if __name__ == "__main__":
             image_width_px=gabor_input.shape[1],
         )
         stage_overlay_legacy(gabor_input, detect_out)
+    else:
+        raise ValueError(f"Unknown DETECTOR_TRACK={DETECTOR_TRACK!r}; "
+                         "expected 'multi_phi', 'simple', or 'legacy'.")

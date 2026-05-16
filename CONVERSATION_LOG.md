@@ -8,6 +8,114 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-17 — feat(stage0_loader): infer DRP config from filenames + Google Drive fetch
+
+**Discussed.** Planning the next IIB direction: validate pipeline
+robustness on *other* datasets (multi-phi numbers so far rest entirely on
+data_serial=9 internal consistency, no external reference). Phantom data
+was discussed as the cheapest path to ground-truth wire-width σ but
+deferred; this entry covers the prerequisite — making it cheap to point
+the pipeline at a new dataset without hand-writing 6 acquisition fields
+into yaml. Pain point: filenames already encode (phi, theta), but
+`exp_param.yaml` still required `th_min/max/num` and `ph_min/max/num`
+plus `data_serial` per sample, of which only `fov_width_cm` and
+`theta_min_deg` are genuinely per-sample knobs.
+
+**Why.** Three frictions blocked "try another dataset":
+  1. Six acquisition fields per yaml are redundant with the data on disk.
+  2. yaml expected one global dataset; multi-dataset workflow had no
+     story for `data_serial`, background folders, or sample-level config.
+  3. Downloading from Google Drive + writing the yaml by hand for every
+     new sample was the slowest part of trying new data.
+
+**How.** Three layered steps, each runnable independently:
+
+  1. **DRP config inference from filenames** — `<phi>_<theta>.<ext>`
+     regex with leading-zero tolerance, set-based dedup,
+     uniform-step + complete-grid validation in strict mode. Returns a
+     validated `DRPConfig` and an `InferenceReport` for diagnostics.
+
+  2. **Settings/ImagePack integration** — `Settings.drp` may now be
+     None; `Settings.from_yaml` enforces all-or-nothing on the six acq
+     keys (partial set raises with the missing field list). When yaml
+     omits them, `ImagePack` populates `DRPConfig` from inference;
+     otherwise it cross-checks yaml vs inferred and errors on any field
+     disagreement (`verify_drp_match`, exact yaml=X inferred=Y). The
+     `data_serial_hint` field carries the yaml's `data_serial` through
+     until inference attaches it.
+
+  3. **Google Drive fetch + dataset bundle** — `scripts/fetch_dataset.py`
+     downloads (gdown) or copies (`--from-local`) into
+     `data/raw/<serial>/`, optionally pulls a background subfolder, runs
+     the same inference for download validation, then writes a
+     per-dataset `sample.yaml` (folder, fov_width_cm, optional
+     theta_min_deg, notes.{source,fetched,note}). `ImagePack` falls back
+     to `<image_folder>/background/` before the legacy global
+     `data/background/`, and `data_serial` is taken from folder basename
+     when yaml/hint provide none (numeric → int, otherwise string,
+     generic names like `raw`/`processed` ignored). `main.py` gained a
+     `--config` arg so per-sample yamls can be loaded directly.
+
+**Changes.**
+- `paperdrm/stage0_loader/inference.py` (new):
+  `infer_drp_config_from_folder`, `InferenceReport`, `verify_drp_match`.
+- `paperdrm/stage0_loader/settings.py`: `Settings.drp` optional;
+  `data_serial_hint` field; `resolve_drp_from_yaml` helper used by both
+  `from_yaml` and `ImagePack`; `validate` skips drp-dependent checks
+  when drp is None.
+- `paperdrm/stage0_loader/imagepack.py`: post-folder-resolve, run
+  inference for populate-or-cross-check; `_data_serial_from_folder`
+  fallback; background folder lookup prefers sibling then global.
+- `main.py`: argparse entry-point with `--config` (default
+  `exp_param.yaml`).
+- `requirements.txt`: add `gdown`; rewrite from UTF-16 LE back to UTF-8
+  (regression from a previous cleanup).
+- `scripts/infer_drp_config.py` (new): CLI that runs inference on a
+  folder and diffs the result against an existing yaml; exit 1 on any
+  field mismatch.
+- `scripts/fetch_dataset.py` (new): Google Drive / local ingest with
+  inference-based validation and sample.yaml generation.
+
+**Verification.**
+- Current `data/raw/` (480 jpgs): inference produces
+  `th_min=10 th_max=65 th_num=12 ph_min=0 ph_max=351 ph_num=40`,
+  identical to existing yaml.
+- Padded filenames (`009_010.jpg`): parsed identically (`\d+` +
+  `int()`).
+- Partial yaml (only `th_min`, `th_max`): `Settings.from_yaml` raises
+  with the four missing field names.
+- Mismatched yaml (`ph_num: 39` vs 40 files in folder): `ImagePack`
+  raises from `verify_drp_match` with `ph_num: yaml=39 inferred=40`.
+- Minimal yaml (no acq fields, just `data_serial`, `theta_min_deg`,
+  `fov_width_cm`): `ImagePack` infers cleanly, identical
+  `base_config` and `num_images_after_filter=320` to the full-yaml run.
+- `fetch_dataset.py --from-local data/raw --serial test_local
+  --copy-mode symlink --fov 8.65 --theta-min 30`: 480 symlinks +
+  sample.yaml; subsequent `ImagePack` run logs
+  `data_serial inferred from folder name: 'test_local'` and reproduces
+  the same pipeline state.
+- gdown-missing path: clear `pip install gdown` message, exit 1.
+- Overwrite guard: existing non-empty target → exit 2 unless
+  `--overwrite`.
+
+**Follow-up.**
+1. Real Google Drive end-to-end test still pending — gdown is in
+   requirements but the user's venv was relocated from
+   `/Users/kaedez/Documents/DRP-Processing/` (broken shebangs); after
+   `pip install gdown` succeeded, no actual Drive URL has been run
+   through the script yet.
+2. Single-zip mode (`--zip-url`) was discussed as a more reliable
+   alternative to gdown folder downloads but not implemented.
+3. Cache (`data/cache/data.dat` + `data_config.yaml`) is still global;
+   switching datasets triggers a rebuild. Per-dataset cache would
+   avoid the ~100s rebuild cost when alternating between samples but
+   isn't needed for single-active-dataset workflows.
+4. Phantom-data validation for wire-width σ is still the unfinished
+   prerequisite for publishing the multi_phi results — not in this
+   commit's scope but next on the IIB roadmap.
+
+---
+
 ## 2026-05-16 — feat(pipeline): multi-phi spectral aggregation + split-half / self-contrast evaluators
 
 **Discussed.** Reintroduced DRP information into the predictor without

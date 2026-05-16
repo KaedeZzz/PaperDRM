@@ -434,7 +434,17 @@ def stage_self_contrast(
 # Entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    pack = stage_load("exp_param.yaml")
+    import argparse
+
+    _parser = argparse.ArgumentParser(description="PaperDRM pipeline entry point.")
+    _parser.add_argument(
+        "--config",
+        default="exp_param.yaml",
+        help="Path to the settings yaml (default: exp_param.yaml). "
+             "Per-dataset bundles live at data/raw/<serial>/sample.yaml.",
+    )
+    _args = _parser.parse_args()
+    pack = stage_load(_args.config)
 
     if DETECTOR_TRACK == "multi_phi":
         images, phi_deg = collect_grazing_per_phi(pack)

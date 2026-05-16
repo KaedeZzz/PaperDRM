@@ -3,7 +3,16 @@ import warnings
 
 import numpy as np
 
-from paperdrm.stage0_loader.settings import CacheConfig, DRPConfig, Settings, load_drp_config, save_cache_config
+from dataclasses import replace
+
+from paperdrm.stage0_loader.settings import (
+    CacheConfig,
+    DRPConfig,
+    Settings,
+    load_drp_config,
+    resolve_drp_from_yaml,
+    save_cache_config,
+)
 from paperdrm.stage0_loader.image_io import (
     open_drp_memmap,
     prepare_cache,
@@ -11,6 +20,7 @@ from paperdrm.stage0_loader.image_io import (
     resolve_image_folder,
     load_images,
 )
+from paperdrm.stage0_loader.inference import infer_drp_config_from_folder, verify_drp_match
 from paperdrm.stage0_loader.paths import DataPaths
 from paperdrm.stage0_drp import (
     apply_angle_slice,
@@ -62,7 +72,7 @@ class ImagePack:
             self.settings = settings
         else:
             cfg_path = resolve_config_path(config_path)
-            drp_cfg = load_drp_config(cfg_path)
+            drp_cfg, data_serial_hint = resolve_drp_from_yaml(cfg_path)
             self.settings = Settings(
                 data_root=data_root,
                 folder=folder,
@@ -74,6 +84,7 @@ class ImagePack:
                 load_workers=load_workers,
                 config_path=cfg_path,
                 drp=drp_cfg,
+                data_serial_hint=data_serial_hint,
                 square_crop=square_crop,
                 verbose=verbose if verbose is not None else False,
             )
@@ -82,6 +93,27 @@ class ImagePack:
         self.paths = DataPaths.from_root(self.settings.data_root)
         self.folder = resolve_image_folder(self.settings.folder, self.paths)
         self.config_path = self.settings.config_path or resolve_config_path(None)
+
+        # Either populate DRPConfig by inference (yaml omitted the six acq
+        # fields) or cross-check yaml-provided values against the actual files.
+        if self.settings.drp is None:
+            inferred, report = infer_drp_config_from_folder(
+                self.folder, img_format=self.settings.img_format, strict=True
+            )
+            serial = self.settings.data_serial_hint
+            if serial is None:
+                serial = _data_serial_from_folder(self.folder)
+                if serial is not None:
+                    self._log(f"data_serial inferred from folder name: {serial!r}")
+            inferred = replace(inferred, data_serial=serial)
+            self.settings = self.settings.with_overrides(drp=inferred, data_serial_hint=None)
+            self._log(f"Inferred DRPConfig from {self.folder}:\n{report.summary()}")
+        else:
+            inferred, _ = infer_drp_config_from_folder(
+                self.folder, img_format=self.settings.img_format, strict=True
+            )
+            verify_drp_match(self.settings.drp, inferred, source=self.folder)
+
         self.base_config: DRPConfig = self.settings.drp  # type: ignore[assignment]
         self.data_serial = self.base_config.data_serial
         self._log(f"Initialising ImagePack with data_root={self.paths.root} folder={self.folder}")
@@ -93,7 +125,12 @@ class ImagePack:
 
         # Optional brightness-invariant preprocessing: subtract blurred backgrounds
         if self.settings.subtract_background:
-            bg_folder = self.paths.root / "background"
+            # Prefer a per-dataset background folder (sibling of the image
+            # folder), then fall back to the global data/background for
+            # the legacy single-dataset layout.
+            sibling_bg = self.folder / "background"
+            global_bg = self.paths.root / "background"
+            bg_folder = sibling_bg if sibling_bg.exists() else global_bg
             if not bg_folder.exists():
                 warnings.warn(f"Background folder not found at {bg_folder}; skipping subtraction.")
             else:
@@ -249,3 +286,21 @@ class ImagePack:
                 memmap_obj._mmap.close()
         except Exception:
             pass
+
+
+def _data_serial_from_folder(folder: Path) -> str | int | None:
+    """
+    Fall back to the image folder's basename when neither yaml nor hint
+    supplied ``data_serial``. Returns int when the basename is numeric,
+    otherwise the raw string. Returns None for "obviously generic" names
+    (e.g. ``raw``, ``processed``, ``data``) so legacy flat layouts don't
+    silently get a meaningless serial like "raw".
+    """
+    generic = {"raw", "processed", "background", "cache", "data", "datasets"}
+    name = folder.name
+    if not name or name in generic:
+        return None
+    try:
+        return int(name)
+    except ValueError:
+        return name

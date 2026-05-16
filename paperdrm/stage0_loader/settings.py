@@ -120,6 +120,33 @@ def save_drp_config(path: Path, cfg: DRPConfig) -> None:
         yaml.dump(asdict(cfg), fh, sort_keys=False)
 
 
+_ACQ_KEYS = ("th_min", "th_max", "th_num", "ph_min", "ph_max", "ph_num")
+
+
+def resolve_drp_from_yaml(path: Path) -> tuple[DRPConfig | None, str | int | None]:
+    """
+    Decide whether a yaml file fully specifies the DRP acquisition grid.
+
+    Returns ``(drp_cfg, data_serial_hint)`` where exactly one of the two is
+    informative: a fully-specified yaml yields ``(DRPConfig, None)``; an empty
+    or acq-free yaml yields ``(None, raw_data_serial)`` so the caller can
+    populate the grid via inference later. A partial acq spec raises.
+    """
+    path = Path(path)
+    raw = yaml.safe_load(path.read_text()) or {}
+    present = [k for k in _ACQ_KEYS if k in raw]
+    if 0 < len(present) < len(_ACQ_KEYS):
+        missing = [k for k in _ACQ_KEYS if k not in raw]
+        raise ValueError(
+            f"Partial DRP acquisition fields in {path}: missing {missing}. "
+            "Provide all six (th_min/max/num, ph_min/max/num) or omit them all "
+            "to enable inference from filenames."
+        )
+    if len(present) == len(_ACQ_KEYS):
+        return load_drp_config(path), None
+    return None, raw.get("data_serial")
+
+
 @dataclass
 class Settings:
     """
@@ -128,6 +155,11 @@ class Settings:
     This bundles DRP acquisition parameters with runtime knobs used to load and
     process images. Use ``Settings.from_yaml`` to hydrate from ``exp_param.yaml``
     (or another config) and optionally override fields with ``with_overrides``.
+
+    ``drp`` may be left as None when the yaml omits the six acquisition fields
+    (th_min/max/num, ph_min/max/num); ``ImagePack`` will then populate it by
+    inferring the grid from the image folder. ``data_serial_hint`` carries the
+    yaml-supplied serial in that case until inference attaches it.
     """
 
     data_root: str | Path = "data"
@@ -140,6 +172,7 @@ class Settings:
     load_workers: int | None = None
     config_path: str | Path | None = None
     drp: DRPConfig | None = None
+    data_serial_hint: str | int | None = None
     square_crop: bool = False
     theta_min_deg: float | None = None
     fov_width_cm: float | None = None
@@ -154,23 +187,24 @@ class Settings:
 
     @property
     def data_serial(self) -> str | int | None:
-        return self.drp.data_serial if self.drp else None
+        if self.drp is not None and self.drp.data_serial is not None:
+            return self.drp.data_serial
+        return self.data_serial_hint
 
     def validate(self) -> None:
-        if self.drp is None:
-            raise ValueError("Settings.drp must be provided (load via Settings.from_yaml or supply DRPConfig).")
-        self.drp.validate()
-        if self.theta_min_deg is not None and float(self.theta_min_deg) > float(self.drp.th_max):
-            raise ValueError("theta_min_deg cannot exceed DRP th_max.")
-        if self.fov_width_cm is not None and float(self.fov_width_cm) <= 0:
-            raise ValueError("fov_width_cm must be positive when provided.")
         if len(self.angle_slice) != 2:
             raise ValueError("angle_slice must be a 2-tuple of (phi_slice, theta_slice).")
         ph_slice, th_slice = self.angle_slice
         if ph_slice <= 0 or th_slice <= 0:
             raise ValueError("angle_slice values must be positive.")
-        if self.drp.ph_num % ph_slice != 0 or self.drp.th_num % th_slice != 0:
-            raise ValueError("angle_slice must evenly divide the DRP phi/theta counts.")
+        if self.fov_width_cm is not None and float(self.fov_width_cm) <= 0:
+            raise ValueError("fov_width_cm must be positive when provided.")
+        if self.drp is not None:
+            self.drp.validate()
+            if self.theta_min_deg is not None and float(self.theta_min_deg) > float(self.drp.th_max):
+                raise ValueError("theta_min_deg cannot exceed DRP th_max.")
+            if self.drp.ph_num % ph_slice != 0 or self.drp.th_num % th_slice != 0:
+                raise ValueError("angle_slice must evenly divide the DRP phi/theta counts.")
 
     def with_overrides(self, **kwargs: Any) -> "Settings":
         """
@@ -181,12 +215,17 @@ class Settings:
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Settings":
         """
-        Load settings from a YAML file. DRP parameters are required; other
-        runtime fields are optional and fall back to defaults.
+        Load settings from a YAML file.
+
+        The six DRP acquisition fields (th_min/max/num, ph_min/max/num) are
+        treated as all-or-nothing: provide all six to fix the grid explicitly,
+        or omit all six to let ``ImagePack`` infer them from filenames. A
+        partial set raises immediately so users notice the typo.
         """
         cfg_path = Path(path)
         raw: dict[str, Any] = yaml.safe_load(cfg_path.read_text()) or {}
-        drp_cfg = load_drp_config(cfg_path)
+
+        drp_cfg, data_serial_hint = resolve_drp_from_yaml(cfg_path)
 
         angle_slice = tuple(raw.get("angle_slice", (1, 1)))
         return cls(
@@ -200,6 +239,7 @@ class Settings:
             load_workers=raw.get("load_workers"),
             config_path=cfg_path,
             drp=drp_cfg,
+            data_serial_hint=data_serial_hint,
             square_crop=raw.get("square_crop", False),
             theta_min_deg=raw.get("theta_min_deg"),
             fov_width_cm=raw.get("fov_width_cm"),

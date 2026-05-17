@@ -148,10 +148,21 @@ class ImagePack:
             else:
                 bg_folder = None
 
+            # Validate that all required background files exist; fall back to
+            # on-the-fly blur if any are missing (e.g. after a dataset swap).
+            if bg_folder is not None:
+                missing = [p for p in load_paths if not (bg_folder / p.name).exists()]
+                if missing:
+                    self._log(
+                        f"Background folder {bg_folder} is missing {len(missing)} file(s) "
+                        f"(e.g. {missing[0].name}) — falling back to Gaussian blur on-the-fly"
+                    )
+                    bg_folder = None
+
             if bg_folder is not None:
                 self._log(f"Subtracting backgrounds from {bg_folder} (streaming)")
             else:
-                self._log("No background folder found — computing Gaussian blur on-the-fly (sigma=100)")
+                self._log("Computing Gaussian blur background on-the-fly (sigma=100)")
 
             subtracted: list[np.ndarray] = []
             for img, img_path in zip(self.images, load_paths):
@@ -170,6 +181,21 @@ class ImagePack:
                 diff = np.clip(diff * scale, 0, 255).astype(np.uint8)
                 subtracted.append(diff)
             self.images = subtracted
+
+        if self.settings.crop_roi is not None:
+            x, y, w, h = self.settings.crop_roi
+            orig_w = self.images[0].shape[1]
+            self.images = [img[y:y + h, x:x + w] for img in self.images]
+            # Scale fov_width_cm proportionally so physical units stay correct.
+            if self.settings.fov_width_cm is not None:
+                self.settings = self.settings.with_overrides(
+                    fov_width_cm=self.settings.fov_width_cm * w / orig_w
+                )
+            self._log(
+                f"Applied ROI crop [x={x}, y={y}, w={w}, h={h}] -> "
+                f"new shape {self.images[0].shape}, "
+                f"fov_width_cm adjusted to {self.settings.fov_width_cm:.4f} cm"
+            )
 
         if self.settings.square_crop:
             self.images = self._crop_to_square(self.images)

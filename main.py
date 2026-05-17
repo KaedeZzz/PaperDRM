@@ -501,6 +501,7 @@ if __name__ == "__main__":
         detect_out = stage_detect_multi_phi(
             images,
             line_dir_deg=90.0,
+            period_range_px=pack.settings.period_range_px,
             fov_width_cm=pack.settings.fov_width_cm,
         )
         ref_image = images[detect_out["representative_index"]]
@@ -512,6 +513,7 @@ if __name__ == "__main__":
         )
         stage_split_half(
             images,
+            period_range_px=pack.settings.period_range_px,
             fov_width_cm=pack.settings.fov_width_cm,
             n_splits=200,
         )
@@ -524,7 +526,9 @@ if __name__ == "__main__":
         raw_image, _ = pick_grazing_image_raw(pack, phi_index=0)
         print(f"[Main] SIMPLE track: image index {idx} (phi=0 column, steepest theta)")
         detect_out = stage_detect_simple(
-            image, line_dir_deg=90.0, fov_width_cm=pack.settings.fov_width_cm,
+            image, line_dir_deg=90.0,
+            period_range_px=pack.settings.period_range_px,
+            fov_width_cm=pack.settings.fov_width_cm,
         )
         _, _, _, ww = stage_evaluate(
             detect_out,

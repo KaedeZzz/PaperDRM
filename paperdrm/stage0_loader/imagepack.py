@@ -1,6 +1,7 @@
 from pathlib import Path
 import warnings
 
+import cv2
 import numpy as np
 
 from dataclasses import replace
@@ -19,6 +20,7 @@ from paperdrm.stage0_loader.image_io import (
     resolve_config_path,
     resolve_image_folder,
     load_images,
+    load_images_from_paths,
 )
 from paperdrm.stage0_loader.inference import infer_drp_config_from_folder, verify_drp_match
 from paperdrm.stage0_loader.paths import DataPaths
@@ -118,31 +120,39 @@ class ImagePack:
         self.data_serial = self.base_config.data_serial
         self._log(f"Initialising ImagePack with data_root={self.paths.root} folder={self.folder}")
 
-        # Load raw grayscale images from disk
-        self._log(f"Loading images ({self.settings.img_format}) from {self.folder}")
-        self.images = load_images(self.folder, self.settings.img_format, num_workers=self.settings.load_workers)
+        # Pre-select which image paths to load: apply angle_slice + theta_min before
+        # reading pixels so we never load the full angular grid into memory.
+        all_image_paths = sorted(self.folder.glob(f"*.{self.settings.img_format}"))
+        load_paths, sliced_cfg = apply_angle_slice(all_image_paths, self.base_config, self.settings.angle_slice)
+        load_paths, filtered_cfg = apply_theta_min_filter(load_paths, sliced_cfg, self.settings.theta_min_deg)
+        self._log(
+            f"Angular pre-filter: {len(all_image_paths)} -> {len(load_paths)} images "
+            f"(angle_slice={self.settings.angle_slice}, theta_min={self.settings.theta_min_deg})"
+        )
+
+        # Load only the selected images
+        self._log(f"Loading {len(load_paths)} images ({self.settings.img_format}) from {self.folder}")
+        self.images = load_images_from_paths(load_paths, num_workers=self.settings.load_workers)
         self._log(f"Loaded {len(self.images)} images; first image shape {self.images[0].shape}")
 
-        # Optional brightness-invariant preprocessing: subtract blurred backgrounds
+        # Optional brightness-invariant preprocessing: subtract blurred backgrounds.
+        # Load each background image on demand (streaming) to avoid doubling memory.
         if self.settings.subtract_background:
-            # Prefer a per-dataset background folder (sibling of the image
-            # folder), then fall back to the global data/background for
-            # the legacy single-dataset layout.
             sibling_bg = self.folder / "background"
             global_bg = self.paths.root / "background"
             bg_folder = sibling_bg if sibling_bg.exists() else global_bg
             if not bg_folder.exists():
                 warnings.warn(f"Background folder not found at {bg_folder}; skipping subtraction.")
             else:
-                self._log(f"Subtracting backgrounds from {bg_folder}")
-                bg_images = load_images(bg_folder, self.settings.img_format, num_workers=self.settings.load_workers)
-                if len(bg_images) != len(self.images):
-                    raise ValueError(f"Background count {len(bg_images)} does not match image count {len(self.images)}.")
+                self._log(f"Subtracting backgrounds from {bg_folder} (streaming)")
                 subtracted: list[np.ndarray] = []
-                for img, bg in zip(self.images, bg_images):
+                for img, img_path in zip(self.images, load_paths):
+                    bg_path = bg_folder / img_path.name
+                    bg = cv2.imread(str(bg_path), cv2.IMREAD_GRAYSCALE)
+                    if bg is None:
+                        raise IOError(f"Could not open background image: {bg_path}")
                     if img.shape != bg.shape:
                         raise ValueError(f"Background shape {bg.shape} does not match image shape {img.shape}.")
-                    # Subtract then rescale so images share roughly consistent brightness.
                     diff = img.astype(np.float32) - bg.astype(np.float32)
                     diff = np.clip(diff, 0, None)
                     ref = np.percentile(diff, self.settings.subtraction_scale_percentile)
@@ -150,29 +160,29 @@ class ImagePack:
                     diff = np.clip(diff * scale, 0, 255).astype(np.uint8)
                     subtracted.append(diff)
                 self.images = subtracted
+
         if self.settings.square_crop:
             self.images = self._crop_to_square(self.images)
             self._log(f"Applied square crop -> new shape {self.images[0].shape}")
+
+        self.param = filtered_cfg
+        self.angle_slice = self.settings.angle_slice
         self.num_images = len(self.images)
         self.h, self.w = self.images[0].shape
-
-        # Precompute the stack shape for the requested slice to size memmap correctly
-        if self.base_config.ph_num % self.settings.angle_slice[0] != 0 or self.base_config.th_num % self.settings.angle_slice[1] != 0:
-            raise ValueError("Angle slices must evenly divide ph_num and th_num.")
-
-        sliced_ph = self.base_config.ph_num // self.settings.angle_slice[0]
-        sliced_th = self.base_config.th_num // self.settings.angle_slice[1]
-        stack_shape = (self.h, self.w, sliced_ph, sliced_th)
-        self._log(f"Preparing cache for angle_slice={self.settings.angle_slice} stack_shape={stack_shape}")
-        self.drp_stack, cache_cfg, stack_needs_build = prepare_cache(
-            self.paths, self.settings.angle_slice, stack_shape, self.data_serial
+        self._log(
+            "Applied angular filtering -> "
+            f"ph_num={self.param.ph_num}, th_num={self.param.th_num}, "
+            f"th_min={self.param.th_min}, th_max={self.param.th_max}"
         )
 
-        # Use caller's slice preference; rebuild cache if it differs from what's stored.
+        stack_shape = (self.h, self.w, self.param.ph_num, self.param.th_num)
+        self._log(f"Preparing cache for angle_slice={self.angle_slice} stack_shape={stack_shape}")
+        self.drp_stack, cache_cfg, stack_needs_build = prepare_cache(
+            self.paths, self.angle_slice, stack_shape, self.data_serial
+        )
+
         cache_slice = (cache_cfg.ph_slice, cache_cfg.th_slice)
-        self.angle_slice = self.settings.angle_slice
         if cache_slice != self.angle_slice:
-            # Force recreation with new slice parameters
             self._log(f"Cache slice {cache_slice} != requested {self.angle_slice}; recreating memmap")
             self._close_memmap(self.drp_stack)
             self.drp_stack = open_drp_memmap(
@@ -190,26 +200,14 @@ class ImagePack:
             )
             stack_needs_build = True
 
-        # Apply slicing to images and config
-        self.images, self.param = apply_angle_slice(self.images, self.base_config, self.angle_slice)
-        self.images, self.param = apply_theta_min_filter(self.images, self.param, self.settings.theta_min_deg)
-        self.num_images = len(self.images)
-        self._log(
-            "Applied angular filtering -> "
-            f"ph_num={self.param.ph_num}, th_num={self.param.th_num}, "
-            f"th_min={self.param.th_min}, th_max={self.param.th_max}"
-        )
-
-        expected_shape = (self.h, self.w, self.param.ph_num, self.param.th_num)
-        if self.drp_stack.shape != expected_shape or not self.settings.use_cached_stack:
-            # Shape mismatch or caller requested rebuild: recreate stack
-            reason = "shape mismatch" if self.drp_stack.shape != expected_shape else "use_cached_stack=False"
-            self._log(f"Recreating DRP memmap due to {reason}; expected {expected_shape}, found {self.drp_stack.shape}")
+        if self.drp_stack.shape != stack_shape or not self.settings.use_cached_stack:
+            reason = "shape mismatch" if self.drp_stack.shape != stack_shape else "use_cached_stack=False"
+            self._log(f"Recreating DRP memmap due to {reason}; expected {stack_shape}, found {self.drp_stack.shape}")
             self._close_memmap(self.drp_stack)
             self.drp_stack = open_drp_memmap(
                 self.paths.cache / "drp.dat",
                 mode="w+",
-                shape=expected_shape,
+                shape=stack_shape,
             )
             save_cache_config(
                 self.paths.cache / "data_config.yaml",

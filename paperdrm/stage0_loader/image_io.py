@@ -36,6 +36,15 @@ def load_images(folder: Path, img_format: str, num_workers: int | None = None) -
     image_paths = sorted(folder.glob(f"*.{img_format}"))
     if not image_paths:
         raise ValueError(f"No images with extension .{img_format} found in {folder}")
+    return load_images_from_paths(image_paths, num_workers=num_workers)
+
+
+def load_images_from_paths(paths: list[Path], num_workers: int | None = None) -> list[np.ndarray]:
+    """
+    Load grayscale images from an explicit list of paths.
+    """
+    if not paths:
+        raise ValueError("No image paths provided.")
 
     def _read(path: Path) -> np.ndarray:
         img = cv2.imread(str(path), flags=cv2.IMREAD_GRAYSCALE)
@@ -46,10 +55,10 @@ def load_images(folder: Path, img_format: str, num_workers: int | None = None) -
     # Threaded decode helps when disk and CPU can overlap; falls back to serial otherwise.
     workers = num_workers if num_workers is not None else (os.cpu_count() or 1)
     if workers <= 1:
-        return [_read(p) for p in tqdm(image_paths, desc="loading images")]
+        return [_read(p) for p in tqdm(paths, desc="loading images")]
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        images = list(tqdm(pool.map(_read, image_paths), total=len(image_paths), desc="loading images"))
+        images = list(tqdm(pool.map(_read, paths), total=len(paths), desc="loading images"))
     return images
 
 

@@ -20,6 +20,7 @@ from paperdrm.stage0_loader.settings import (
 from paperdrm.stage0_loader.paths import DataPaths
 from paperdrm.stage0_loader.image_io import (
     load_images,
+    load_images_from_paths,
     open_drp_memmap,
     prepare_cache,
     resolve_config_path,
@@ -38,6 +39,7 @@ __all__ = [
     "save_drp_config",
     "save_cache_config",
     "load_images",
+    "load_images_from_paths",
     "open_drp_memmap",
     "prepare_cache",
     "resolve_config_path",

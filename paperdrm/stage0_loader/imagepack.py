@@ -136,30 +136,40 @@ class ImagePack:
         self._log(f"Loaded {len(self.images)} images; first image shape {self.images[0].shape}")
 
         # Optional brightness-invariant preprocessing: subtract blurred backgrounds.
-        # Load each background image on demand (streaming) to avoid doubling memory.
+        # If a pre-computed background folder exists, load from disk (streaming).
+        # Otherwise compute Gaussian blur on-the-fly — no manual bg_blur.py run needed.
         if self.settings.subtract_background:
             sibling_bg = self.folder / "background"
             global_bg = self.paths.root / "background"
-            bg_folder = sibling_bg if sibling_bg.exists() else global_bg
-            if not bg_folder.exists():
-                warnings.warn(f"Background folder not found at {bg_folder}; skipping subtraction.")
+            if sibling_bg.exists():
+                bg_folder: Path | None = sibling_bg
+            elif global_bg.exists():
+                bg_folder = global_bg
             else:
+                bg_folder = None
+
+            if bg_folder is not None:
                 self._log(f"Subtracting backgrounds from {bg_folder} (streaming)")
-                subtracted: list[np.ndarray] = []
-                for img, img_path in zip(self.images, load_paths):
-                    bg_path = bg_folder / img_path.name
-                    bg = cv2.imread(str(bg_path), cv2.IMREAD_GRAYSCALE)
+            else:
+                self._log("No background folder found — computing Gaussian blur on-the-fly (sigma=100)")
+
+            subtracted: list[np.ndarray] = []
+            for img, img_path in zip(self.images, load_paths):
+                if bg_folder is not None:
+                    bg = cv2.imread(str(bg_folder / img_path.name), cv2.IMREAD_GRAYSCALE)
                     if bg is None:
-                        raise IOError(f"Could not open background image: {bg_path}")
+                        raise IOError(f"Could not open background image: {bg_folder / img_path.name}")
                     if img.shape != bg.shape:
                         raise ValueError(f"Background shape {bg.shape} does not match image shape {img.shape}.")
-                    diff = img.astype(np.float32) - bg.astype(np.float32)
-                    diff = np.clip(diff, 0, None)
-                    ref = np.percentile(diff, self.settings.subtraction_scale_percentile)
-                    scale = 255.0 / max(ref, 1.0)
-                    diff = np.clip(diff * scale, 0, 255).astype(np.uint8)
-                    subtracted.append(diff)
-                self.images = subtracted
+                else:
+                    bg = cv2.GaussianBlur(img, (0, 0), sigmaX=100, borderType=cv2.BORDER_REFLECT_101)
+                diff = img.astype(np.float32) - bg.astype(np.float32)
+                diff = np.clip(diff, 0, None)
+                ref = np.percentile(diff, self.settings.subtraction_scale_percentile)
+                scale = 255.0 / max(ref, 1.0)
+                diff = np.clip(diff * scale, 0, 255).astype(np.uint8)
+                subtracted.append(diff)
+            self.images = subtracted
 
         if self.settings.square_crop:
             self.images = self._crop_to_square(self.images)

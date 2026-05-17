@@ -404,8 +404,10 @@ def stage_detect_multi_phi(
     R = result["phase_resultant_length"]
     n_flipped = result["n_polarity_flipped"]
     n = result["n_images"]
+    corrected = result["phase_auto_corrected"]
     print(f"period={period_px:.2f} px  freq={result['dominant_freq_cpp']:.5f} cpp"
-          f"  representative_phi_idx={rep}  anchor={result['anchor_index']}")
+          f"  representative_phi_idx={rep}  anchor={result['anchor_index']}"
+          + ("  [phase +T/2 auto-corrected]" if corrected else ""))
     print(f"  phase coherence: R_raw={R_raw:.3f} -> R_aligned={R:.3f}"
           f"  (circ_var={result['phase_circular_var']:.4f},"
           f"  polarity-flipped {n_flipped}/{n} phi)")
@@ -492,6 +494,21 @@ if __name__ == "__main__":
     _args = _parser.parse_args()
     pack = stage_load(_args.config)
 
+    # Convert period_range_cm -> period_range_px using the (post-crop) fov.
+    # fov_width_cm is already scaled by ImagePack when crop_roi is applied.
+    if pack.settings.period_range_cm is not None:
+        if pack.settings.fov_width_cm is None:
+            raise ValueError("period_range_cm requires fov_width_cm to be set in the config.")
+        _cm_per_px = pack.settings.fov_width_cm / pack.w
+        _period_range_px: tuple[float, float] = (
+            pack.settings.period_range_cm[0] / _cm_per_px,
+            pack.settings.period_range_cm[1] / _cm_per_px,
+        )
+        print(f"[Main] period_range_cm={pack.settings.period_range_cm} -> "
+              f"period_range_px=({_period_range_px[0]:.1f}, {_period_range_px[1]:.1f})")
+    else:
+        _period_range_px = (8.0, 80.0)
+
     if DETECTOR_TRACK == "multi_phi":
         images, phi_deg = collect_grazing_per_phi(pack)
         rep_overlay_idx = 0  # raw image used for the visual overlay
@@ -501,7 +518,7 @@ if __name__ == "__main__":
         detect_out = stage_detect_multi_phi(
             images,
             line_dir_deg=90.0,
-            period_range_px=pack.settings.period_range_px,
+            period_range_px=_period_range_px,
             fov_width_cm=pack.settings.fov_width_cm,
         )
         ref_image = images[detect_out["representative_index"]]
@@ -513,7 +530,7 @@ if __name__ == "__main__":
         )
         stage_split_half(
             images,
-            period_range_px=pack.settings.period_range_px,
+            period_range_px=_period_range_px,
             fov_width_cm=pack.settings.fov_width_cm,
             n_splits=200,
         )
@@ -527,7 +544,7 @@ if __name__ == "__main__":
         print(f"[Main] SIMPLE track: image index {idx} (phi=0 column, steepest theta)")
         detect_out = stage_detect_simple(
             image, line_dir_deg=90.0,
-            period_range_px=pack.settings.period_range_px,
+            period_range_px=_period_range_px,
             fov_width_cm=pack.settings.fov_width_cm,
         )
         _, _, _, ww = stage_evaluate(

@@ -229,6 +229,33 @@ def detect_laid_lines_multi_phi(
     length = rep_image.shape[1]
     grid_x = grid_positions(phi_mean, period_px, length)
 
+    # Auto-correct half-period phase ambiguity.  The FFT peak determines the
+    # period reliably, but the absolute phase can land on either the wire side
+    # or the inter-wire side depending on which phi images dominate the weighted
+    # mean.  We settle this by sampling the representative image: if the grid
+    # positions have higher column-mean intensity than the half-period-shifted
+    # positions, the grid is on the bright side — shift by T/2 so it always
+    # marks the darker feature (more physically meaningful; independent of
+    # lighting azimuth).
+    _col = _rotate_to_vertical(rep_image, line_dir_deg).mean(axis=0).astype(np.float64)
+    _W = _col.size
+    _hw = 1  # ±1 px sampling band around each grid position
+
+    def _band_mean(xs: np.ndarray) -> float:
+        vals = [_col[max(0, x - _hw): min(_W, x + _hw + 1)].mean()
+                for x in xs if max(0, x - _hw) < min(_W, x + _hw + 1)]
+        return float(np.mean(vals)) if vals else float("nan")
+
+    _on_mean = _band_mean(grid_x)
+    _off_x = np.clip(np.round(grid_x + period_px / 2.0).astype(int), 0, _W - 1)
+    _off_mean = _band_mean(_off_x)
+
+    phase_auto_corrected = False
+    if not (np.isnan(_on_mean) or np.isnan(_off_mean)) and _on_mean > _off_mean:
+        phi_mean = ((phi_mean + np.pi) + np.pi) % (2.0 * np.pi) - np.pi
+        grid_x = grid_positions(phi_mean, period_px, length)
+        phase_auto_corrected = True
+
     width = estimate_wire_width(broadband_1d, period_px)
 
     return {
@@ -238,6 +265,7 @@ def detect_laid_lines_multi_phi(
         "broadband_signal_1d": broadband_1d,
         "grid_positions_x": grid_x,
         "phase": phi_mean,
+        "phase_auto_corrected": phase_auto_corrected,
         "line_dir_deg": float(line_dir_deg),
         "wire_is_darker": bool(wire_is_darker),
         "radial_freqs": freqs,

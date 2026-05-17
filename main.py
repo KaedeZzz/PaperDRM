@@ -31,6 +31,9 @@ Stages used by each track:
                           + patch consistency           (legacy only)
 """
 
+import shutil
+from pathlib import Path
+
 import cv2
 
 from paperdrm import ImagePack, Settings
@@ -101,6 +104,49 @@ from paperdrm.stage5_evaluation.self_contrast import (
 # Track selector: "multi_phi" | "simple" | "legacy"
 # ---------------------------------------------------------------------------
 DETECTOR_TRACK = "multi_phi"
+
+
+# ---------------------------------------------------------------------------
+# Result archiving
+# ---------------------------------------------------------------------------
+def archive_results(pack: ImagePack, config_path: str) -> Path:
+    """
+    Copy all pipeline output files (JSON + PNG) from the repo root into
+    results/<data_serial>/ and save a snapshot of the config yaml.
+    Returns the archive directory.
+    """
+    serial = str(pack.data_serial) if pack.data_serial is not None else "unknown"
+    root = Path(__file__).parent
+    archive_dir = root / "results" / serial
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    copied = []
+    for src in sorted(root.glob("*.json")) + sorted(root.glob("*.png")):
+        dst = archive_dir / src.name
+        shutil.copy2(src, dst)
+        copied.append(src.name)
+
+    # Config snapshot
+    cfg_src = Path(config_path)
+    if cfg_src.exists():
+        shutil.copy2(cfg_src, archive_dir / cfg_src.name)
+        copied.append(cfg_src.name)
+
+    print(f"[Archive] {len(copied)} files -> results/{serial}/  ({', '.join(copied)})")
+
+    # Generate plain-language reports
+    try:
+        import subprocess, sys
+        report_script = root / "scripts" / "generate_report.py"
+        subprocess.run(
+            [sys.executable, str(report_script), "--serial", serial,
+             "--results-dir", str(root / "results")],
+            check=True,
+        )
+    except Exception as exc:
+        print(f"[Archive] Report generation failed: {exc}")
+
+    return archive_dir
 
 
 # ---------------------------------------------------------------------------
@@ -472,6 +518,7 @@ if __name__ == "__main__":
         stage_self_contrast(ref_image, detect_out)
         stage_overlay_simple(raw_image, detect_out)
         stage_overlay_simple_bands(raw_image, detect_out, ww)
+        archive_results(pack, _args.config)
     elif DETECTOR_TRACK == "simple":
         image, idx = pick_grazing_image(pack, phi_index=0)
         raw_image, _ = pick_grazing_image_raw(pack, phi_index=0)
@@ -492,6 +539,7 @@ if __name__ == "__main__":
         )
         stage_overlay_simple(raw_image, detect_out)
         stage_overlay_simple_bands(raw_image, detect_out, ww)
+        archive_results(pack, _args.config)
     elif DETECTOR_TRACK == "legacy":
         _mag, deg_map = stage_direction(pack)
         patch_size, stride = (512, 512), (256, 256)
@@ -506,6 +554,7 @@ if __name__ == "__main__":
             image_width_px=gabor_input.shape[1],
         )
         stage_overlay_legacy(gabor_input, detect_out)
+        archive_results(pack, _args.config)
     else:
         raise ValueError(f"Unknown DETECTOR_TRACK={DETECTOR_TRACK!r}; "
                          "expected 'multi_phi', 'simple', or 'legacy'.")

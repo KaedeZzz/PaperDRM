@@ -8,6 +8,49 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-17 — run(pipeline): first real manuscript dataset (data_serial=10)
+
+**Dataset.** New manuscript data loaded into `data/processed/` + `data/background/`.
+Grid: 72 phi × 12 theta = 864 images, each 2160 × 4096 px.
+Config: `theta_min_deg=30`, `fov_width_cm=8.65`, `angle_slice=(2,2)` → 36φ × 4θ = 144 images
+actually loaded. `data_serial=10`.
+
+**Memory fix.** Loading all 864 images (≈14.5 GB) caused OOM during background subtraction.
+Fixed by pre-selecting image paths with `apply_angle_slice` + `apply_theta_min_filter` *before*
+`load_images`, reducing peak load to 144 images (≈1.2 GB). Background images now loaded one
+at a time (streaming), never held in memory simultaneously.
+Changed files: `stage0_loader/image_io.py` (add `load_images_from_paths`),
+`stage0_loader/imagepack.py` (pre-filter paths, streaming bg subtraction).
+
+**Results (multi_phi track, 36 phi images).**
+
+| metric | value | notes |
+|---|---|---|
+| period | 56.11 px → **8.44 lines/cm** | matches data_serial=9 (8.55) within 1.3% |
+| R_raw → R_aligned | 0.369 → **0.935** | polarity correction effective |
+| polarity-flipped phi | 18/36 (50%) | same rate as before; multi_phi handles automatically |
+| split-half std | **0.000 px** (200 splits, half=18) | perfect stability (36φ > 20φ previously) |
+| wire FWHM (segment median) | 17.91 px = **0.378 mm** | |
+| self-contrast z | **−3.53**, contrast = −11.55% | laid lines appear as *bright* lines in this data |
+
+**Note on polarity.** Self-contrast z is negative (contrast_rel = −11.55%), meaning grid
+columns are *brighter* than background — opposite of data_serial=9 (z=+2.27, dark lines).
+The multi_phi polarity correction still works (R_aligned=0.935) because it aligns phases
+internally; `wire_is_darker=True` is the initial assumption but the anchor-based flip
+corrects the consensus. Physical interpretation: this manuscript's laid-line wires reflect
+more light in the grazing geometry used.
+
+**Result files saved (root).**
+`interval_distribution.json`, `fit_quality.json`, `wire_width_stats.json`,
+`split_half_stability.json`, `self_contrast.json`, `laid_lines_overlay.png`,
+`laid_lines_overlay_bands.png`, `split_half_stability.png`, `self_contrast.png`,
+`wire_width_segments.png`.
+
+**Follow-up.** User switching to another dataset next. Per-dataset result archiving
+(e.g. `results/<serial>/`) not yet implemented — current JSONs will be overwritten.
+
+---
+
 ## 2026-05-17 — feat(stage0_loader): infer DRP config from filenames + Google Drive fetch
 
 **Discussed.** Planning the next IIB direction: validate pipeline

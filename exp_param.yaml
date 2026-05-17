@@ -1,10 +1,4 @@
-data_serial: 9
-th_min: 10
-th_max: 65
-th_num: 12
-ph_min: 0
-ph_max: 351
-ph_num: 40
+data_serial: 10
 square_crop: False
 subtract_background: True
 theta_min_deg: 30

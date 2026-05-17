@@ -133,7 +133,7 @@ def resolve_drp_from_yaml(path: Path) -> tuple[DRPConfig | None, str | int | Non
     populate the grid via inference later. A partial acq spec raises.
     """
     path = Path(path)
-    raw = yaml.safe_load(path.read_text()) or {}
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     present = [k for k in _ACQ_KEYS if k in raw]
     if 0 < len(present) < len(_ACQ_KEYS):
         missing = [k for k in _ACQ_KEYS if k not in raw]
@@ -176,6 +176,8 @@ class Settings:
     square_crop: bool = False
     theta_min_deg: float | None = None
     fov_width_cm: float | None = None
+    crop_roi: tuple[int, int, int, int] | None = None
+    period_range_px: tuple[float, float] = (8.0, 80.0)
     verbose: bool = False
 
     def __post_init__(self) -> None:
@@ -183,6 +185,9 @@ class Settings:
         self.folder = Path(self.folder) if self.folder is not None else None
         self.config_path = Path(self.config_path) if self.config_path is not None else None
         self.angle_slice = tuple(self.angle_slice)  # type: ignore[assignment]
+        if self.crop_roi is not None:
+            self.crop_roi = tuple(int(v) for v in self.crop_roi)  # type: ignore[assignment]
+        self.period_range_px = tuple(float(v) for v in self.period_range_px)  # type: ignore[assignment]
         self.validate()
 
     @property
@@ -199,6 +204,14 @@ class Settings:
             raise ValueError("angle_slice values must be positive.")
         if self.fov_width_cm is not None and float(self.fov_width_cm) <= 0:
             raise ValueError("fov_width_cm must be positive when provided.")
+        if len(self.period_range_px) != 2 or self.period_range_px[0] >= self.period_range_px[1]:
+            raise ValueError("period_range_px must be (lo, hi) with lo < hi.")
+        if self.crop_roi is not None:
+            if len(self.crop_roi) != 4:
+                raise ValueError("crop_roi must be [x, y, w, h].")
+            x, y, w, h = self.crop_roi
+            if w <= 0 or h <= 0:
+                raise ValueError("crop_roi w and h must be positive.")
         if self.drp is not None:
             self.drp.validate()
             if self.theta_min_deg is not None and float(self.theta_min_deg) > float(self.drp.th_max):
@@ -223,7 +236,7 @@ class Settings:
         partial set raises immediately so users notice the typo.
         """
         cfg_path = Path(path)
-        raw: dict[str, Any] = yaml.safe_load(cfg_path.read_text()) or {}
+        raw: dict[str, Any] = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
 
         drp_cfg, data_serial_hint = resolve_drp_from_yaml(cfg_path)
 
@@ -243,5 +256,7 @@ class Settings:
             square_crop=raw.get("square_crop", False),
             theta_min_deg=raw.get("theta_min_deg"),
             fov_width_cm=raw.get("fov_width_cm"),
+            crop_roi=tuple(raw["crop_roi"]) if raw.get("crop_roi") else None,
+            period_range_px=tuple(raw["period_range_px"]) if raw.get("period_range_px") else (8.0, 80.0),  # type: ignore[arg-type]
             verbose=raw.get("verbose", False),
         )

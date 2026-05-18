@@ -61,6 +61,16 @@ def interpret(data: dict, serial: str) -> dict:
     lines_per_cm_med  = iv.get("physical", {}).get("lines_per_cm_median", float("nan"))
     period_mm         = iv.get("physical", {}).get("mean_interval_cm", float("nan")) * 10
     n_peaks           = iv.get("n_peaks", 0)
+    n_gaps            = iv.get("n_gaps", 0)
+
+    # Interval 95% CI (t-distribution, mean of gap distribution)
+    _std_mm  = iv.get("physical", {}).get("std_interval_cm", float("nan")) * 10
+    _n_gaps  = max(n_gaps, 1)
+    import math
+    _t95 = 1.984 if _n_gaps > 80 else (2.042 if _n_gaps > 30 else 2.228)
+    _sem_mm  = _std_mm / math.sqrt(_n_gaps)
+    interval_ci_lo_mm = period_mm - _t95 * _sem_mm
+    interval_ci_hi_mm = period_mm + _t95 * _sem_mm
 
     fwhm_mm_median    = ww.get("physical", {}).get("fwhm_mm", {}).get("median", float("nan"))
     fwhm_mm_ci        = ww.get("physical", {}).get("fwhm_mm", {}).get("ci_t", [float("nan"), float("nan")])
@@ -121,6 +131,9 @@ def interpret(data: dict, serial: str) -> dict:
         lines_per_cm=lines_per_cm,
         lines_per_cm_med=lines_per_cm_med,
         period_mm=period_mm,
+        interval_ci_lo_mm=interval_ci_lo_mm,
+        interval_ci_hi_mm=interval_ci_hi_mm,
+        n_gaps=n_gaps,
         n_peaks=n_peaks,
         fwhm_mm_median=fwhm_mm_median,
         fwhm_mm_ci_lo=fwhm_mm_ci[0],
@@ -178,6 +191,16 @@ img.overlay { width: 100%; max-width: 800px; border: 1px solid #ccc;
               border-radius: 4px; margin: 10px 0; }
 .note { font-size: 12px; color: #666; margin-top: 6px; }
 .section-intro { color: #444; line-height: 1.6; margin-bottom: 12px; }
+.metric-card { background: #e8f2fc; border: 2px solid #2e6da4; border-radius: 6px;
+               padding: 20px 26px; margin: 10px 0; }
+.metric-label { font-size: 12px; color: #2e6da4; text-transform: uppercase;
+                letter-spacing: 0.6px; font-weight: bold; margin-bottom: 4px; }
+.metric-value { font-size: 42px; font-weight: bold; color: #1a3a5c; line-height: 1.1; }
+.metric-unit  { font-size: 20px; font-weight: normal; color: #1a3a5c; }
+.metric-ci    { font-size: 15px; color: #1a5c3a; font-weight: bold; margin-top: 6px;
+                background: #d4edda; display: inline-block; padding: 3px 10px;
+                border-radius: 4px; }
+.metric-sub   { font-size: 12px; color: #555; margin-top: 6px; }
 footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #ddd;
          font-size: 11px; color: #999; }
 @media print {
@@ -232,24 +255,26 @@ directions and combining the images computationally.
 <h2>Key Findings</h2>
 
 <div class="grid-2">
-  <div class="highlight">
-    <div class="val">{_fmt(v['lines_per_cm'], '.2f')} lines/cm</div>
-    <div class="label">Laid-line density (mean across image)</div>
-    <div class="note">{v['context_en']}</div>
+  <div class="metric-card">
+    <div class="metric-label">Laid Line Spacing</div>
+    <div class="metric-value">{_fmt(v['period_mm'], '.2f')}<span class="metric-unit"> mm</span></div>
+    <div class="metric-ci">95% CI &nbsp; {_fmt(v['interval_ci_lo_mm'], '.2f')} – {_fmt(v['interval_ci_hi_mm'], '.2f')} mm</div>
+    <div class="metric-sub">Mean of {v['n_gaps']} measured gaps &nbsp;|&nbsp;
+      = {_fmt(v['lines_per_cm'], '.1f')} lines/cm &nbsp;|&nbsp; {v['context_en']}</div>
   </div>
-  <div class="highlight">
-    <div class="val">{_fmt(v['period_mm'], '.2f')} mm</div>
-    <div class="label">Average spacing between adjacent lines</div>
-    <div class="note">Median: {_fmt(v['lines_per_cm_med'], '.2f')} lines/cm</div>
+  <div class="metric-card">
+    <div class="metric-label">Wire Shadow Width (FWHM)</div>
+    <div class="metric-value">{_fmt(v['fwhm_mm_median'], '.3f')}<span class="metric-unit"> mm</span></div>
+    <div class="metric-ci">95% CI &nbsp; {_fmt(v['fwhm_mm_ci_lo'], '.3f')} – {_fmt(v['fwhm_mm_ci_hi'], '.3f')} mm</div>
+    <div class="metric-sub">Segment median &nbsp;|&nbsp; {v['seg_valid']}/{v['n_segments']} image segments valid</div>
   </div>
 </div>
 
 <div class="grid-2">
   <div class="highlight">
-    <div class="val">{_fmt(v['fwhm_mm_median'], '.3f')} mm</div>
-    <div class="label">Wire shadow width (FWHM, segment median)</div>
-    <div class="note">95 % CI: [{_fmt(v['fwhm_mm_ci_lo'], '.3f')}, {_fmt(v['fwhm_mm_ci_hi'], '.3f')}] mm
-      across {v['seg_valid']}/{v['n_segments']} image segments</div>
+    <div class="val">{_fmt(v['lines_per_cm'], '.2f')} lines/cm</div>
+    <div class="label">Laid-line density (mean)</div>
+    <div class="note">Median: {_fmt(v['lines_per_cm_med'], '.2f')} lines/cm</div>
   </div>
   <div class="highlight">
     <div class="val">{v['n_peaks']}</div>
@@ -339,24 +364,26 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
 <h2>主要发现</h2>
 
 <div class="grid-2">
-  <div class="highlight">
-    <div class="val">{_fmt(v['lines_per_cm'], '.2f')} 条/cm</div>
-    <div class="label">帘纹线密度（全图均值）</div>
-    <div class="note">{v['context_zh']}</div>
+  <div class="metric-card">
+    <div class="metric-label">帘纹线间距</div>
+    <div class="metric-value">{_fmt(v['period_mm'], '.2f')}<span class="metric-unit"> mm</span></div>
+    <div class="metric-ci">95% 置信区间 &nbsp; {_fmt(v['interval_ci_lo_mm'], '.2f')} – {_fmt(v['interval_ci_hi_mm'], '.2f')} mm</div>
+    <div class="metric-sub">基于 {v['n_gaps']} 个实测间隔的均值 &nbsp;|&nbsp;
+      = {_fmt(v['lines_per_cm'], '.1f')} 条/cm &nbsp;|&nbsp; {v['context_zh']}</div>
   </div>
-  <div class="highlight">
-    <div class="val">{_fmt(v['period_mm'], '.2f')} mm</div>
-    <div class="label">相邻帘纹线平均间距</div>
-    <div class="note">中位值：{_fmt(v['lines_per_cm_med'], '.2f')} 条/cm</div>
+  <div class="metric-card">
+    <div class="metric-label">线影宽度（FWHM）</div>
+    <div class="metric-value">{_fmt(v['fwhm_mm_median'], '.3f')}<span class="metric-unit"> mm</span></div>
+    <div class="metric-ci">95% 置信区间 &nbsp; {_fmt(v['fwhm_mm_ci_lo'], '.3f')} – {_fmt(v['fwhm_mm_ci_hi'], '.3f')} mm</div>
+    <div class="metric-sub">分段中位值 &nbsp;|&nbsp; {v['seg_valid']}/{v['n_segments']} 个分段有效</div>
   </div>
 </div>
 
 <div class="grid-2">
   <div class="highlight">
-    <div class="val">{_fmt(v['fwhm_mm_median'], '.3f')} mm</div>
-    <div class="label">线影半高宽（FWHM，分段中位值）</div>
-    <div class="note">95% 置信区间：[{_fmt(v['fwhm_mm_ci_lo'], '.3f')}, {_fmt(v['fwhm_mm_ci_hi'], '.3f')}] mm
-      （{v['seg_valid']}/{v['n_segments']} 个分段有效）</div>
+    <div class="val">{_fmt(v['lines_per_cm'], '.2f')} 条/cm</div>
+    <div class="label">帘纹线密度（均值）</div>
+    <div class="note">中位值：{_fmt(v['lines_per_cm_med'], '.2f')} 条/cm</div>
   </div>
   <div class="highlight">
     <div class="val">{v['n_peaks']}</div>

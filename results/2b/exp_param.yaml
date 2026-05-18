@@ -1,0 +1,7 @@
+data_serial: 2b
+square_crop: False
+subtract_background: True
+theta_min_deg: 30
+fov_width_cm: 8.65
+crop_roi: [0, 1080, 2048, 1080]   # [x, y, w, h] lower-left quadrant
+period_range_px: [8, 50]          # narrow range to avoid 2nd-harmonic alias at ~73px

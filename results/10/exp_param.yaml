@@ -1,0 +1,5 @@
+data_serial: 10
+square_crop: False
+subtract_background: True
+theta_min_deg: 30
+fov_width_cm: 8.65

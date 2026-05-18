@@ -1,7 +1,7 @@
-data_serial: 2b
+data_serial: 4
+folder: E:\Downloads\zz477\manuscript 4\samples
 square_crop: False
 subtract_background: True
 theta_min_deg: 30
-fov_width_cm: 8.65
-crop_roi: [0, 1080, 2048, 1080]   # [x, y, w, h] lower-left quadrant
-period_range_px: [8, 50]          # narrow range to avoid 2nd-harmonic alias at ~73px
+fov_width_cm: 8.65  # [x, y, w, h] lower-left quadrant
+period_range_cm: [0.017, 0.106]   # [8px, 50px] equiv at fov=4.325cm/2048px; avoids 2nd-harmonic alias at ~73px

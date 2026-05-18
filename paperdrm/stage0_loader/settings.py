@@ -177,7 +177,7 @@ class Settings:
     theta_min_deg: float | None = None
     fov_width_cm: float | None = None
     crop_roi: tuple[int, int, int, int] | None = None
-    period_range_px: tuple[float, float] = (8.0, 80.0)
+    period_range_cm: tuple[float, float] | None = None
     verbose: bool = False
 
     def __post_init__(self) -> None:
@@ -187,7 +187,8 @@ class Settings:
         self.angle_slice = tuple(self.angle_slice)  # type: ignore[assignment]
         if self.crop_roi is not None:
             self.crop_roi = tuple(int(v) for v in self.crop_roi)  # type: ignore[assignment]
-        self.period_range_px = tuple(float(v) for v in self.period_range_px)  # type: ignore[assignment]
+        if self.period_range_cm is not None:
+            self.period_range_cm = tuple(float(v) for v in self.period_range_cm)  # type: ignore[assignment]
         self.validate()
 
     @property
@@ -204,8 +205,11 @@ class Settings:
             raise ValueError("angle_slice values must be positive.")
         if self.fov_width_cm is not None and float(self.fov_width_cm) <= 0:
             raise ValueError("fov_width_cm must be positive when provided.")
-        if len(self.period_range_px) != 2 or self.period_range_px[0] >= self.period_range_px[1]:
-            raise ValueError("period_range_px must be (lo, hi) with lo < hi.")
+        if self.period_range_cm is not None:
+            if len(self.period_range_cm) != 2 or self.period_range_cm[0] >= self.period_range_cm[1]:
+                raise ValueError("period_range_cm must be (lo, hi) with lo < hi.")
+            if self.period_range_cm[0] <= 0:
+                raise ValueError("period_range_cm values must be positive.")
         if self.crop_roi is not None:
             if len(self.crop_roi) != 4:
                 raise ValueError("crop_roi must be [x, y, w, h].")
@@ -257,6 +261,6 @@ class Settings:
             theta_min_deg=raw.get("theta_min_deg"),
             fov_width_cm=raw.get("fov_width_cm"),
             crop_roi=tuple(raw["crop_roi"]) if raw.get("crop_roi") else None,
-            period_range_px=tuple(raw["period_range_px"]) if raw.get("period_range_px") else (8.0, 80.0),  # type: ignore[arg-type]
+            period_range_cm=tuple(raw["period_range_cm"]) if raw.get("period_range_cm") else None,  # type: ignore[arg-type]
             verbose=raw.get("verbose", False),
         )

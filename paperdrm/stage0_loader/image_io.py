@@ -21,10 +21,10 @@ def resolve_config_path(config_path: str | Path | None) -> Path:
 
 def resolve_image_folder(folder: str | Path | None, paths: DataPaths) -> Path:
     """
-    Resolve the folder where images are located, defaulting to the processed path.
+    Resolve the folder where images are located, defaulting to the raw path.
     """
     if folder is None:
-        return paths.processed
+        return paths.raw
     folder_path = Path(folder)
     return folder_path if folder_path.is_absolute() else paths.root / folder_path
 

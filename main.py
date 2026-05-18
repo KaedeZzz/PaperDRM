@@ -546,10 +546,11 @@ if __name__ == "__main__":
     _args = _parser.parse_args()
 
     # Single-image track: bypass ImagePack entirely.
+    # Triggered by --image CLI arg or by image_path being set in the config yaml.
     _single_image_path: Path | None = None
     if _args.image:
         _single_image_path = Path(_args.image)
-    elif DETECTOR_TRACK == "single_image":
+    else:
         _settings_peek = Settings.from_yaml(_args.config)
         _single_image_path = _settings_peek.image_path
 
@@ -579,7 +580,7 @@ if __name__ == "__main__":
 
         _detect_out = stage_detect_simple(
             _image,
-            line_dir_deg=90.0,
+            line_dir_deg=_cfg.line_dir_deg,
             period_range_px=_period_range_px,
             fov_width_cm=_eff_fov,
         )

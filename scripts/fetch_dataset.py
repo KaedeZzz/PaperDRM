@@ -1,6 +1,6 @@
 """
 Fetch a DRP dataset from Google Drive (or copy from a local folder) into
-``data/raw/<serial>/`` and write a per-dataset sample.yaml ready for the
+``data/drp/<serial>/raw/`` and write a per-dataset sample.yaml ready for the
 pipeline.
 
 Usage:
@@ -14,7 +14,7 @@ Usage:
     python scripts/fetch_dataset.py --from-local /path/to/folder --serial 12 --fov 8.65
 
 After running, point the pipeline at the new bundle:
-    python main.py --config data/raw/<serial>/sample.yaml
+    python main.py --config data/drp/<serial>/sample.yaml
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--serial",
-        help="Dataset identifier (becomes data/raw/<serial>/). Auto-derived "
+        help="Dataset identifier (becomes data/drp/<serial>/). Auto-derived "
              "from the URL tail or local folder name if absent.",
     )
     parser.add_argument("--fov", type=float, required=True,
@@ -85,21 +85,24 @@ def main() -> int:
         parser.error("Provide exactly one of <url> or --from-local.")
 
     serial = args.serial or _auto_serial(args.url, args.from_local)
-    dataset_dir = args.data_root / "raw" / str(serial)
-    if dataset_dir.exists() and any(dataset_dir.iterdir()) and not args.overwrite:
+    dataset_dir = args.data_root / "drp" / str(serial)
+    raw_dir = dataset_dir / "raw"
+    if raw_dir.exists() and any(raw_dir.iterdir()) and not args.overwrite:
         print(
             f"ERROR: {dataset_dir} already exists and is non-empty. "
             "Pick a different --serial or pass --overwrite.",
             file=sys.stderr,
         )
         return 2
-    dataset_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    for sub in ("processed", "cache", "background"):
+        (dataset_dir / sub).mkdir(parents=True, exist_ok=True)
 
     if args.from_local is not None:
-        _ingest_local(args.from_local, dataset_dir, args.ext, args.copy_mode)
+        _ingest_local(args.from_local, raw_dir, args.ext, args.copy_mode)
         source_descriptor = f"local:{args.from_local.resolve()}"
     else:
-        _gdown_folder(args.url, dataset_dir)
+        _gdown_folder(args.url, raw_dir)
         source_descriptor = args.url
 
     if args.bg_url:
@@ -180,7 +183,8 @@ def _build_sample_yaml(
     source: str, note: str | None,
 ) -> dict:
     sample: dict = {
-        "folder": f"raw/{serial}",
+        "data_serial": serial,
+        "folder": f"data/drp/{serial}/raw",
         "fov_width_cm": fov,
     }
     if theta_min is not None:

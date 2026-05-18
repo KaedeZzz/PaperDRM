@@ -179,6 +179,7 @@ class Settings:
     fov_width_cm: float | None = None
     crop_roi: tuple[int, int, int, int] | None = None
     period_range_cm: tuple[float, float] | None = None
+    line_dir_deg: float = 90.0
     verbose: bool = False
 
     def __post_init__(self) -> None:
@@ -247,8 +248,12 @@ class Settings:
         drp_cfg, data_serial_hint = resolve_drp_from_yaml(cfg_path)
 
         angle_slice = tuple(raw.get("angle_slice", (1, 1)))
+        _serial = raw.get("data_serial")
+        _data_root = raw.get("data_root") or (
+            Path("data") / "drp" / str(_serial) if _serial is not None else Path("data")
+        )
         return cls(
-            data_root=raw.get("data_root", "data"),
+            data_root=_data_root,
             folder=raw.get("folder"),
             image_path=raw.get("image_path"),
             img_format=raw.get("img_format", "jpg"),
@@ -265,5 +270,6 @@ class Settings:
             fov_width_cm=raw.get("fov_width_cm"),
             crop_roi=tuple(raw["crop_roi"]) if raw.get("crop_roi") else None,
             period_range_cm=tuple(raw["period_range_cm"]) if raw.get("period_range_cm") else None,  # type: ignore[arg-type]
+            line_dir_deg=raw.get("line_dir_deg", 90.0),
             verbose=raw.get("verbose", False),
         )

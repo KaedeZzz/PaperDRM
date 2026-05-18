@@ -3,9 +3,9 @@ Infer a DRPConfig from a data folder by parsing filenames, and compare
 the result against an existing exp_param.yaml.
 
 Usage:
-    python scripts/infer_drp_config.py
-    python scripts/infer_drp_config.py --folder data/raw --yaml exp_param.yaml --ext jpg
-    python scripts/infer_drp_config.py --no-strict   # tolerate gaps in the grid
+    python scripts/infer_drp_config.py --folder data/drp/<serial>/raw
+    python scripts/infer_drp_config.py --folder data/drp/4/raw --yaml results/4/exp_param.yaml --ext jpg
+    python scripts/infer_drp_config.py --folder data/drp/4/raw --no-strict   # tolerate gaps in the grid
 
 Exit code 1 if any acquisition field disagrees with the yaml.
 """
@@ -27,7 +27,8 @@ ACQ_FIELDS = ("th_min", "th_max", "th_num", "ph_min", "ph_max", "ph_num")
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--folder", type=Path, default=REPO_ROOT / "data" / "raw")
+    parser.add_argument("--folder", type=Path, required=True,
+                        help="Path to the raw image folder, e.g. data/drp/4/raw")
     parser.add_argument("--yaml", type=Path, default=REPO_ROOT / "exp_param.yaml")
     parser.add_argument("--ext", default="jpg")
     parser.add_argument(

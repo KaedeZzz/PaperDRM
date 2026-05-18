@@ -164,6 +164,7 @@ class Settings:
 
     data_root: str | Path = "data"
     folder: str | Path | None = None
+    image_path: str | Path | None = None
     img_format: str = "jpg"
     angle_slice: tuple[int, int] = (1, 1)
     use_cached_stack: bool = True
@@ -183,6 +184,7 @@ class Settings:
     def __post_init__(self) -> None:
         self.data_root = Path(self.data_root)
         self.folder = Path(self.folder) if self.folder is not None else None
+        self.image_path = Path(self.image_path) if self.image_path is not None else None
         self.config_path = Path(self.config_path) if self.config_path is not None else None
         self.angle_slice = tuple(self.angle_slice)  # type: ignore[assignment]
         if self.crop_roi is not None:
@@ -248,6 +250,7 @@ class Settings:
         return cls(
             data_root=raw.get("data_root", "data"),
             folder=raw.get("folder"),
+            image_path=raw.get("image_path"),
             img_format=raw.get("img_format", "jpg"),
             angle_slice=angle_slice,  # type: ignore[arg-type]
             use_cached_stack=raw.get("use_cached_stack", True),

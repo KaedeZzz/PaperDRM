@@ -35,6 +35,7 @@ import shutil
 from pathlib import Path
 
 import cv2
+import numpy as np
 
 from paperdrm import ImagePack, Settings
 from paperdrm.stage0_drp.slicing import apply_angle_slice, apply_theta_min_filter
@@ -101,7 +102,7 @@ from paperdrm.stage5_evaluation.self_contrast import (
 
 
 # ---------------------------------------------------------------------------
-# Track selector: "multi_phi" | "simple" | "legacy"
+# Track selector: "multi_phi" | "simple" | "legacy" | "single_image"
 # ---------------------------------------------------------------------------
 DETECTOR_TRACK = "multi_phi"
 
@@ -109,13 +110,14 @@ DETECTOR_TRACK = "multi_phi"
 # ---------------------------------------------------------------------------
 # Result archiving
 # ---------------------------------------------------------------------------
-def archive_results(pack: ImagePack, config_path: str) -> Path:
+def archive_results(pack: "ImagePack | None", config_path: str, *, serial: str | None = None) -> Path:
     """
     Copy all pipeline output files (JSON + PNG) from the repo root into
-    results/<data_serial>/ and save a snapshot of the config yaml.
+    results/<serial>/ and save a snapshot of the config yaml.
     Returns the archive directory.
     """
-    serial = str(pack.data_serial) if pack.data_serial is not None else "unknown"
+    if serial is None:
+        serial = str(pack.data_serial) if pack is not None and pack.data_serial is not None else "unknown"
     root = Path(__file__).parent
     archive_dir = root / "results" / serial
     archive_dir.mkdir(parents=True, exist_ok=True)
@@ -156,6 +158,51 @@ def stage_load(yaml_path: str) -> ImagePack:
     print("[Stage 0] Loading settings + DRP stack")
     settings = Settings.from_yaml(yaml_path).with_overrides(angle_slice=(2, 2), verbose=True)
     return ImagePack(settings=settings)
+
+
+def stage_load_single_image(
+    image_path: Path,
+    *,
+    subtract_background: bool = True,
+    subtraction_scale_percentile: float = 99.5,
+    crop_roi: "tuple[int,int,int,int] | None" = None,
+    fov_width_cm: float | None = None,
+) -> "tuple[np.ndarray, np.ndarray, float | None]":
+    """
+    Load one image for the single-image track.
+    Returns (processed_image, raw_image, effective_fov_width_cm).
+    processed_image has background subtracted (if enabled) and ROI cropped.
+    raw_image is the original pixels, ROI cropped only (no bg subtraction),
+    used for the visual overlay.
+    """
+    print(f"[Stage 0 SINGLE] Loading {image_path}")
+    raw = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
+    if raw is None:
+        raise IOError(f"Could not open image: {image_path}")
+    print(f"[Stage 0 SINGLE] Image shape: {raw.shape}")
+
+    image = raw.copy()
+    if subtract_background:
+        bg = cv2.GaussianBlur(image, (0, 0), sigmaX=100, borderType=cv2.BORDER_REFLECT_101)
+        diff = image.astype(np.float32) - bg.astype(np.float32)
+        diff = np.clip(diff, 0, None)
+        ref = float(np.percentile(diff, subtraction_scale_percentile))
+        scale = 255.0 / max(ref, 1.0)
+        image = np.clip(diff * scale, 0, 255).astype(np.uint8)
+        print("[Stage 0 SINGLE] Gaussian blur background subtracted (sigma=100)")
+
+    effective_fov = fov_width_cm
+    if crop_roi is not None:
+        x, y, w, h = crop_roi
+        orig_w = image.shape[1]
+        raw = raw[y:y + h, x:x + w]
+        image = image[y:y + h, x:x + w]
+        if fov_width_cm is not None:
+            effective_fov = fov_width_cm * w / orig_w
+        print(f"[Stage 0 SINGLE] ROI crop [x={x},y={y},w={w},h={h}] -> {image.shape}, "
+              f"fov_width_cm -> {effective_fov}")
+
+    return image, raw, effective_fov
 
 
 def pick_grazing_image(pack: ImagePack, *, phi_index: int = 0) -> "tuple[np.ndarray, int]":
@@ -488,10 +535,66 @@ if __name__ == "__main__":
     _parser.add_argument(
         "--config",
         default="exp_param.yaml",
-        help="Path to the settings yaml (default: exp_param.yaml). "
-             "Per-dataset bundles live at data/raw/<serial>/sample.yaml.",
+        help="Path to the settings yaml (default: exp_param.yaml).",
+    )
+    _parser.add_argument(
+        "--image",
+        default=None,
+        help="Path to a single image for the single_image track. "
+             "Overrides image_path in the yaml.",
     )
     _args = _parser.parse_args()
+
+    # Single-image track: bypass ImagePack entirely.
+    _single_image_path: Path | None = None
+    if _args.image:
+        _single_image_path = Path(_args.image)
+    elif DETECTOR_TRACK == "single_image":
+        _settings_peek = Settings.from_yaml(_args.config)
+        _single_image_path = _settings_peek.image_path
+
+    if _single_image_path is not None:
+        _cfg = Settings.from_yaml(_args.config)
+        _serial = str(_cfg.data_serial) if _cfg.data_serial is not None else _single_image_path.stem
+        print(f"[Main] SINGLE_IMAGE track: {_single_image_path}  serial={_serial}")
+
+        _image, _raw_image, _eff_fov = stage_load_single_image(
+            _single_image_path,
+            subtract_background=_cfg.subtract_background,
+            subtraction_scale_percentile=_cfg.subtraction_scale_percentile,
+            crop_roi=_cfg.crop_roi,
+            fov_width_cm=_cfg.fov_width_cm,
+        )
+        _w_px = _image.shape[1]
+        if _cfg.period_range_cm is not None and _eff_fov is not None:
+            _cm_per_px = _eff_fov / _w_px
+            _period_range_px = (
+                _cfg.period_range_cm[0] / _cm_per_px,
+                _cfg.period_range_cm[1] / _cm_per_px,
+            )
+            print(f"[Main] period_range_cm={_cfg.period_range_cm} -> "
+                  f"period_range_px=({_period_range_px[0]:.1f}, {_period_range_px[1]:.1f})")
+        else:
+            _period_range_px = (8.0, 80.0)
+
+        _detect_out = stage_detect_simple(
+            _image,
+            line_dir_deg=90.0,
+            period_range_px=_period_range_px,
+            fov_width_cm=_eff_fov,
+        )
+        _, _, _, _ww = stage_evaluate(
+            _detect_out,
+            image=_image,
+            fov_width_cm=_eff_fov,
+            image_width_px=_w_px,
+        )
+        stage_self_contrast(_image, _detect_out)
+        stage_overlay_simple(_raw_image, _detect_out)
+        stage_overlay_simple_bands(_raw_image, _detect_out, _ww)
+        archive_results(None, _args.config, serial=_serial)
+        raise SystemExit(0)
+
     pack = stage_load(_args.config)
 
     # Convert period_range_cm -> period_range_px using the (post-crop) fov.

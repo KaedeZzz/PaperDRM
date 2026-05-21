@@ -1,0 +1,20 @@
+data_serial: Kk1-5_f5v
+data_root: data/msi/Kk1-5_f5v
+
+# TX940IR: transmitted 940nm IR — best channel for paper wire-mold visibility
+image_path: "E:/Downloads/MSI photography/MS-KK-00001-00005-PTS-00005-00006/MS-KK-00001-00005-PTS-00005-00006/00005-V/MS-KK-00001-00005-PTS-00005-00006-000-00005-V+TX940IR_018.jpg"
+
+# Physical scale
+# Source: Detailed Paper Info spreadsheet, Kk.01.05 pts. 5-6 → width = 197mm = 19.7cm
+# Image size: 6132 x 8176 px
+# Paper edges (cross-section scan): left=1006, right=5562, top=690, bottom=7446
+# Paper pixel width = 4556px; fov_width_cm for full image = 6132 × 19.7 / 4556 = 26.5146
+# After crop: effective_fov = 26.5146 × (4556/6132) = 19.70cm = 197mm ✓
+fov_width_cm: 26.5146
+
+# Crop to paper area; excludes lightbox frame and black background
+crop_roi: [1006, 690, 4556, 6756]
+
+subtract_background: true
+line_dir_deg: 0.0   # laid lines run horizontally on this folio
+period_range_cm: [0.060, 0.180]

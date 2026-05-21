@@ -1,0 +1,60 @@
+{
+  "ground_truth": {
+    "records": [
+      {
+        "id": "235a",
+        "shelfmark": "Kk.01.05, pts. 5, 6",
+        "locus": "1r",
+        "laid_per_cm": 12,
+        "chainline_mm": "28/32/32/32/34/33 (starting from gutter)"
+      },
+      {
+        "id": "235b",
+        "shelfmark": "Kk.01.05, pts. 5, 6",
+        "locus": "1r",
+        "laid_per_cm": 12,
+        "chainline_mm": "27/31/33/32/33/33 (starting from gutter)"
+      }
+    ],
+    "laid_per_cm_mean": 9.0,
+    "laid_per_cm_vals": [
+      9.0
+    ],
+    "interval_mm_mean": 1.1111111111111112,
+    "note": "GT overridden to manual count (9/cm); spreadsheet value 12 is from different folios"
+  },
+  "pipeline_results": [
+    {
+      "serial": "Kk1-5_f5v",
+      "lines_per_cm": 9.201676806018144,
+      "lines_per_cm_med": 9.250752415650243,
+      "interval_mm": 1.086758447488585,
+      "n_peaks": 181,
+      "fwhm_mm_median": 0.3803471233467505,
+      "fwhm_mm_ci_lo": 0.34558169411091405,
+      "fwhm_mm_ci_hi": 0.4021414887954295,
+      "self_z": 9.500672685834013,
+      "self_rel_pct": 10.290529482464498,
+      "r2_k4": 0.05173809733494217,
+      "gt_lines_per_cm": 9.0,
+      "gt_interval_mm": 1.1111111111111112,
+      "error_pct": 2.240853400201597
+    },
+    {
+      "serial": "Kk1-5_f9v",
+      "lines_per_cm": 8.629828340440609,
+      "lines_per_cm_med": 8.905574334750547,
+      "interval_mm": 1.1587716007210214,
+      "n_peaks": 170,
+      "fwhm_mm_median": 0.4094690508286113,
+      "fwhm_mm_ci_lo": 0.3588027350089904,
+      "fwhm_mm_ci_hi": 0.45265608946472613,
+      "self_z": -8.165782082515049,
+      "self_rel_pct": -15.451769643266191,
+      "r2_k4": 0.08701697571711042,
+      "gt_lines_per_cm": 9.0,
+      "gt_interval_mm": 1.1111111111111112,
+      "error_pct": -4.1130184395487905
+    }
+  ]
+}

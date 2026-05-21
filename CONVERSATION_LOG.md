@@ -8,6 +8,27 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-22 — feat(validation): synthetic phantom accuracy characterisation
+
+Added `scripts/phantom_synthetic.py`: generates images with known period / direction / wire-width (Gaussian comb, dark dips on bright background, matching real grazing/MSI data), runs the full detector pipeline, and measures detection error across four parameter sweeps. Results saved to `results/phantom/`.
+
+**Key findings:**
+
+| Metric | Result |
+|---|---|
+| Period accuracy (T=10–50 px) | <2% error |
+| Period SNR robustness | error unchanged SNR 2→50 (quantisation-limited, not noise) |
+| Direction accuracy (60°–90°) | ≤1° error; +3° boundary effect at exactly 90° |
+| Wire-width accuracy (σ=2–5 px, T~24 px) | −10% to +22% systematic bias |
+
+**Limitations documented:**
+- T≥60 px with thin wires (σ/T≤0.03): FFT picks second harmonic → −50% period error
+- Wire-width model overestimates +46–75% at intermediate periods (T=18–28 px, σ=2 px); this range covers typical manuscript data → wire-width numbers should be treated with caution
+
+**Note on dataset 10:** already identified as a physical phantom with known wire spacing; pipeline results against that dataset provide complementary real-hardware validation.
+
+---
+
 ## 2026-05-22 — fix(detector): overlay rotation direction reversed (auto_detect_line_dir)
 
 **Bug.** Overlay red lines leaned in the opposite direction from the actual laid lines in the base image (base: higher on right; overlay: higher on left — mirror image).

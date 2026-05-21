@@ -16,6 +16,9 @@ __pycache__/
 /self_contrast*.json
 /detector_comparison*.json
 
+# HTML reports are large (50–60 MB); JSON + PNG are the canonical outputs
+results/**/report_*.html
+
 # Notebooks are treated as personal scratch space, not source
 *.ipynb
 .ipynb_checkpoints/

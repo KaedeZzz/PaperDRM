@@ -193,28 +193,31 @@ def overlay_grid(
     blend onto the image. Returns a 3-channel BGR overlay.
 
     grid_x are positions in the rotated frame (where lines are vertical).
+    Lines are drawn directly in the original frame via the inverse rotation
+    matrix — avoids BORDER_REFLECT seam artifacts from double warpAffine.
     """
     base = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) if image.ndim == 2 else image.copy()
     h, w = base.shape[:2]
+    overlay = base.copy()
 
     rot_angle = 90.0 - float(line_dir_deg)
     if abs(rot_angle) > 1e-6:
-        M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), rot_angle, 1.0)
-        base_rot = cv2.warpAffine(base, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+        # M_inv maps rotated-frame coordinates → original-frame coordinates.
+        M_inv = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -rot_angle, 1.0)
+        A, t = M_inv[:, :2], M_inv[:, 2]
+        extend = float(max(h, w))
+        for x_pos in grid_x:
+            pts_rot = np.array([[float(x_pos), -extend],
+                                [float(x_pos), h - 1.0 + extend]])
+            pts_orig = (A @ pts_rot.T).T + t
+            p1 = (int(round(pts_orig[0, 0])), int(round(pts_orig[0, 1])))
+            p2 = (int(round(pts_orig[1, 0])), int(round(pts_orig[1, 1])))
+            cv2.line(overlay, p1, p2, color, thickness, cv2.LINE_AA)
     else:
-        base_rot = base.copy()
+        for x_pos in grid_x:
+            cv2.line(overlay, (int(x_pos), 0), (int(x_pos), h - 1), color, thickness, cv2.LINE_AA)
 
-    overlay_rot = base_rot.copy()
-    for x in grid_x:
-        cv2.line(overlay_rot, (int(x), 0), (int(x), h - 1), color, thickness, cv2.LINE_AA)
-
-    if abs(rot_angle) > 1e-6:
-        M_back = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -rot_angle, 1.0)
-        overlay_back = cv2.warpAffine(overlay_rot, M_back, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
-    else:
-        overlay_back = overlay_rot
-
-    return cv2.addWeighted(base, 1.0 - alpha, overlay_back, alpha, 0.0)
+    return cv2.addWeighted(base, 1.0 - alpha, overlay, alpha, 0.0)
 
 
 def overlay_grid_bands(
@@ -234,32 +237,90 @@ def overlay_grid_bands(
     full estimated wire-shadow extent. Pass FWHM (= 2.355 sigma) for a
     visual match with the perceived dark band.
 
-    grid_x are positions in the rotated frame (lines vertical).
+    grid_x are positions in the rotated frame (lines vertical). Bands are
+    drawn as rotated quadrilaterals directly in the original frame via the
+    inverse rotation matrix — no double warpAffine, no BORDER_REFLECT seams.
     """
     base = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) if image.ndim == 2 else image.copy()
     h, w = base.shape[:2]
     half = float(band_width_px) / 2.0
+    fill = base.copy()
 
     rot_angle = 90.0 - float(line_dir_deg)
     if abs(rot_angle) > 1e-6:
-        M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), rot_angle, 1.0)
-        base_rot = cv2.warpAffine(base, M, (w, h), flags=cv2.INTER_LINEAR,
-                                  borderMode=cv2.BORDER_REFLECT)
+        M_inv = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -rot_angle, 1.0)
+        A, t = M_inv[:, :2], M_inv[:, 2]
+        extend = float(max(h, w))
+        for x_pos in grid_x:
+            # 4 corners of the band in the rotated frame (TL, TR, BR, BL)
+            corners_rot = np.array([
+                [float(x_pos) - half, -extend],
+                [float(x_pos) + half, -extend],
+                [float(x_pos) + half, h - 1.0 + extend],
+                [float(x_pos) - half, h - 1.0 + extend],
+            ])
+            corners_orig = (A @ corners_rot.T).T + t
+            poly = corners_orig.round().astype(np.int32)
+            cv2.fillPoly(fill, [poly], color)
     else:
-        base_rot = base.copy()
+        for x_pos in grid_x:
+            x0 = int(round(float(x_pos) - half))
+            x1 = int(round(float(x_pos) + half))
+            cv2.rectangle(fill, (x0, 0), (x1, h - 1), color, thickness=cv2.FILLED)
 
-    fill = base_rot.copy()
-    for x in grid_x:
-        x0 = int(round(float(x) - half))
-        x1 = int(round(float(x) + half))
-        cv2.rectangle(fill, (x0, 0), (x1, h - 1), color, thickness=cv2.FILLED)
-    blended = cv2.addWeighted(base_rot, 1.0 - alpha, fill, alpha, 0.0)
+    return cv2.addWeighted(base, 1.0 - alpha, fill, alpha, 0.0)
 
-    if abs(rot_angle) > 1e-6:
-        M_back = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -rot_angle, 1.0)
-        return cv2.warpAffine(blended, M_back, (w, h), flags=cv2.INTER_LINEAR,
-                              borderMode=cv2.BORDER_REFLECT)
-    return blended
+
+def auto_detect_line_dir(
+    image: np.ndarray,
+    *,
+    period_range_px: tuple[float, float] = (8.0, 80.0),
+    n_angles: int = 180,
+    angle_bandwidth_deg: float = 5.0,
+) -> float:
+    """
+    Estimate the laid-line direction from the 2D power spectrum.
+
+    Sweeps candidate directions in [0, 180) deg and scores each by the total
+    2D spectral power in the angular slice perpendicular to that direction,
+    within the expected period band.  Returns ``line_dir_deg`` (0 = horizontal
+    lines, 90 = vertical lines).
+
+    The perpendicularity relation: lines at angle φ create power in the 2D
+    FFT at angle (φ + 90) % 180, so the highest-scoring candidate is the one
+    whose perpendicular aligns with the dominant spectral ridge.
+    """
+    img = image.astype(np.float64)
+    img -= img.mean()
+    H, W = img.shape[:2]
+
+    P = np.abs(np.fft.fftshift(np.fft.fft2(img))) ** 2
+
+    fy = np.fft.fftshift(np.fft.fftfreq(H))
+    fx = np.fft.fftshift(np.fft.fftfreq(W))
+    FX, FY = np.meshgrid(fx, fy)
+    R = np.sqrt(FX ** 2 + FY ** 2)
+    THETA = np.degrees(np.arctan2(-FY, FX)) % 180.0
+
+    f_min = 1.0 / float(period_range_px[1])
+    f_max = 1.0 / float(period_range_px[0])
+    in_range = (R >= f_min) & (R <= f_max)
+
+    cand = np.linspace(0.0, 180.0, n_angles, endpoint=False)
+    score = np.zeros(n_angles)
+
+    for i, phi in enumerate(cand):
+        theta_target = (phi + 90.0) % 180.0
+        diff = np.abs(THETA - theta_target)
+        diff = np.minimum(diff, 180.0 - diff)
+        mask = in_range & (diff <= angle_bandwidth_deg)
+        score[i] = float(P[mask].sum())
+
+    best = float(cand[int(np.argmax(score))])
+    # Fold into (-90, 90] so 178 deg prints as -2 deg, not 178 deg.
+    if best > 90.0:
+        best -= 180.0
+    return best
 
 
 def detect_laid_lines_simple(

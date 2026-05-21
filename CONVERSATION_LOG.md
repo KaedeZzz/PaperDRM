@@ -8,6 +8,66 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-22 — fix(detector): overlay rotation direction reversed (auto_detect_line_dir)
+
+**Bug.** Overlay red lines leaned in the opposite direction from the actual laid lines in the base image (base: higher on right; overlay: higher on left — mirror image).
+
+**Root cause.** In `auto_detect_line_dir` (`simple_detector.py`), the 2D FFT spectral angle was computed as `arctan2(FY, FX)` where `FY` is the row-frequency axis — image coordinates with y pointing down. But `line_dir_deg` is defined in display coordinates (y pointing up). The sign mismatch caused the detected angle to be the negation of the true tilt (e.g. −2° instead of +2°).
+
+For nearly-vertical lines (small tilt), `rot_angle = 90 − line_dir_deg` becomes ≈178° instead of ≈2°. The period detection still worked (a nearly-vertical line rotated by ≈180° stays nearly vertical), but `overlay_grid` applied the inverse rotation in the wrong direction, flipping the overlay tilt.
+
+**Fix.** Changed `arctan2(FY, FX)` → `arctan2(-FY, FX)` in `auto_detect_line_dir`. This converts the FFT row-frequency from image-y to display-y convention before computing the spectral angle. After the fix `auto_detect_line_dir` returns +2.0° for the f9v dataset (was −2.0°); overlay now matches the base image.
+
+**File changed.** `paperdrm/stage3_detect/simple_detector.py` line 303.
+
+---
+
+## 2026-05-21 — chore: scale grid + HTML report exclusion for f9v
+
+- `.gitignore`: suppress `results/**/report_*.html` (50–60 MB each, over GitHub's 50 MB soft limit). Untracked already-committed HTML files from Kk1-5 runs.
+- `results/Kk1-5_f9v/scale_grid_1cm.png`: 1 cm × 1 cm grid overlay for physical scale verification (197 × 273 mm paper, 223 × 227 px/cell).
+
+---
+
+## 2026-05-21 — chore(results): archive Kk1-5_f5v and Kk1-5_f9v MSI runs
+
+First real manuscript runs using the single-image track on MSI transmitted-light (TX940IR) images of two folios of MS Kk.01.05 pts 5–6. Line direction set to `line_dir_deg=0` (horizontal laid lines visible in transmitted light). ROI crop derived from `detect_paper_roi.py`.
+
+---
+
+## 2026-05-19 — feat(pipeline): MSI single-image support + detect_paper_roi utility
+
+**MSI single-image support (`52f85cc`).**
+- `Settings`: added `line_dir_deg` field (default 90.0) so per-config laid-line orientation is yaml-driven; single-image track reads it instead of hardcoding 90°.
+- `Settings`: auto-derive `data_root` from `data_serial` (`data/drp/<serial>`) when not explicitly set.
+- `main.py`: single-image track now auto-activates when `image_path` is set in yaml, removing dependency on `DETECTOR_TRACK` constant.
+- `image_io`: default image folder changed from `paths.processed` to `paths.raw`.
+- `fetch_dataset`: restructured output to `data/drp/<serial>/raw/`; create `processed/`, `cache/`, `background/` subdirs; added `data_serial` to `sample.yaml`.
+- `infer_drp_config`: made `--folder` required.
+
+**detect_paper_roi utility (`42d77f5`).**
+- New `scripts/detect_paper_roi.py`: scans horizontal and vertical cross-sections to locate the gray paper region between black background and bright lightbox frame, then prints a ready-to-paste `crop_roi` line for `exp_param.yaml`.
+
+---
+
+## 2026-05-19 — feat(pipeline): single_image track (`112ade0`)
+
+Lightweight track that bypasses `ImagePack` and the DRP stack entirely, accepting a single image via `--image <path>` or `image_path:` in yaml.
+
+Pipeline: Gaussian-blur background subtraction (optional, σ=100) → ROI crop with `fov_width_cm` auto-scaling → `period_range_cm`→px conversion → `detect_laid_lines_simple` (FFT + Gabor) → full Stage-5 evaluation (gap distribution, fit quality, wire width, self-contrast; split-half skipped) → overlay + archive + HTML report.
+
+---
+
+## 2026-05-18 — feat + fix: period_range_px wiring, phase auto-correction, report cards (`b6d727a`, `06c145e`, `7b3bddd`)
+
+**period_range_px wiring (`b6d727a`).** Passed `settings.period_range_px` into `stage_detect_multi_phi`, `stage_split_half`, and `stage_detect_simple` so the search window is fully yaml-driven. `exp_param.yaml` gained `period_range_px=[8,50]` to avoid a spurious 2nd-harmonic peak at ~73 px and lock onto the true ~41 px period for dataset 2b (~11.6 lines/cm).
+
+**Half-period phase auto-correction (`06c145e`).** After computing the weighted-mean phase across phi images, sample the representative image at the detected grid vs. the half-period-shifted positions. If the grid lands on the brighter side, shift `phi_mean` by π and recompute `grid_x`. Makes absolute grid position independent of which phi happens to be the anchor. `phase_auto_corrected` key added to result dict.
+
+**Report measurement cards (`7b3bddd`).** HTML reports now open with two prominent blue-bordered metric cards: Laid Line Spacing (mean in mm, 95% t-CI from gap distribution) and Wire Shadow Width / FWHM (segment-median in mm, 95% t-CI from segments).
+
+---
+
 ## 2026-05-17 — run(pipeline): first real manuscript dataset (data_serial=10)
 
 **Dataset.** New manuscript data loaded into `data/processed/` + `data/background/`.

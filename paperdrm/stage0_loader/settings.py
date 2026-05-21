@@ -180,6 +180,7 @@ class Settings:
     crop_roi: tuple[int, int, int, int] | None = None
     period_range_cm: tuple[float, float] | None = None
     line_dir_deg: float = 90.0
+    auto_line_dir: bool = False
     verbose: bool = False
 
     def __post_init__(self) -> None:
@@ -271,5 +272,6 @@ class Settings:
             crop_roi=tuple(raw["crop_roi"]) if raw.get("crop_roi") else None,
             period_range_cm=tuple(raw["period_range_cm"]) if raw.get("period_range_cm") else None,  # type: ignore[arg-type]
             line_dir_deg=raw.get("line_dir_deg", 90.0),
+            auto_line_dir=bool(raw.get("auto_line_dir", False)),
             verbose=raw.get("verbose", False),
         )

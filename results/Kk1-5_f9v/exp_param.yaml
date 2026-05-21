@@ -16,5 +16,5 @@ fov_width_cm: 27.5423
 crop_roi: [918, 1165, 4386, 6188]
 
 subtract_background: true
-line_dir_deg: 0.0   # laid lines run horizontally on this folio
+auto_line_dir: true
 period_range_cm: [0.060, 0.180]

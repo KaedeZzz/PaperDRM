@@ -51,6 +51,7 @@ from paperdrm.stage3_detect.gabor import (
 )
 from paperdrm.stage3_detect.simple_detector import (
     detect_laid_lines_simple,
+    auto_detect_line_dir as _auto_detect_line_dir,
     overlay_grid,
     overlay_grid_bands,
 )
@@ -577,6 +578,11 @@ if __name__ == "__main__":
                   f"period_range_px=({_period_range_px[0]:.1f}, {_period_range_px[1]:.1f})")
         else:
             _period_range_px = (8.0, 80.0)
+
+        if _cfg.auto_line_dir:
+            _line_dir = _auto_detect_line_dir(_image, period_range_px=_period_range_px)
+            print(f"[Main] auto_line_dir -> {_line_dir:.1f} deg")
+            _cfg = _cfg.with_overrides(line_dir_deg=_line_dir)
 
         _detect_out = stage_detect_simple(
             _image,

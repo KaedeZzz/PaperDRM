@@ -24,6 +24,7 @@ from paperdrm.stage3_detect.gabor import (
 )
 from paperdrm.stage3_detect.simple_detector import (
     detect_laid_lines_simple,
+    auto_detect_line_dir,
     radial_fft_period,
     gabor_clean_signal,
     phase_fit,
@@ -46,6 +47,7 @@ __all__ = [
     "filter_peaks_to_grid",
     "peaks_from_signal",
     "detect_laid_lines_simple",
+    "auto_detect_line_dir",
     "radial_fft_period",
     "gabor_clean_signal",
     "phase_fit",

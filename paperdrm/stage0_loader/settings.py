@@ -181,6 +181,7 @@ class Settings:
     period_range_cm: tuple[float, float] | None = None
     line_dir_deg: float = 90.0
     auto_line_dir: bool = False
+    wire_is_darker: bool = True
     verbose: bool = False
 
     def __post_init__(self) -> None:
@@ -273,5 +274,6 @@ class Settings:
             period_range_cm=tuple(raw["period_range_cm"]) if raw.get("period_range_cm") else None,  # type: ignore[arg-type]
             line_dir_deg=raw.get("line_dir_deg", 90.0),
             auto_line_dir=bool(raw.get("auto_line_dir", False)),
+            wire_is_darker=bool(raw.get("wire_is_darker", True)),
             verbose=raw.get("verbose", False),
         )

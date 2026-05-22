@@ -4,7 +4,7 @@
   "fc_band_frac": 0.2,
   "r2_fundamental_only": 0.08701218700878788,
   "r2_with_harmonics": 0.08701697571711042,
-  "r2_gaussian_comb": 0.033324775116418404,
+  "r2_gaussian_comb": 0.03333309813671792,
   "loss": 0.9129830242828896,
   "frequency_concentration": 0.20276734648567263,
   "curve_periods_px": [

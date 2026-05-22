@@ -32,10 +32,14 @@ Stages used by each track:
 """
 
 import shutil
+import sys
 from pathlib import Path
 
 import cv2
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).parent / "scripts"))
+from detect_paper_roi import detect_paper_roi_texture
 
 from paperdrm import ImagePack, Settings
 from paperdrm.stage0_drp.slicing import apply_angle_slice, apply_theta_min_filter
@@ -560,11 +564,18 @@ if __name__ == "__main__":
         _serial = str(_cfg.data_serial) if _cfg.data_serial is not None else _single_image_path.stem
         print(f"[Main] SINGLE_IMAGE track: {_single_image_path}  serial={_serial}")
 
+        _crop_roi = _cfg.crop_roi
+        if _crop_roi is None:
+            _raw_for_roi = cv2.imread(str(_single_image_path), cv2.IMREAD_GRAYSCALE)
+            _crop_roi = detect_paper_roi_texture(_raw_for_roi)
+            print(f"[Main] auto crop_roi -> {list(_crop_roi)}")
+            del _raw_for_roi
+
         _image, _raw_image, _eff_fov = stage_load_single_image(
             _single_image_path,
             subtract_background=_cfg.subtract_background,
             subtraction_scale_percentile=_cfg.subtraction_scale_percentile,
-            crop_roi=_cfg.crop_roi,
+            crop_roi=_crop_roi,
             fov_width_cm=_cfg.fov_width_cm,
         )
         _w_px = _image.shape[1]
@@ -588,6 +599,7 @@ if __name__ == "__main__":
             _image,
             line_dir_deg=_cfg.line_dir_deg,
             period_range_px=_period_range_px,
+            wire_is_darker=_cfg.wire_is_darker,
             fov_width_cm=_eff_fov,
         )
         _, _, _, _ww = stage_evaluate(

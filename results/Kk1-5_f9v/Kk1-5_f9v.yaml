@@ -1,0 +1,21 @@
+data_serial: Kk1-5_f9v
+data_root: data/msi/Kk1-5_f9v
+
+# TX940IR: transmitted 940nm IR — best channel for paper wire-mold visibility
+image_path: "E:/Downloads/MSI photography/MS-KK-00001-00005-PTS-00005-00006/MS-KK-00001-00005-PTS-00005-00006/00009-V/MS-KK-00001-00005-PTS-00005-00006-000-00009-V+TX940IR_018.jpg"
+
+# Physical scale
+# Source: Detailed Paper Info spreadsheet, Kk.01.05 pts. 5-6 → width = 197mm = 19.7cm
+# Image size: 6132 x 8176 px
+# Paper edges (cross-section scan): left=918, right=5304, top=1165, bottom=7353
+# Paper pixel width = 4386px; fov_width_cm for full image = 6132 × 19.7 / 4386 = 27.5423
+# After crop: effective_fov = 27.5423 × (4386/6132) = 19.70cm = 197mm ✓
+fov_width_cm: 27.5423
+
+# Crop to paper area; excludes lightbox frame and black background
+crop_roi: [918, 1165, 4386, 6188]
+
+subtract_background: true
+wire_is_darker: false   # TX940IR transmitted light: wires = brighter (thinner paper)
+auto_line_dir: true
+period_range_cm: [0.060, 0.180]

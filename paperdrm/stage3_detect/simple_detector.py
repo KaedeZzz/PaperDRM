@@ -279,16 +279,28 @@ def auto_detect_line_dir(
     angle_bandwidth_deg: float = 5.0,
 ) -> float:
     """
-    Estimate the laid-line direction from the 2D power spectrum.
+    Estimate the laid-line direction from the 2D power spectrum using a
+    dual-band cross-validation strategy.
 
-    Sweeps candidate directions in [0, 180) deg and scores each by the total
-    2D spectral power in the angular slice perpendicular to that direction,
-    within the expected period band.  Returns ``line_dir_deg`` (0 = horizontal
-    lines, 90 = vertical lines).
+    For each candidate direction φ, two spectral bands are scored:
 
-    The perpendicularity relation: lines at angle φ create power in the 2D
-    FFT at angle (φ + 90) % 180, so the highest-scoring candidate is the one
-    whose perpendicular aligns with the dominant spectral ridge.
+      laid_score  : power at THETA ≈ (φ+90°), R in [f_min_laid, f_max_laid]
+                    — the spectral ridge produced by the laid-line lattice.
+
+      chain_score : power at THETA ≈ φ,        R in [0, f_min_laid]
+                    — lower frequencies in the perpendicular direction,
+                    where the chain-line lattice (always coarser than laid)
+                    concentrates its energy.
+
+    combined = laid_score × chain_score
+
+    This cross-validation rejects false detections from chain-line shadow
+    profiles: those profiles create power in the laid-line frequency band
+    but in the WRONG angular bin for the chain_score term, so their
+    combined score is suppressed.
+
+    Returns ``line_dir_deg`` (0 = horizontal lines, 90 = vertical lines),
+    folded into (−90, 90].
     """
     img = image.astype(np.float64)
     img -= img.mean()
@@ -299,25 +311,42 @@ def auto_detect_line_dir(
     fy = np.fft.fftshift(np.fft.fftfreq(H))
     fx = np.fft.fftshift(np.fft.fftfreq(W))
     FX, FY = np.meshgrid(fx, fy)
-    R = np.sqrt(FX ** 2 + FY ** 2)
+    R     = np.sqrt(FX ** 2 + FY ** 2)
     THETA = np.degrees(np.arctan2(-FY, FX)) % 180.0
 
-    f_min = 1.0 / float(period_range_px[1])
-    f_max = 1.0 / float(period_range_px[0])
-    in_range = (R >= f_min) & (R <= f_max)
+    f_min_laid = 1.0 / float(period_range_px[1])
+    f_max_laid = 1.0 / float(period_range_px[0])
 
-    cand = np.linspace(0.0, 180.0, n_angles, endpoint=False)
-    score = np.zeros(n_angles)
+    # Laid-line band: R in [f_min_laid, f_max_laid]
+    laid_band  = (R >= f_min_laid) & (R <= f_max_laid)
+    # Chain-line band: R < f_min_laid (chain lines always have coarser period)
+    chain_band = (R > 0) & (R < f_min_laid)
+
+    cand        = np.linspace(0.0, 180.0, n_angles, endpoint=False)
+    score_laid  = np.zeros(n_angles)
+    score_chain = np.zeros(n_angles)
 
     for i, phi in enumerate(cand):
-        theta_target = (phi + 90.0) % 180.0
-        diff = np.abs(THETA - theta_target)
-        diff = np.minimum(diff, 180.0 - diff)
-        mask = in_range & (diff <= angle_bandwidth_deg)
-        score[i] = float(P[mask].sum())
+        # Laid lines at φ → spectral ridge at (φ+90°)
+        theta_laid = (phi + 90.0) % 180.0
+        d = np.abs(THETA - theta_laid)
+        d = np.minimum(d, 180.0 - d)
+        score_laid[i] = float(P[laid_band & (d <= angle_bandwidth_deg)].sum())
 
-    best = float(cand[int(np.argmax(score))])
-    # Fold into (-90, 90] so 178 deg prints as -2 deg, not 178 deg.
+        # Chain lines at (φ+90°) → spectral ridge at φ
+        theta_chain = phi % 180.0
+        d = np.abs(THETA - theta_chain)
+        d = np.minimum(d, 180.0 - d)
+        score_chain[i] = float(P[chain_band & (d <= angle_bandwidth_deg)].sum())
+
+    # Normalise each component to [0,1] before multiplying so neither dominates
+    def _norm(x: np.ndarray) -> np.ndarray:
+        rng = x.max() - x.min()
+        return (x - x.min()) / rng if rng > 0 else np.zeros_like(x)
+
+    combined = _norm(score_laid) * _norm(score_chain)
+
+    best = float(cand[int(np.argmax(combined))])
     if best > 90.0:
         best -= 180.0
     return best

@@ -17,5 +17,5 @@ crop_roi: [1006, 690, 4556, 6756]
 
 subtract_background: true
 wire_is_darker: false   # TX940IR transmitted light: wires = brighter (thinner paper)
-line_dir_deg: 0.0   # laid lines run horizontally on this folio
+auto_line_dir: true
 period_range_cm: [0.060, 0.180]

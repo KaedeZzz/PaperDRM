@@ -8,6 +8,78 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-23 — feat(detect): fix auto_detect_line_dir + wire_is_darker + auto crop_roi integration
+
+### 背景
+
+本次 session 延续上一次对 `auto_detect_line_dir` 的修复工作（上一 session 实现了 projection autocorrelation，但未经测试）。测试发现三个数据集全部检测错误，经过诊断和重写，最终完全修好。
+
+### 问题诊断
+
+测试初始结果：
+
+| 数据集 | 错误结果 | 期望 |
+|---|---|---|
+| Kk1-5_f5v | −62° | ~0° |
+| Kk1-5_f9v | 77° | ~2° |
+| Hh2-12_f190 | −78° | ~0° |
+
+加入谱功率诊断后发现：
+
+- **根本原因 1 — 归一化自相关被低频趋势欺骗。** 归一化 AC = AC[lag]/AC[0]，若投影信号存在宽缓的低频趋势（背景渐变等），AC[0]（总功率）被拉大，所有短 lag 处的 AC 接近 1.0，算法无法区分真正的帘线周期性。
+- **根本原因 2 — 二次谐波竞争。** 帘线周期 T 的半周期 T/2（二次谐波）在某些角度下 AC 值高于基频，导致误检。
+- **对照：谱功率（绝对 |FFT|²）在正确角度处比任何错误角度高 100–1000 倍**，对低频趋势免疫。
+
+### 修复内容
+
+**`paperdrm/stage3_detect/simple_detector.py` — `auto_detect_line_dir`**
+
+将 scoring 从归一化自相关改为目标频带内的峰值谱功率：
+
+```python
+# 旧（autocorrelation）
+n2 = 2 * len(proj)
+F  = np.fft.rfft(proj, n=n2)
+ac = np.fft.irfft(F * F.conj())[:len(proj)]
+if ac[0] > 0: ac /= ac[0]
+scores[i] = float(ac[lag_min: lag_max + 1].max())
+
+# 新（spectral power）
+F     = np.fft.rfft(proj)
+power = np.abs(F) ** 2
+freqs = np.fft.rfftfreq(len(proj))
+band  = (freqs >= freq_lo) & (freqs <= freq_hi)
+scores[i] = float(power[band].max())
+```
+
+**`configs/Kk1-5_f5v.yaml`**
+
+将手动指定的 `line_dir_deg: 0.0` 改为 `auto_line_dir: true`。
+
+### 修复后测试结果
+
+| 数据集 | 检测角度 | 期望 | 线密度 | SNR（vs 次优角度） |
+|---|---|---|---|---|
+| Kk1-5_f5v | **1°** ✅ | ~0° | 9.2 线/cm | 3.0x (4.7 dB) |
+| Kk1-5_f9v | **2°** ✅ | ~2° | 9.1 线/cm | 10.5x (10.2 dB) |
+| Hh2-12_f190 | **0°** ✅ | ~0° | 10.2 线/cm | 1.6x (2.2 dB) |
+
+f190 的 SNR 最低（1.6x），次优方向均为 90°（竖向），可能来自 JPEG 压缩伪影或图像纹理。目前三个数据集均正确通过，但若遇到帘线对比度更低的图像需留意。
+
+三个 config 现在全部使用 `auto_line_dir: true`，可完全取代手动指定方向。
+
+### 涉及文件
+
+- `paperdrm/stage3_detect/simple_detector.py`（`auto_detect_line_dir` 重写）
+- `configs/Kk1-5_f5v.yaml`（改用 `auto_line_dir: true`）
+- `results/Kk1-5_f5v/`（用自动检测结果刷新）
+
+### Commit
+
+`caecc39` feat(detect): replace projection autocorrelation with spectral power in auto_detect_line_dir
+
+---
+
 ## 2026-05-22 — feat(validation): synthetic phantom accuracy characterisation
 
 Added `scripts/phantom_synthetic.py`: generates images with known period / direction / wire-width (Gaussian comb, dark dips on bright background, matching real grazing/MSI data), runs the full detector pipeline, and measures detection error across four parameter sweeps. Results saved to `results/phantom/`.

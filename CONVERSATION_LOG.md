@@ -8,6 +8,135 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-24（续）— 手动 GT 标注工具 + 全数据集对比
+
+### 背景
+
+上一 session 分析了系统性误差，用户提出用手动标注作为 ground truth 代替 spreadsheet。本 session 实现并运行了完整标注流程。
+
+### 新建工具
+
+**`scripts/gt_builder.py`** — 两阶段交互式 GT 构建 app
+
+- **Phase 1**：bbox 选择（复用 `select_bbox.py` 的 `BBoxSelector`，通过 `importlib` 动态加载）
+- **Phase 2**：laid-line 标注
+  - 图像以自然方向显示（不旋转），因为 laid line 在 portrait 图像中是**水平**的
+  - 左键点击放置**横向**标记线（Y 坐标），D 删除最近标记，滚轮缩放，中键/右键拖动平移
+  - 实时显示 N、mean_gap_px、lpc 估计值
+  - 保存到 `results/<serial>/manual_gt.json`（含 `y_positions_px`、`lpc_mean`、`lpc_median`、`cm_per_px`）
+
+**Bug 修复（当场发现）**：初版错误地将标记线做成竖线（X 坐标），因为混淆了"旋转使帘线变竖后标 X"的逻辑——实际图像未旋转时帘线是横的，应该标 Y 坐标放横线。修复后改为直接用自然方向图像 + 横线标记。
+
+**`scripts/compare_vs_manual_gt.py`** — 对比表：手动 GT vs pipeline vs spreadsheet
+
+### 手动标注结果（全 9 个 folio）
+
+每个 folio 标记 10–16 根帘线，以 mean Y 间距计算 lpc：
+
+| 数据集 | N标记 | 手动 lpc | Pipeline lpc | 误差(vs手动) | Spreadsheet |
+|---|---|---|---|---|---|
+| Kk1-5_f5v | 14 | **9.35** | 8.97 | −4.1% | 9.0 |
+| Kk1-5_f9v | 14 | **9.35** | 9.04 | −3.3% | 9.0 |
+| Hh2-12_f190 | 14 | **8.91** | 8.91 | **0.0%** | 10.0 |
+| Ee5-22_f328r | 14 | **7.57** | 7.19 | −5.1% | 10.0 |
+| Ff2-6_f140r | 11 | **10.16** | 9.43 | −7.2% | 11.0 |
+| Ff4-9_f42r | 16 | **5.90** | 5.27 | −10.7% | 6.0 |
+| Ff4-15_f24r | 10 | **12.08** | 3.92 | −67.6% ❌ | 13.5 |
+| Hh2-10_f24r | 10 | **11.52** | 11.20 | −2.8% | 13.5 |
+| Ii3-8_f135v | 12 | **7.40** | 6.75 | −8.8% | 9.0 |
+
+### 关键结论
+
+1. **Spreadsheet GT 不可靠**：Hh2-12（10 vs 8.91）、Ee5-22（10 vs 7.57）、Hh2-10（13.5 vs 11.52）等偏差极大，手动量才是真值。
+
+2. **Pipeline 系统性低估 3–11%**（Ff4-15 除外）。方向一致，说明 FFT 检测的 `dominant_period_px` 系统性偏大（找到的频率偏低）。
+
+3. **Ff4-15_f24r 完全失败（−68%）**：手动 GT 12.08/cm 接近 spreadsheet 13.5，pipeline 只报 3.92——检测到的是 chain line（间距宽），不是 laid line。需要单独处理。
+
+### 涉及文件
+
+- `scripts/gt_builder.py`（新建）
+- `scripts/compare_vs_manual_gt.py`（新建）
+- `results/*/manual_gt.json`（全 9 个，新建）
+
+### 下一步
+
+- 分析 pipeline 系统性低估 5–10% 的根因（FFT period 偏大）
+- 修复 Ff4-15_f24r 检测到 chain line 而非 laid line 的问题
+
+---
+
+## 2026-05-24 — 系统性误差分析 + Spreadsheet GT 可靠性审查
+
+### 背景
+
+上一 session 结束时手动框选了所有 9 个数据集的 bbox 并重跑了 pipeline。本 session 追查结果变差的原因，并深入分析系统性偏低的来源。
+
+### fov_width_cm 换算验证
+
+`select_bbox.py` 的反推公式代数上等价于直接用已知 paper_mm，对所有数据集数值验证吻合（误差 < 0.01%）。
+
+结果变差的真实原因（以 Hh2-12_f190 为例）：改前 fov=22.0 无 crop_roi → pipeline 把全图 6132px 当 22cm（错误比例尺）；改后正确。之前的"好结果"是比例尺错误带来的虚假精度。
+
+### pipeline 估计 lpc 的完整方法
+
+**Step 1** — 2D FFT → `dominant_period_px`（在 `period_range_px` 内找峰值频率）  
+**Step 2** — Gabor 在检测到的 period 处滤波 → 干净的 `dominant_signal_1d`  
+**Step 3** — `peaks_from_signal`：平滑后找局部极大值，`min_dist = 0.7 × period_px`  
+**Step 4** — `gaps_px = np.diff(peaks_x)`，`lpc_mean = 1 / (mean(gaps_px) × cm_per_px)`
+
+**根源**：FFT 检测到的 `dominant_period_px` 决定整条链路。
+
+### 系统性偏低分析
+
+当前结果（手动 bbox 后重跑）：
+
+| 数据集 | GT | lpc_mean | error |
+|---|---|---|---|
+| Kk1-5_f5v/f9v | 9.0 | 8.97/9.04 | **< 0.5%** ✓ |
+| Hh2-12_f190 | 10.0 | 8.91 | −10.9% |
+| Ee5-22_f328r | 10.0 | 7.19 | −28.1% |
+| Ff2-6_f140r | 11.0 | 9.43 | −14.3% |
+| Ff4-9_f42r | 6.0 | 5.27 | −12.2% |
+| Ff4-15_f24r | 13.5 | 3.92 | −71% **FAILED** |
+| Hh2-10_f24r | 13.5 | 11.20 | −17.1% |
+| Ii3-8_f135v | 9.0 | 6.75 | −25.0% |
+
+**Wire/period 比值**：所有数据集均在 0.35–0.41 之间高度一致，说明 pipeline 在每张图上检测的是同一类物理结构（帘线），内部自洽。
+
+**FFT period vs GT 期望对比**：Kk1-5 完全吻合（ratio=0.986），其他数据集 FFT 找到的 period 比 GT 期望值大 10–27%，说明不是 gap-mean 膨胀问题，而是 FFT 本身找到了错误（或不同的）频率。
+
+### Spreadsheet GT 可靠性审查
+
+查询 `Detailed Paper Info` sheet，所有 folio 均在正确 locus 区间内：
+
+| 数据集 | 匹配 locus | Spreadsheet lpc |
+|---|---|---|
+| Hh2-12_f190 | 176r–197v | 10 |
+| Ee5-22_f328r | 324,325–328,329 | 10 |
+| Ff2-6_f140r | 138r–141v | **11 或 10（两行冲突）** |
+| Ff4-9_f42r | 1r–83v | 6 |
+| Ff4-15_f24r | 23r–40v | 13 (14? hard to tell) |
+| Hh2-10_f24r | 1r–36v | **13(14) 或 12(14)（两行冲突）** |
+| Ii3-8_f135v | 133r–144v | 9 |
+| Kk1-5 | 不在 spreadsheet | 手动数 |
+
+**Spreadsheet 可靠性问题**：多处有冲突行、明确标注不确定性（"hard to tell"）。
+
+**关键验证**：用户肉眼看 Ee5-22 约 8/cm，与 pipeline 的 ~7.9 lpc 一致，而非 spreadsheet 的 10。结论：spreadsheet 本身计数可能有误，pipeline 对 Kk1-5（直接手动验证）完全准确，对其他数据集的检测结果很可能也是正确的。
+
+### 待实施
+
+用户提出了新的解决方案（待下一 session 说明）。
+
+### 涉及文件
+
+- `data/manuscript_db/Master Paper Spreadsheet.xlsx`（GT 来源）
+- `results/pipeline_vs_spreadsheet.json`（最新对比）
+- `scripts/save_comparison.py`（GT 硬编码需更新）
+
+---
+
 ## 2026-05-23 — feat(detect): fix auto_detect_line_dir + wire_is_darker + auto crop_roi integration
 
 ### 背景

@@ -591,8 +591,15 @@ if __name__ == "__main__":
             _period_range_px = (8.0, 80.0)
 
         if _cfg.auto_line_dir:
-            _line_dir = _auto_detect_line_dir(_image, period_range_px=_period_range_px)
-            print(f"[Main] auto_line_dir -> {_line_dir:.1f} deg")
+            # centre search on direction perpendicular to the long side of the crop
+            _h_img, _w_img = _image.shape[:2]
+            _center_deg = 0.0 if _h_img >= _w_img else 90.0
+            _line_dir = _auto_detect_line_dir(
+                _image,
+                period_range_px=_period_range_px,
+                center_deg=_center_deg,
+            )
+            print(f"[Main] auto_line_dir (center={_center_deg:.0f}°±20°) -> {_line_dir:.1f} deg")
             _cfg = _cfg.with_overrides(line_dir_deg=_line_dir)
 
         _detect_out = stage_detect_simple(

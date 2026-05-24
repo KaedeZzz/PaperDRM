@@ -1,0 +1,12 @@
+data_serial: Ee5-22_f328r
+image_path: "E:/Downloads/MSI photography/MS-EE-00005-00022-000-00328-R+TX940IR_027.jpg"
+
+# Paper width from spreadsheet: 210 mm
+# crop detected automatically; fov = full_img_w * paper_mm / (crop_w * 10)
+fov_width_cm: 24.9994
+crop_roi: [277, 535, 5151, 7297]
+
+auto_line_dir: true
+period_range_cm: [0.05, 0.2]
+wire_is_darker: false   # TX940IR transmitted light
+subtract_background: false

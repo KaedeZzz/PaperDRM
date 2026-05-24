@@ -81,11 +81,13 @@ def detect_paper_roi_texture(
        Separates equipment (dark) / paper (mid) / light-panel (bright).
     3. Local variance → Otsu mask → high-texture seeds (definitely paper).
     4. Dilate seeds by grow_px, then AND with brightness mask.
-       Region grows from texture seeds but stops at bright/dark boundaries,
-       so blank paper margins are absorbed while the light panel is excluded.
     5. Morphological open (removes stray noise).
     6. Largest connected component → bounding box.
-    7. Optional aspect-ratio sanity check; raises RuntimeError on failure.
+    7. Validate: if result covers < 30 % of image width or height, fall back to
+       a broader brightness band (20–240) with 4× dilation.  This handles images
+       where the paper lies on an envelope/backing whose brightness shifts the
+       Otsu thresholds away from the true paper range.
+    8. Optional aspect-ratio sanity check; raises RuntimeError on failure.
 
     Parameters
     ----------
@@ -108,42 +110,66 @@ def detect_paper_roi_texture(
     T_lo, T_hi = _two_level_otsu(small)
     brightness_mask = ((small > T_lo) & (small < T_hi)).astype(np.uint8) * 255
 
-    # --- 3. Local variance → high-texture seeds ---
+    # --- 3. Local variance → high-texture seeds (raw, before brightness gate) ---
     img_f = small.astype(np.float32)
     kw    = (var_ksize, var_ksize)
     mu    = cv2.boxFilter(img_f,         -1, kw, normalize=True)
     mu2   = cv2.boxFilter(img_f * img_f, -1, kw, normalize=True)
     var   = np.clip(mu2 - mu * mu, 0.0, None)
     var_u8 = cv2.normalize(var, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
-    _, tex_seeds = cv2.threshold(var_u8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    tex_seeds = cv2.bitwise_and(tex_seeds, brightness_mask)  # seeds must be in brightness range
+    _, tex_seeds_raw = cv2.threshold(var_u8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    # --- 4. Grow seeds within brightness band ---
-    # Dilation expands seeds; AND with brightness_mask stops growth at light panel / equipment.
-    grow_k    = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (grow_px * 2 + 1, grow_px * 2 + 1))
-    grown     = cv2.dilate(tex_seeds, grow_k)
-    paper_mask = cv2.bitwise_and(grown, brightness_mask)
-
-    # --- 5. Morphological open (remove noise) ---
     def _rect(px: int) -> np.ndarray:
         return cv2.getStructuringElement(cv2.MORPH_RECT, (px, px))
 
-    paper_mask = cv2.morphologyEx(paper_mask, cv2.MORPH_OPEN,  _rect(morph_open_px))
+    def _find_best_cc(mask: np.ndarray) -> tuple[int, int, int, int] | None:
+        opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, _rect(morph_open_px))
+        n_labels, _, stats, _ = cv2.connectedComponentsWithStats(opened, connectivity=8)
+        if n_labels < 2:
+            return None
+        areas = stats[1:, cv2.CC_STAT_AREA]
+        best  = int(np.argmax(areas)) + 1
+        return (
+            int(stats[best, cv2.CC_STAT_LEFT]),
+            int(stats[best, cv2.CC_STAT_TOP]),
+            int(stats[best, cv2.CC_STAT_WIDTH]),
+            int(stats[best, cv2.CC_STAT_HEIGHT]),
+        )
 
-    # --- 6. Largest connected component ---
-    n_labels, _, stats, _ = cv2.connectedComponentsWithStats(paper_mask, connectivity=8)
-    if n_labels < 2:
+    # --- 4. Grow seeds within brightness band (primary path) ---
+    tex_seeds  = cv2.bitwise_and(tex_seeds_raw, brightness_mask)
+    grow_k     = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (grow_px * 2 + 1, grow_px * 2 + 1))
+    grown      = cv2.dilate(tex_seeds, grow_k)
+    paper_mask = cv2.bitwise_and(grown, brightness_mask)
+
+    result = _find_best_cc(paper_mask)
+
+    # --- 7. Fallback: bounding box of texture seeds (no brightness gate) ---
+    # Triggered when primary result is too narrow or too short, which happens
+    # when Otsu misclassifies dark paper pixels as "equipment" (e.g. Ff2-6
+    # where dark=83.9 %).  Texture seeds (high local variance = laid lines)
+    # are reliable regardless of brightness and are concentrated on the paper;
+    # the smooth envelope/backing contributes no seeds.  We expand the seed
+    # bounding box by a small margin to include blank paper margins.
+    if result is None or result[2] < 0.65 * Ws or result[3] < 0.40 * Hs:
+        seed_margin = 15   # downsampled px ≈ 120 full-res px ≈ 5 mm
+        ys_s, xs_s = np.where(tex_seeds_raw > 0)
+        if len(xs_s) >= 50:
+            xs_lo = max(0,      int(xs_s.min()) - seed_margin)
+            xs_hi = min(Ws - 1, int(xs_s.max()) + seed_margin)
+            ys_lo = max(0,      int(ys_s.min()) - seed_margin)
+            ys_hi = min(Hs - 1, int(ys_s.max()) + seed_margin)
+            result = (xs_lo, ys_lo, xs_hi - xs_lo, ys_hi - ys_lo)
+        else:
+            result = None
+
+    if result is None:
         raise RuntimeError(
             "Texture-based detection found no paper region. "
             "Check that the image contains a manuscript with visible texture."
         )
 
-    areas = stats[1:, cv2.CC_STAT_AREA]
-    best  = int(np.argmax(areas)) + 1
-    xs = int(stats[best, cv2.CC_STAT_LEFT])
-    ys = int(stats[best, cv2.CC_STAT_TOP])
-    ws = int(stats[best, cv2.CC_STAT_WIDTH])
-    hs = int(stats[best, cv2.CC_STAT_HEIGHT])
+    xs, ys, ws, hs = result
 
     # Map back to full resolution
     x, y, w, h = xs * s, ys * s, ws * s, hs * s
@@ -153,7 +179,7 @@ def detect_paper_roi_texture(
     w = min(w, W - x)
     h = min(h, H - y)
 
-    # --- 7. Aspect-ratio sanity check ---
+    # --- 8. Aspect-ratio sanity check ---
     if expected_aspect is not None:
         detected = h / w
         dev = abs(detected - expected_aspect) / expected_aspect

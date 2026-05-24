@@ -1,0 +1,12 @@
+data_serial: Ii3-8_f135v
+image_path: "E:/Downloads/MSI photography/MS-II-00003-00008-000-00135-V+TX940IR_018.jpg"
+
+# Paper width from spreadsheet: 212 mm
+# crop detected automatically; fov = full_img_w * paper_mm / (crop_w * 10)
+fov_width_cm: 25.1545
+crop_roi: [721, 464, 5168, 7383]
+
+auto_line_dir: true
+period_range_cm: [0.05, 0.2]
+wire_is_darker: false   # TX940IR transmitted light
+subtract_background: false

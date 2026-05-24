@@ -19,9 +19,9 @@ __pycache__/
 # HTML reports are large (50–60 MB); JSON + PNG are the canonical outputs
 results/**/report_*.html
 
-# Full-resolution overlays for large-format images (>50 MB, GitHub limit)
-results/Hh2-12_f190/laid_lines_overlay.png
-results/Hh2-12_f190/laid_lines_overlay_bands.png
+# Full-resolution overlays for large-format images (>40 MB, GitHub limit)
+results/**/laid_lines_overlay.png
+results/**/laid_lines_overlay_bands.png
 
 # Notebooks are treated as personal scratch space, not source
 *.ipynb

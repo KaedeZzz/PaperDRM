@@ -275,8 +275,10 @@ def auto_detect_line_dir(
     image: np.ndarray,
     *,
     period_range_px: tuple[float, float] = (8.0, 80.0),
-    n_angles: int = 180,
+    n_angles: int = 61,
     downsample: int = 4,
+    center_deg: float | None = None,
+    half_range_deg: float = 20.0,
 ) -> float:
     """
     Estimate the laid-line direction by scanning 1D projection spectral power.
@@ -286,14 +288,13 @@ def auto_detect_line_dir(
     is computed.  The direction that maximises the peak FFT power in the
     target period range is returned as ``line_dir_deg``.
 
-    Spectral power (not autocorrelation) is used because autocorrelation
-    normalised by total power is dominated by broad low-frequency trends and
-    confuses second harmonics with the fundamental.  Absolute spectral power
-    at the target frequency is ~100-1000× higher at the correct angle than
-    at any incorrect angle for typical manuscript images.
+    ``center_deg`` sets the centre of the angular search window.  When None
+    (default) it is inferred from the image aspect ratio: 0° if tall (portrait),
+    90° if wide (landscape), matching the assumption that laid lines run
+    perpendicular to the long side of the folio.  ``half_range_deg`` sets the
+    half-width of the search window around that centre (default ±20°).
 
-    The image is downsampled (default 4×) before processing; period limits
-    are scaled accordingly.  Returns ``line_dir_deg`` folded into (−90, 90].
+    Returns ``line_dir_deg`` folded into (−90, 90].
     """
     H, W = image.shape[:2]
     s = downsample
@@ -308,7 +309,13 @@ def auto_detect_line_dir(
     freq_lo = 1.0 / lag_max
     freq_hi = 1.0 / lag_min
 
-    cand   = np.linspace(0.0, 180.0, n_angles, endpoint=False)
+    # Angular search window: default centre from image aspect ratio
+    if center_deg is None:
+        center_deg = 0.0 if H >= W else 90.0
+
+    lo = center_deg - half_range_deg
+    hi = center_deg + half_range_deg
+    cand   = np.linspace(lo, hi, n_angles, endpoint=True)
     scores = np.zeros(n_angles)
     cx, cy = Ws / 2.0, Hs / 2.0
 
@@ -330,6 +337,8 @@ def auto_detect_line_dir(
         scores[i] = float(power[band].max()) if band.any() else 0.0
 
     best = float(cand[int(np.argmax(scores))])
+    # Fold to (−90, 90]
+    best = best % 180.0
     if best > 90.0:
         best -= 180.0
     return best

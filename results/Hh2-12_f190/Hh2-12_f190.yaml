@@ -1,0 +1,15 @@
+data_serial: "Hh2-12_f190"
+
+image_path: "E:\\Downloads\\MSI photography\\MS-HH-00002-00012-000-00190-R+TX940IR_018.jpg"
+
+# Folio dimensions from spreadsheet (Hh.2.12, nearest loci 176r/199r): w=219-220mm
+# Paper ROI detected: 5564px wide, 7511px tall; aspect ratio 1.35 vs physical 1.36 ✓
+fov_width_cm: 24.9915
+crop_roi: [116, 277, 5398, 7514]
+
+auto_line_dir: true
+period_range_cm: [0.05, 0.20]   # GT: 9-10 lines/cm → interval ~1.0-1.1mm
+
+wire_is_darker: false   # transmitted light: wires = thinner paper = brighter
+
+subtract_background: false

@@ -1,0 +1,61 @@
+\section{Discussion}
+\label{sec:discussion}
+
+% PAGE TARGET: ~5 pages (includes ethics/environmental/social subsection).
+% Day 5 (5/29).
+% NB: CUED guidance often merges Results+Discussion. We keep them split
+% because the discussion runs across all results jointly.
+
+\subsection{Interpreting the Spreadsheet Discrepancy}
+% Stock-level vs folio-level GT.
+% The 7 large errors do NOT necessarily indicate pipeline failure -- the
+% spreadsheet records the dominant laid count for a paper stock, but
+% individual folios may originate from a different mould pair within
+% the same stock. The two manually counted folios (Kk1-5 f5v/f9v)
+% collapse the error to <1\%, supporting this interpretation.
+
+\subsection{Limitations}
+% - Octave aliasing when laid density approaches the Gabor period bank
+%   upper bound or contrast is dominated by chain lines.
+% - Wire-width recovery less reliable for sigma outside $[2,5]$ px.
+% - Polarity (wire\_is\_darker) must be set per-modality; not auto-detected.
+% - FOV scale calibration is per-image -- a wrong fov\_width\_cm propagates
+%   linearly into lines/cm.
+
+\subsection{Comparison with Prior Art}
+% - Hiary \& Ng style projection FFT: simpler, but requires orientation
+%   to be supplied. We remove that requirement at Stage 1.
+% - Pure Gabor on TX images: works on TX, but does not exploit the
+%   directional information available from DRP.
+
+\subsection{Implications for Codicology}
+% - Sub-1\% accuracy at the folio level, with quantified uncertainty,
+%   is in principle sufficient to discriminate mould pairs.
+% - Scanning a whole codex (300+ folios) becomes tractable: a few
+%   minutes per folio on commodity hardware.
+
+\subsection{Environmental, Social and Ethical Considerations}
+\label{sec:discussion:ethics}
+% CUED REQUIREMENT: every IIB report must explicitly address these.
+%
+% Environmental:
+%   - Compute footprint: pipeline runs on a laptop; per-folio energy
+%     cost is negligible (single-digit Wh). Compare to alternative
+%     (repeated physical handling under raking light, lab time).
+%
+% Social:
+%   - Democratises a codicological technique that previously required
+%     specialist on-site access to rare manuscripts. Once an MSI scan
+%     exists, analysis is portable.
+%   - Risk of misuse for forgery detection in art market: dual-use
+%     consideration noted.
+%
+% Ethical:
+%   - Cultural heritage data ownership: scans typically remain under
+%     institutional licence (e.g. Cambridge UL). This project did not
+%     redistribute imagery.
+%   - Reproducibility of historical claims: providing quantified
+%     uncertainty (split-half, self-contrast) is itself an ethical
+%     improvement over qualitative counting.
+%   - Provenance research can intersect with restitution claims;
+%     careful framing of results matters.

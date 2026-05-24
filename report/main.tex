@@ -1,0 +1,65 @@
+% IIB Project Report -- PaperDRM
+% CUED requirements: <=53 pages total = 1 title + <=2 technical abstract + <=50 main.
+% 12pt body, ~25mm margins all round.
+% Placeholder article class; swap to Cambridge IIB official .cls when available.
+
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\graphicspath{{figures/}{../results/}}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\sisetup{detect-all}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cleveref}
+\usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
+\addbibresource{refs.bib}
+
+% Smaller font for appendices / code listings (CUED allows this).
+\newcommand{\appendixfont}{\small}
+
+\begin{document}
+
+% ------------------------------------------------------------------
+% Title page (1 page)
+% ------------------------------------------------------------------
+\input{chapters/00_titlepage}
+
+% ------------------------------------------------------------------
+% Technical Abstract (<=2 pages, self-contained, also submitted separately)
+% Must include name, College, project title.
+% ------------------------------------------------------------------
+\input{chapters/technical_abstract}
+\newpage
+
+% ------------------------------------------------------------------
+% Main body (<=50 pages from here to end of references)
+% ------------------------------------------------------------------
+\tableofcontents
+\newpage
+
+\input{chapters/01_introduction}
+\input{chapters/02_theory}
+\input{chapters/03_apparatus}
+\input{chapters/04_results}
+\input{chapters/05_discussion}
+\input{chapters/06_conclusion}
+
+% ------------------------------------------------------------------
+% Appendices (mandatory: risk assessment retrospective; optional: rest)
+% ------------------------------------------------------------------
+\appendix
+\appendixfont
+\input{chapters/A_risk_retrospective}   % MANDATORY <=1 A4
+\input{chapters/B_reproducibility}
+\input{chapters/C_code_listings}
+\input{chapters/D_additional_overlays}
+
+\end{document}

@@ -1,0 +1,45 @@
+\section{Introduction}
+\label{sec:intro}
+
+% PAGE TARGET: ~5 pages.
+% Day 2 (5/26).
+% NOTE: CUED template puts prior-work / background INSIDE the Introduction,
+% not in a separate Background chapter. Tell the reader WHY we are doing
+% this work.
+
+\subsection{Motivation}
+% - Codicology / paper history relies on laid-line density and chain-line
+%   spacing to fingerprint papermaking moulds.
+% - Manual counting under raking light is slow, subjective, and risks damage
+%   if done at scale.
+% - Multispectral imaging (MSI) is now standard in major libraries
+%   (Cambridge UL, Bodleian, BnF), creating large image stacks that
+%   could be analysed automatically -- but no robust pipeline exists.
+
+\subsection{Problem Statement}
+% - Given a calibrated image stack (DRP or single-band TX), recover:
+%     (i)  laid-line density (lines/cm),
+%     (ii) wire diameter (FWHM, mm),
+%     (iii) per-region orientation,
+%   with quantified uncertainty.
+
+\subsection{Prior Work}
+% Brief literature pass (one page).
+% - Hiary \& Ng (2007), van der Lubbe et al., recent Bodleian / BnF efforts.
+% - Common weaknesses:
+%   (a) orientation must be supplied,
+%   (b) sensitive to scan noise,
+%   (c) no uncertainty quantification,
+%   (d) no per-region (patchwise) handling for curved or warped folios.
+
+\subsection{Contributions}
+% Three contributions to claim:
+% 1. A staged DRP-based pipeline (Stage 0--5) needing no per-folio tuning
+%    beyond optical scale.
+% 2. A synthetic phantom characterisation framework: period, SNR, angle,
+%    wire-width sweeps.
+% 3. A 9-folio real-world benchmark with manual GT cross-check on two
+%    folios, achieving sub-1\% density error in the calibrated comparison.
+
+\subsection{Report Structure}
+% One paragraph mapping sections 2--6.

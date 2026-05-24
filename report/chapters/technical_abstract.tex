@@ -1,0 +1,35 @@
+% Technical Abstract -- <=2 pages, SELF-CONTAINED.
+% MUST include: name, College, project title (a copy is archived separately).
+% Cover: problem, techniques, main results, conclusions.
+% Write LAST (5/30).
+
+\section*{Technical Abstract}
+
+\noindent\textbf{Project title:} Directional Reflectance Profile Analysis for Laid-Line Detection in Historical Paper\\
+\textbf{Author:} Zhanfeng Zhou\\
+\textbf{College:} \emph{TODO}\\
+\textbf{Supervisor:} \emph{TODO}\\[0.5em]
+
+% --- The body of the technical abstract: ~2 pages ---
+% 1) Problem (paragraph)
+%    - Laid-line density in historical paper is a forensic fingerprint.
+%    - Manual counting is slow, subjective.
+%    - MSI image stacks now exist at scale but no robust automatic pipeline.
+%
+% 2) Approach (paragraph + small block)
+%    - DRP-based 5-stage pipeline (loader, direction, trig-mask,
+%      detection, evaluation).
+%    - Automatic orientation estimation, patchwise enhancement, multiple
+%      detectors (Gabor, multi-phi, spectral-power dual-band).
+%
+% 3) Results (paragraph with headline numbers)
+%    - Synthetic phantom: period error <= +/-2.5\% over 10--50 px,
+%      essentially SNR-invariant down to SNR=2.
+%    - 9-folio benchmark, two with manual GT: -0.35\% and +0.48\% error.
+%    - Failure mode characterised (octave-aliasing at extreme periods).
+%
+% 4) Conclusions (short paragraph)
+%    - Sub-1\% accuracy achievable; pipeline is mould-pair-discriminative
+%      in principle.
+%    - Future: automatic polarity detection, joint chain-line analysis,
+%      mould-mate matching across folios.

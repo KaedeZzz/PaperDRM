@@ -1,7 +1,7 @@
 % IIB Project Report -- PaperDRM
-% CUED requirements: <=53 pages total = 1 title + <=2 technical abstract + <=50 main.
-% 12pt body, ~25mm margins all round.
-% Placeholder article class; swap to Cambridge IIB official .cls when available.
+% CUED 2026: <=53 pages total = 1 title + <=2 technical abstract + <=50 main.
+% 12pt body, 25mm margins.
+% Narrative chapter structure modelled on Andrew Liang's 2024 report.
 
 \documentclass[12pt,a4paper]{article}
 
@@ -19,45 +19,54 @@
 \usepackage{microtype}
 \usepackage[hidelinks]{hyperref}
 \usepackage{cleveref}
+\usepackage{tikz}
+\usepackage{titlesec}
+
+% Section / subsection / subsubsection: larger but NOT bold.
+\titleformat{\section}{\normalfont\LARGE}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\Large}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalfont\large}{\thesubsubsection}{1em}{}
+
 \usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
 \addbibresource{refs.bib}
 
-% Smaller font for appendices / code listings (CUED allows this).
 \newcommand{\appendixfont}{\small}
 
 \begin{document}
 
-% ------------------------------------------------------------------
-% Title page (1 page)
-% ------------------------------------------------------------------
-\input{chapters/00_titlepage}
+% ==========================================================================
+% FRONT MATTER (roman page numbers)
+% ==========================================================================
+\pagenumbering{roman}
 
-% ------------------------------------------------------------------
-% Technical Abstract (<=2 pages, self-contained, also submitted separately)
-% Must include name, College, project title.
-% ------------------------------------------------------------------
-\input{chapters/technical_abstract}
-\newpage
+\input{chapters/00_titlepage}     % thispagestyle empty, no page number
+\input{chapters/00b_acknowledgements}
+\input{chapters/00c_technical_abstract}
 
-% ------------------------------------------------------------------
-% Main body (<=50 pages from here to end of references)
-% ------------------------------------------------------------------
 \tableofcontents
 \newpage
 
-\input{chapters/01_introduction}
-\input{chapters/02_theory}
-\input{chapters/03_apparatus}
-\input{chapters/04_results}
+% ==========================================================================
+% MAIN BODY (arabic page numbers, restart at 1)
+% ==========================================================================
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{chapters/01_background}
+\input{chapters/02_direction}
+\input{chapters/03_detection}
+\input{chapters/04_benchmark}
 \input{chapters/05_discussion}
 \input{chapters/06_conclusion}
 
-% ------------------------------------------------------------------
-% Appendices (mandatory: risk assessment retrospective; optional: rest)
-% ------------------------------------------------------------------
+\printbibliography
+
+% ==========================================================================
+% APPENDICES
+% ==========================================================================
 \appendix
 \appendixfont
-\input{chapters/A_risk_retrospective}   % MANDATORY <=1 A4
+\input{chapters/A_risk_retrospective}   % MANDATORY, <=1 A4
 \input{chapters/B_reproducibility}
 \input{chapters/C_code_listings}
 \input{chapters/D_additional_overlays}

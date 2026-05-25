@@ -1,21 +1,49 @@
-% Title page.
-% NB: separate CUED coversheet (Word doc) must be filled, signed, dated and
-% submitted alongside. Download from Department site -- do NOT replicate here.
+% Title page. Modelled on Andrew Liang's IIB report (May 2024).
+% No bold, no italic anywhere (per user feedback).
+% A separate CUED departmental coversheet (Word doc) is submitted alongside.
 
 \begin{titlepage}
-\centering
-\vspace*{2cm}
-{\Huge\bfseries Directional Reflectance Profile Analysis\\[0.3em]
-for Laid-Line Detection in Historical Paper\par}
-\vspace{2cm}
-{\Large Zhanfeng Zhou\par}
-\vspace{0.5cm}
-{\large \emph{College name}\par} % TODO: fill in
-\vspace{2cm}
-{\large IIB Project Final Report\par}
-{\large Department of Engineering, University of Cambridge\par}
-\vspace{1cm}
-{\large June 2026\par}
+\thispagestyle{empty}
+
+% --- Cambridge crest + Department line, top-left -------------------------
+% Replace the placeholder fbox with the official crest image once
+% you have downloaded the file. The image should sit in figures/
+% as e.g. cambridge_crest.pdf and the \fbox line can be replaced by:
+%   \includegraphics[height=2.2cm]{cambridge_crest.pdf}
+\noindent
+\begin{minipage}{0.55\textwidth}
+  \fbox{\parbox[c][2cm][c]{4cm}{\centering [Cambridge crest]}}\\[-0.2em]
+  {\small Department of Engineering}
+\end{minipage}
+\hfill
+
+\vspace{4.5cm}
+
+% --- Title inside dashed box, centred ------------------------------------
+\begin{center}
+\begin{tikzpicture}
+  \node[draw, dashed, rounded corners=4pt,
+        inner sep=14pt, line width=0.6pt,
+        text width=0.7\textwidth, align=center]
+        {\Huge Directional Reflectance Profile Analysis\\[0.3em]
+         for Laid-Line Detection in Historical Paper};
+\end{tikzpicture}
+\end{center}
+
+\vspace{2.5cm}
+
+% --- Author / supervisor / date block, right-aligned ---------------------
+\begin{flushright}
+  Author Name: Zhanfeng Zhou \\
+  Supervisor: TODO\\
+  Date: June 2026
+\end{flushright}
+
 \vfill
-{\small Supervisor: \emph{Dr.\ name}\par} % TODO: fill in
+
+% --- Declaration + signature line, bottom-left ---------------------------
+\noindent I hereby declare that, except where specifically indicated,
+the work submitted herein is my own original work.\\[1.5em]
+\noindent Signed \hrulefill{} date \hrulefill{}
+
 \end{titlepage}

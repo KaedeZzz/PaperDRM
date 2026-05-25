@@ -1,0 +1,253 @@
+\section{Background}
+\label{sec:background}
+
+% PAGE TARGET: ~6 pages.
+% Narrative organisation modelled on Andrew Liang 2024 chapter 1.
+% Subsections: Motivation / Current Feature Extraction Techniques /
+% Paper Imaging using DRM / Manuscript Dataset / Pipeline Overview.
+
+\subsection{Motivation}
+\label{sec:bg:motivation}
+
+The process of making handmade paper of the kind used in late medieval
+and early modern Europe is as follows: a vatman dips a wooden frame
+with metal wires in between, called a mould, into a vat of macerated
+fibre solution, lifts it out, and lets the water drain through the
+frame's mesh~\cite[ch.~1]{darold2020paper}. The mould carries two sets
+of perpendicular wires. A small number of stout chain wires, typically
+spaced two to three centimetres apart, run from one short edge to the
+other and provide structural support. On top of them, a much denser
+bed of fine laid wires, of the order of eight to fifteen per
+centimetre, runs perpendicular to the chain wires. As the wet pulp
+settles, it deposits more material in the spaces between wires than
+directly over the wires themselves, so that the dried sheet ends up
+with a periodic thickness pattern that mirrors the wire layout. Held
+up to a strong light, this pattern appears as a series of pale and
+dark lines that is visible to human eyes.
+% TODO: insert Figure here -- photograph of a mould (cf. Andrew Fig 1),
+% or a labelled close-up of a folio showing laid and chain lines
+% (cf. Andrew Fig 2).
+
+Each mould was made by hand, with wires drawn and tied by an individual
+artisan, so no two moulds are exactly identical. Moreover, paper was
+almost always made in pairs: two near-identical moulds were used in
+alternation by the same vatman to keep production continuous while
+each sheet was being couched. The result is that every batch of paper
+from a given workshop carries a recognisable, two-state signature in
+the geometry of its laid and chain lines~\cite[ch.~2]{darold2020paper}.
+Codicologists study this signature to group folios that come from the
+same mould or mould pair, and from there to assign manuscripts to a
+region, a workshop, or even a specific year.
+
+To this day, the analysis of laid-line features is still largely
+manual. A researcher inspects each folio under raking or transmitted
+light, counts wires along a short ruler, and records a single density
+figure in lines per centimetre. The procedure is slow,
+observer-dependent, and exposes fragile paper manuscripts to repeated
+handling. It also discards almost all of the information present in
+the original image: the variation of density across the page, the
+local orientation of the laid lines, and the distribution of wire
+diameters are all collapsed to a single scalar. At the same time,
+major research libraries -- including Cambridge University Library,
+the Bodleian, and the Bibliothèque nationale de France -- now
+routinely capture multispectral image stacks of their
+holdings~\cite{TODO_msi_libraries}. These stacks contain far more
+information than a single density estimate, but no robust automated
+pipeline yet exists to turn them into the quantitative
+mould-fingerprint data that codicology actually requires. Closing
+that gap is the central aim of this project.
+
+\subsection{Current Feature Extraction Techniques}
+\label{sec:bg:prior_extraction}
+
+Automated extraction of laid and chain lines from digital images of
+historical paper has a small but established literature. Most existing
+techniques operate on transmitted-light or radiographic images,
+treating the folio as a two-dimensional signal with a dominant spatial
+frequency. The earliest systematic study, by Hiary and
+Ng~\cite{TODO_hiary_ng}, applied projection-based Fourier methods to
+thresholded transmitted-light scans, extracting the laid-line density
+from the dominant peak in a one-dimensional power spectrum of the
+column sum. Subsequent variants substituted Gabor filter
+banks~\cite{TODO_gabor_paper}, autocorrelation, or wavelet
+decompositions. These methods are simple to implement and reasonably
+robust to global illumination, but they share three common weaknesses:
+the line orientation must be supplied externally or estimated as a
+separate pre-processing step, the spectrum is computed over the whole
+image and therefore averages out local variations from curvature or
+ink coverage, and no uncertainty figure accompanies the extracted
+density.
+
+A second strand of work has grown out of large-scale bibliographic
+projects such as the Bernstein and WIES
+initiatives~\cite{TODO_bernstein,TODO_wies}, which catalogue watermarks
+across European collections. The emphasis there has been on capturing
+high-quality transmitted-light images and on building searchable
+databases of watermark designs, with comparatively little attention to
+the periodic chain-and-laid background that surrounds the watermark.
+Pipelines in this strand tend to be tuned per-image by a human
+operator rather than run as a single automated process. Radiographic
+methods such as the chain-line detection of Van der
+Lubbe~\cite{TODO_vanderlubbe}, which combines morphological filters
+with vertical projections, give cleaner signals but require expensive
+imaging that is out of reach for most institutions.
+
+The transmitted-light and radiographic modalities used by these prior
+methods share a more fundamental limitation: they collapse the
+three-dimensional micro-relief of the folio surface onto a single
+two-dimensional intensity image. The micro-relief itself, in which the
+laid wires leave subtle ridges and valleys on each side of the page,
+carries information that is invisible to flat-lit imaging. The
+following section describes the alternative imaging modality on which
+this project is built.
+
+\subsection{Paper Imaging using Directional Reflectance Microscopy}
+\label{sec:bg:drm}
+
+% --- DRM apparatus paragraph --
+The data analysed in this report were acquired using a directional
+reflectance microscope (DRM) developed by the AddME Lab in the
+Department of Engineering at the University of Cambridge. The
+instrument fixes a camera above a sample stage and steps a
+controllable light source through a regular grid of elevation and
+azimuth angles, capturing one image per direction. The original
+purpose of the DRM was to characterise the surface texture of
+crystalline metallic samples~\cite{TODO_seita_drm}, and its first
+application to handmade paper is recent.
+% TODO: insert Figure -- DRM hardware schematic or photograph
+% (cf. Andrew Fig 3, who simply uses an iPad sketch).
+
+% --- DRP definition paragraph --
+For each spatial pixel $(x, y)$ on the folio, the DRM produces a
+sampled reflectance function $I(x, y; \theta, \phi)$ where $\theta$
+is the elevation angle of the source measured from the page normal
+and $\phi$ is its azimuth in the plane of the page. The full
+collection of these per-pixel functions across the image is called
+the directional reflectance profile (DRP) stack. Visualised at a
+single pixel, a DRP appears as an annular heat map: the outer
+ring corresponds to grazing illumination, the inner ring to
+near-normal illumination, and the angular coordinate around the
+annulus encodes the source azimuth.
+% TODO: insert Figure -- DRP annular plot example
+% (cf. Andrew Fig 4: pixel DRP for a single laid-line peak).
+
+% --- Why DRP suits laid-line detection paragraph --
+The DRP is well suited to laid-line analysis because the laid-line
+modulation of the paper surface is too subtle to read off a flat-lit
+image but produces a clear directional signature in reflected light.
+Under uniform illumination the submillimetre thickness variation
+caused by the laid wires gives only weak greyscale contrast. Viewed
+from a grazing angle aligned with the line normal, however, the same
+modulation casts a strong, directional shadow that is easy to see.
+A DRP records the full $(\theta, \phi)$ dependence of that shadow in
+a single acquisition, so a detector built on top of a DRP can find,
+rather than be told, the orientation and period at which the
+laid-line signal is strongest. This property is what makes the
+present pipeline simpler to operate than the projection-based
+methods of the previous section, where orientation has to be
+supplied as an external parameter.
+
+% --- Comparison to other RTI work paragraph --
+DRM is one member of the wider family of reflectance transformation
+imaging (RTI) techniques originally developed for cultural heritage
+applications~\cite{TODO_rti_malzbender}. RTI has been used
+successfully for surface-relief visualisation of seals, coins, and
+inscriptions, but its application to laid and chain lines has been
+limited, and the per-pixel directional information that the technique
+provides has not, to the author's knowledge, been used to estimate
+laid-line orientation automatically. Closing that specific gap is
+one of the contributions of the present project, described in
+\Cref{sec:bg:contributions}.
+
+\subsection{Manuscript Dataset}
+\label{sec:bg:dataset}
+
+The folios analysed in \Cref{sec:benchmark} were drawn from the
+Mapping Paper in Medieval England corpus curated by Professor
+Orietta Da Rold and the Manuscripts Lab in the Faculty of English at
+Cambridge~\cite{darold2020paper}. The corpus comprises 5841
+manuscripts of which at least 736 are written on
+paper~\cite{TODO_manuscripts_lab_mapping}; from these, nine folios
+spanning four manuscript stocks were selected for the present
+benchmark. The shelfmarks used in the report follow the Cambridge
+University Library convention and are summarised in
+\Cref{tab:dataset_summary} together with the spreadsheet ground-truth
+density recorded by the Manuscripts Lab for each stock. Two of the
+nine folios (Kk1-5 f5v and Kk1-5 f9v) were additionally counted by
+hand on the original folio, providing a higher-confidence calibrated
+ground truth that is used in \Cref{sec:benchmark:manual_gt} to
+estimate the systematic accuracy of the pipeline.
+% TODO: Table 1.1 (tab:dataset_summary) -- folio, shelfmark, stock,
+% spreadsheet density, manual density (where available), modality.
+
+\subsection{Pipeline Overview}
+\label{sec:bg:contributions}
+
+The work reported here treats the following inverse problem. Given
+a DRP stack $I(x, y, \theta, \phi)$ together with the imaged
+field-of-view width in centimetres, the pipeline must return three
+quantities: the laid-line density $\rho$ in lines per centimetre,
+the local wire diameter $w$ expressed as a full-width-at-half-maximum
+in millimetres, and the local laid-line orientation $\alpha(x, y)$
+in degrees, along with an associated uncertainty for each. The
+pipeline must operate with no per-folio parameter tuning beyond the
+optical scale, must report enough internal evidence for a
+downstream codicologist to judge whether to trust each estimate,
+and must degrade reasonably on the noisy, ink-occluded, and warped
+folios encountered in real holdings.
+
+To this end, the pipeline is organised as five sequential processing
+stages, illustrated in \Cref{fig:pipeline_overview}. The loader
+ingests the raw DRM image stack and applies a background subtraction
+to remove illumination non-uniformity. The direction-estimation
+stage reduces the four-dimensional stack to two two-dimensional maps
+that record, per pixel, how directional the local reflectance lobe
+is and the azimuth in which it points. The trigonometric patch
+enhancement stage uses those direction maps to construct an
+enhanced greyscale image in which laid lines stand out strongly
+against the background. The detection stage applies a frequency
+estimator -- in the present implementation a spectral-power detector
+with dual-band cross-validation -- to the enhanced image and returns
+the laid-line period and orientation. The evaluation stage finally
+computes a small bundle of quality metrics: the coefficient of
+determination of a harmonic model fitted to the detected lines, a
+self-contrast z-score against a null distribution of randomly rotated
+images, a split-half stability measure, and the per-segment wire
+full-width-at-half-maximum distribution. The five stages are
+described in turn in \Cref{sec:direction,sec:detection}, and the
+evaluation metrics are defined in \Cref{sec:detection:evaluation}.
+% TODO: Figure 1.X (fig:pipeline_overview) -- a five-stage flow
+% chart in the style of Andrew Figure 6.
+
+Three contributions of this project deserve highlighting. The first
+is the staged DRP-based pipeline itself, which to the author's
+knowledge is the first automated pipeline to recover laid-line
+density, orientation and wire diameter jointly from a DRP stack
+without per-folio parameter tuning. The second is a synthetic
+phantom characterisation framework that supports four orthogonal
+sweeps (period, signal-to-noise ratio, orientation, and wire width)
+over a controllable line-pattern generator, and that is used in
+\Cref{sec:benchmark:phantom} to map the failure modes of the
+detector one variable at a time before applying it to real data.
+The third is the nine-folio benchmark introduced in
+\Cref{sec:bg:dataset}, which together with the manual ground truth
+on two folios provides the strongest quantitative accuracy figure
+yet reported for an automated laid-line pipeline on real manuscript
+material.
+
+The remainder of the report is organised as follows.
+\Cref{sec:direction} describes the direction-estimation and
+patch-enhancement stages, including the first-order Fourier
+estimator that produces the per-pixel direction map.
+\Cref{sec:detection} describes the laid-line detector and the
+evaluation metrics, and follows the design narrative through which
+the projection autocorrelation initially used in the detector was
+replaced by a spectral-power criterion with dual-band
+cross-validation. \Cref{sec:benchmark} presents the phantom
+characterisation, the nine-folio results, the manual ground-truth
+comparison, and a catalogue of failure modes. \Cref{sec:discussion}
+interprets these results, addresses the limitations of the present
+pipeline, and considers its environmental, social and ethical
+implications. \Cref{sec:conclusion} summarises the findings,
+reflects on what worked and what did not, and lists candidate
+directions for future work.

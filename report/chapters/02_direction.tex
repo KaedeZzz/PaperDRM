@@ -1,0 +1,150 @@
+\section{Direction Estimation and Patchwise Enhancement}
+\label{sec:direction}
+
+% PAGE TARGET: ~6 pages.
+% Andrew-style narrative: a small number of displayed equations, supported
+% by prose, with figures for every algorithm step.
+
+\subsection{From a DRP Stack to a Per-Pixel Direction Map}
+\label{sec:direction:perpixel}
+
+The first stage of the pipeline reduces the four-dimensional DRP stack
+to two two-dimensional maps that summarise, at each pixel, the strength
+and direction of the local reflectance anisotropy. The motivation for
+this reduction comes from a simple observation about laid lines. At a
+pixel that sits on the peak of a laid line, the directional reflectance
+profile shows a clear two-lobed pattern: the pixel returns more light
+when illuminated from one side of the line normal than from the other,
+and the magnitudes of the two lobes are well separated. At a pixel
+between laid lines the same profile is much closer to isotropic, with
+no preferred direction. Reducing each pixel's profile to a magnitude
+of anisotropy and a dominant azimuth therefore captures most of the
+information that a laid-line detector needs, and does so in a form
+that is two orders of magnitude smaller than the raw stack.
+% TODO: Figure 2.1 -- side-by-side DRP annular plots for a pixel on a
+% laid-line peak and a pixel between laid lines, mirroring the
+% structure of Andrew Figure 15. Caption: ``Pixel DRPs at a laid-line
+% peak and a trough show qualitatively different anisotropy.''
+
+The estimator chosen here is the first-order Fourier coefficient of
+the $\phi$-marginalised reflectance, which is the simplest direction
+estimator that respects the circular structure of the azimuth
+coordinate. Concretely, the reflectance is first averaged over the
+elevation angles to give a one-dimensional function of azimuth at
+each pixel, and that function is then projected onto $\cos\phi$ and
+$\sin\phi$:
+\begin{equation}
+  X(x,y) \;=\; \sum_{j=1}^{N_\phi}
+      \bigl(p(x,y;\phi_j) - \bar p(x,y)\bigr)\cos\phi_j ,
+  \qquad
+  Y(x,y) \;=\; \sum_{j=1}^{N_\phi}
+      \bigl(p(x,y;\phi_j) - \bar p(x,y)\bigr)\sin\phi_j ,
+  \label{eq:dir_fourier}
+\end{equation}
+with $p(x,y;\phi)$ the elevation-averaged reflectance and $\bar p$ its
+mean over $\phi$. The magnitude of anisotropy is then $M = \sqrt{X^2 + Y^2}$
+and the dominant azimuth is $\hat\alpha = \mathrm{atan2}(Y, X)$. Both
+maps are computed once per folio in a single vectorised pass over the
+stack. The azimuth is retained in its full range
+$\hat\alpha \in (-180^\circ, 180^\circ]$ rather than being folded
+modulo $180^\circ$, because that is the native angular range of the
+DRP acquisition and because the fold can be deferred to whichever
+downstream stage actually needs it.
+
+Two implementation details deserve mention. The first is that the
+magnitude map is clipped at twice its own mean before being
+normalised, which suppresses the small number of pixels (typically
+sitting on ink or on adhesive tape) whose reflectance saturates at
+all elevations and would otherwise dominate the dynamic range. The
+second is that the elevation marginalisation in
+\Cref{eq:dir_fourier} accepts an optional subsampling factor
+$(s_\theta, s_\phi)$ that reduces the working size of the stack;
+in the configuration used in this report the subsampling is set to
+$(2, 2)$, which gives a four-fold reduction in compute cost with no
+measurable degradation of the estimated azimuth, because the
+Lambertian lobe is smooth on the scale of the angular sampling
+lattice. An example output of the stage is shown in
+\Cref{fig:direction_output} for one of the folios in the benchmark.
+% TODO: Figure 2.2 -- a real folio image alongside its magnitude and
+% azimuth maps. The azimuth map can use a circular colour scheme.
+
+\subsection{Why Per-Pixel Azimuths Are Not Enough}
+\label{sec:direction:noisy}
+
+The per-pixel azimuth produced by the first stage is sufficient to
+visualise the laid-line orientation by eye, but it is too noisy to
+drive a frequency-domain detector directly. Two distinct sources
+contribute to this noise. The first is photon noise in the source
+images, which propagates into the first-order Fourier coefficients
+of \Cref{eq:dir_fourier} and therefore into both the magnitude and
+the azimuth. The second is the failure mode of the estimator itself
+at low-anisotropy pixels: whenever the local Lambertian lobe is weak
+relative to noise, $X$ and $Y$ are both small and the azimuth is
+essentially uniform on $(-180^\circ, 180^\circ]$. A direct frequency
+analysis of an image driven by such an azimuth field would inherit
+the noise of these failure-mode pixels and would lose contrast
+wherever the laid-line signal is weakest, which is precisely where
+the detector most needs help.
+
+The remedy adopted here is to aggregate the per-pixel azimuth over
+larger spatial patches before mapping it to an enhanced greyscale
+image. Each patch contributes a single best-guess direction, and
+each pixel then receives a likelihood that its own azimuth agrees
+with that of its enclosing patch. The output is a smooth greyscale
+field in which the dynamic range is concentrated on regions whose
+azimuth is consistent with their neighbourhood, and is suppressed
+wherever the azimuth varies erratically.
+% TODO: Figure 2.3 -- noisy per-pixel azimuth vs the smoother
+% patchwise-aggregated greyscale, on the same folio, side by side.
+
+\subsection{Patchwise Trigonometric Aggregation}
+\label{sec:direction:patch}
+
+The page is covered by overlapping square patches of side
+$P = 512$ pixels, stepped at stride $S = 256$ in both the horizontal
+and the vertical directions, so that each interior pixel falls inside
+four patches. For each patch, the dominant direction is computed as
+the circular mean of the per-pixel azimuths:
+\begin{equation}
+  \bar\alpha(\Omega) \;=\;
+      \mathrm{atan2}\!\left(
+        \sum_{(x,y)\in\Omega} \sin\hat\alpha(x,y),\;
+        \sum_{(x,y)\in\Omega} \cos\hat\alpha(x,y)
+      \right).
+  \label{eq:circmean}
+\end{equation}
+The choice of circular distance rather than arithmetic distance is
+essential because of the wraparound of the azimuth coordinate. A
+patch in which half the pixels report $+179^\circ$ and the other
+half report $-179^\circ$ has a true mean direction of $180^\circ$,
+which is just one degree away from each individual pixel. The
+arithmetic mean of those same values is $0^\circ$, which would point
+at right angles to the actual laid lines. The trigonometric collapse
+in \Cref{eq:circmean} avoids this trap by averaging the unit vectors
+of the per-pixel azimuths rather than the azimuths themselves.
+
+Each pixel in a patch is then assigned a Gaussian likelihood of
+agreement with the patch direction, with angular tolerance
+$\sigma = 10^\circ$ measured along the $360^\circ$ circle. The
+per-patch likelihood fields are stitched back into a single image
+using a two-dimensional Hann window as the blending weight, which
+suppresses the discontinuities that would otherwise appear at patch
+boundaries. The overlap factor $P/S = 2$ used in this report is
+sufficient in practice for the folios in the benchmark, in which
+the dominant direction varies by less than five degrees across any
+single patch. A final local contrast enhancement step (a small
+Gaussian smoothing followed by contrast-limited adaptive histogram
+equalisation) conditions the resulting greyscale field for the
+frequency-domain detector of \Cref{sec:detection}. An example of
+the enhanced image alongside the original azimuth field is shown
+in \Cref{fig:patchwise_output}.
+% TODO: Figure 2.4 -- patchwise direction field as a vector overlay,
+% plus the enhanced greyscale image and its histogram before/after
+% CLAHE. Cf. Andrew Figure 24 (vector-field refinement).
+
+The output of this stage is the field $L(x, y) \in [0, 1]$, treated
+as an eight-bit greyscale image for the detection stage that follows.
+The patch direction field $\bar\alpha(\Omega)$ is retained as a
+by-product, and is reused both by the visualisation overlays in
+\Cref{sec:benchmark} and by the automatic line-direction detector
+of \Cref{sec:detection:auto}.

@@ -1,0 +1,138 @@
+\section{Laid-Line Detection and Evaluation}
+\label{sec:detection}
+
+% PAGE TARGET: ~7 pages.
+% Day 4 (5/28). Narrative: Initial Gabor / multi-phi attempt -> revised
+% spectral-power dual-band -> polarity-flip discovery -> evaluation
+% metrics. Andrew-style: lots of figures, few displayed equations,
+% honest failure narrative.
+
+\subsection{Initial Approach: Gabor Filter Bank}
+\label{sec:detection:gabor}
+% NARRATIVE: Why Gabor was tried first; what worked; what failed.
+%
+% Cover:
+% - Gabor is the natural starting point because the enhanced greyscale
+%   of Section 2 has a clear dominant orientation and a near-sinusoidal
+%   profile along the line normal.
+% - A Gabor bank covering periods {6, 8, ..., 40} px at the patch level
+%   was applied, and the patchwise dominant period was aggregated into
+%   a folio-level distribution.
+% - On synthetic phantoms with clean signals and orientations close to
+%   the bank's central wavelength the method recovered the true period
+%   to within a few per cent.
+% - On real folios two failure modes emerged: (i) the dominant period
+%   landed close to the edge of the bank for high- or low-density
+%   folios, producing an octave aliasing of the kind documented in
+%   Section 4.X; (ii) the patch-level estimate was unstable on folios
+%   with heavy ink, producing a long tail in the aggregated
+%   distribution that biased the folio-level median.
+% TODO: Figure 3.1 -- Gabor filter bank diagram (one row of filters
+% at the bank wavelengths), and an example aggregated distribution
+% on a phantom and on a real folio.
+
+\subsection{Multi-Phi Detector}
+\label{sec:detection:multiphi}
+% NARRATIVE: A different angle on the same data; why we kept it as a
+% cross-check rather than as the primary detector.
+%
+% Cover:
+% - The multi-phi detector reuses the patch direction field of
+%   Section 2.3, slicing the page into bands perpendicular to the
+%   local laid direction and running a one-dimensional peak-find
+%   along each band.
+% - Pros: respects local orientation variation; no fixed period bank.
+% - Cons: peak-find is sensitive to ink-induced spurious peaks and to
+%   the choice of smoothing kernel; produces a per-band estimate
+%   rather than a single folio-level number.
+% - We retained this detector for cross-validation and for the
+%   per-segment FWHM estimate of Section 3.5 (wire width), but did not
+%   adopt it as the primary period estimator.
+
+\subsection{Revised Detector: Spectral Power with Dual-Band Cross-Validation}
+\label{sec:detection:spectral}
+% NARRATIVE: Why we replaced projection autocorrelation with spectral
+% power; what dual-band cross-validation buys us. This is the central
+% design move of the project and should get the most narrative weight.
+%
+% Cover:
+% - Earlier versions of the auto-direction detector used the
+%   autocorrelation of the column-projection signal to score
+%   candidate orientations. On phantoms this worked, but on noisy
+%   real folios the autocorrelation peak at the true period was
+%   often only marginally larger than a peak at the noise correlation
+%   length, producing high-confidence wrong answers.
+% - The replacement (commit caecc39) substitutes the spectral power
+%   in a narrow window around the candidate frequency. Spectral
+%   power gives a flatter null distribution under noise, so the
+%   contrast between the true peak and the noise floor improves.
+% - Dual-band cross-validation runs the same scoring on two
+%   non-overlapping horizontal bands of the page. An orientation is
+%   accepted only if both bands report a peak at the same period;
+%   single-band peaks (typically caused by an ink patch or a fold)
+%   are rejected. This eliminates the false positives produced by
+%   the older version on three of the nine benchmark folios.
+% TODO: Figure 3.2 -- side-by-side scoring landscapes for
+% autocorrelation vs spectral power on a real folio; show the
+% improved peak contrast.
+% TODO: Figure 3.3 -- dual-band cross-validation cartoon: same folio,
+% two horizontal bands, both spectra shown, peak alignment circled.
+
+\subsection{Polarity Flip for Transmitted-Light Samples}
+\label{sec:detection:polarity}
+% NARRATIVE: A small but real bug found by working on a TX folio.
+%
+% Cover:
+% - The peak-finding code assumed that laid wires appear as local
+%   maxima of the enhanced greyscale, which is true for reflective
+%   acquisition (wires catch grazing light and look brighter than
+%   the troughs).
+% - For transmitted-light folios this is inverted: wires absorb more
+%   light and look darker than the troughs. The very first TX folio
+%   was therefore reported with a period twice the true value.
+% - Fix (commit 38c37f3): a per-folio polarity flag
+%   wire\_is\_darker that toggles a sign in the peak-finder. The
+%   flag is set in the per-folio configuration file rather than
+%   detected automatically; an automatic detector is discussed
+%   in the future-work section.
+
+\subsection{Evaluation Metrics}
+\label{sec:detection:evaluation}
+% Five metrics, each a JSON file plus a companion PNG. Describe each in
+% one short paragraph, give the formula inline where possible.
+%
+% Cover:
+% (a) Harmonic fit quality (fit_quality.json). $R^2$ of the
+%     least-squares fit of the projection signal to a sum of
+%     harmonics up to $k = 4$ of the detected period. A low $R^2$
+%     indicates that the detected period does not in fact explain
+%     the bulk of the periodic content.
+%
+% (b) Interval distribution (interval_distribution.json). The
+%     empirical distribution of peak-to-peak intervals over the
+%     detected lines; reported as mean, median and a count of the
+%     peaks $n_\text{peaks}$. Useful for spotting bimodal
+%     distributions caused by uneven wires.
+%
+% (c) Self-contrast z-score (self_contrast.json). The scoring
+%     function used by the detector is recomputed on a randomly
+%     rotated copy of the same image; the rotation breaks any true
+%     periodicity, so the rotated score is a null sample.
+%     $z = (s_{\mathrm{true}} - \mu_{\mathrm{null}}) /
+%          \sigma_{\mathrm{null}}$ over 50 rotations gives a per-folio
+%     significance level.
+%
+% (d) Split-half stability (split_half_stability.json). The folio is
+%     split into a top half and a bottom half; the detector is run on
+%     each half; the difference between the two estimates is reported
+%     as a stability figure. Large split-half differences flag folios
+%     with strong density variation across the page.
+%
+% (e) Wire width statistics (wire_width_stats.json). For each
+%     detected line segment, the full-width-at-half-maximum of the
+%     fitted profile is extracted; the per-folio median and a
+%     bootstrap 95\% confidence interval are reported.
+%
+% Together these five metrics form the per-folio quality vector that
+% the codicologist consumes alongside the headline density figure;
+% Section 4.X shows the five metrics for each benchmark folio.

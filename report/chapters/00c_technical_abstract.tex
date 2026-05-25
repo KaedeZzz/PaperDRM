@@ -1,0 +1,49 @@
+% Technical Abstract. <=2 pages, self-contained.
+% CUED REQUIREMENT: must include name, College, project title -- this exact
+% copy is also archived separately by the Department.
+% Write LAST (5/30) once all numbers are settled.
+
+\section*{Technical Abstract}
+
+\noindent Project title: Directional Reflectance Profile Analysis for
+Laid-Line Detection in Historical Paper\\
+Author: Zhanfeng Zhou\\
+College: TODO\\
+Supervisor: TODO\\[1em]
+
+% --- Body of the abstract (write last, target ~2 pages) ------------------
+% Paragraph 1: problem context. Handmade paper carries a mould fingerprint;
+% laid-line density and chain-line spacing are forensic identifiers used
+% by codicologists; current practice is manual; MSI/DRP image stacks now
+% exist at scale but no robust automated pipeline turns them into the
+% required quantitative data.
+%
+% Paragraph 2: approach. A five-stage DRP-based pipeline that estimates
+% laid-line orientation automatically from the per-pixel directional
+% reflectance, then refines that estimate patchwise, then runs a
+% spectral-power detector against the enhanced grayscale image, and
+% finally reports a small bundle of evaluation metrics (R^2 of harmonic
+% fit, self-contrast z-score, split-half stability, wire FWHM
+% distribution).
+%
+% Paragraph 3: phantom validation. A synthetic line generator with
+% controllable period, SNR, orientation and wire-width gives the
+% benchmark for detector accuracy under known ground truth; period
+% recovery within plus/minus 2.5\% across 10--50 px; essentially
+% SNR-invariant down to SNR = 2.
+%
+% Paragraph 4: real-folio results. Pipeline applied to a benchmark of
+% nine folios drawn from four manuscript stocks in the Cambridge UL
+% collection, with two folios additionally counted by hand to provide
+% calibrated ground truth. Sub-1\% density error on the two calibrated
+% folios; the remaining seven show a systematic deviation from the
+% library spreadsheet records that is attributed to stock-versus-folio
+% mismatch rather than to detector failure.
+%
+% Paragraph 5: conclusions. The pipeline reaches an accuracy that is in
+% principle sufficient to discriminate mould pairs. Failure modes are
+% characterised (octave aliasing at high density; polarity-flip for
+% transmitted-light samples). Future work covers automatic polarity
+% detection, joint chain-line analysis, and mould-mate matching.
+
+\newpage

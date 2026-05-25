@@ -1,0 +1,152 @@
+\section{Validation and Benchmark}
+\label{sec:benchmark}
+
+% PAGE TARGET: ~8 pages.
+% Day 5 (5/28-5/29). Narrative: synthetic phantoms first (clean ground
+% truth, sweeps), then real folios (spreadsheet GT, manual GT), then
+% failure modes.
+
+\subsection{Synthetic Phantom Characterisation}
+\label{sec:benchmark:phantom}
+% Day 4 (5/28).
+% Source: results/phantom/phantom_synthetic_results.json + the four
+% sweep plots produced by scripts/plot_for_report.py (to be written).
+%
+% Narrative arc:
+% - Why a phantom: real folios have unknown ground truth, so we cannot
+%   isolate the detector's response to any one parameter. The phantom
+%   generator (scripts/phantom_synthetic.py) produces line patterns
+%   with controllable period, orientation, wire FWHM and additive
+%   Gaussian noise, and runs the full pipeline (Sections 2 and 3) on
+%   them.
+% - Period sweep (10 to 60 px): period recovery within plus/minus 2.5%
+%   over 10 to 50 px; an abrupt failure at 60 px attributable to
+%   octave aliasing.
+% - SNR sweep (2 to 50): period recovery is essentially SNR-invariant
+%   in this range. Detection works at SNR = 2.
+% - Orientation sweep (-85 to +85 deg): angular error <= 1 deg
+%   except at +90 deg (3 deg error). The asymmetry is a feature of
+%   the way the angle is reduced modulo 360 in Stage 1.
+% - Wire-width sweep (sigma = 1 to 8 px): wire FWHM recovered to
+%   within 10% for sigma in [2, 5]; degrades at the extremes.
+%
+% TODO: Figure 4.1 -- period sweep plot, x = true period, y =
+% per cent error.
+% TODO: Figure 4.2 -- SNR sweep, with shaded bands for plus/minus 1 SD
+% over the five seeds.
+% TODO: Figure 4.3 -- orientation sweep.
+% TODO: Figure 4.4 -- sigma sweep.
+% TODO: Table 4.1 -- a summary table with one row per sweep variable
+% and a column for the headline number.
+
+\subsection{Per-Folio Results on Nine Real Folios}
+\label{sec:benchmark:perfolio}
+% Day 4 (5/28).
+% Source: results/<folio>/* and results/pipeline_vs_spreadsheet.json.
+%
+% Narrative arc:
+% - Walk the reader through one strong case (Kk1-5 f5v) at length:
+%   overlay, interval distribution, wire FWHM segments, self-contrast,
+%   split-half. Use this to anchor what the pipeline outputs look
+%   like in practice.
+% - Then summarise the remaining eight folios in a single results
+%   table giving density, FWHM, self-contrast z-score, split-half
+%   stability, and (where available) the spreadsheet ground truth.
+% - Reserve discussion of the spreadsheet errors for the next
+%   subsection.
+%
+% TODO: Figure 4.5 -- Kk1-5 f5v laid_lines_overlay.png as the
+% reference good case.
+% TODO: Figure 4.6 -- a 3x3 grid of overlay thumbnails for all
+% nine folios. Each thumbnail captioned with the folio name.
+% TODO: Table 4.2 -- folio, density (l/cm), FWHM (mm), self-z,
+% split-half, spreadsheet GT, error % .
+
+\subsection{Comparison with Spreadsheet Ground Truth}
+\label{sec:benchmark:spreadsheet}
+% Day 5 (5/29).
+% Source: results/pipeline_vs_spreadsheet.json.
+%
+% Narrative arc:
+% - The Manuscripts Lab spreadsheet records a representative laid
+%   density per stock; this gives an external reference for seven of
+%   the nine folios.
+% - Seven of seven folios show a systematic under-count vs the
+%   spreadsheet, with errors ranging from -10% to -71%.
+% - At first reading this looks like detector failure, but the next
+%   subsection shows that the truth is more interesting: the
+%   spreadsheet records the stock, not the individual folio.
+%
+% TODO: Figure 4.7 -- scatter of pipeline density vs spreadsheet
+% density for all nine folios, x = y line drawn for reference.
+
+\subsection{Calibrated Validation against Manual Ground Truth}
+\label{sec:benchmark:manual_gt}
+% Day 5 (5/29). THIS IS THE HEADLINE RESULT.
+% Source: results/spreadsheet_comparison.json.
+%
+% Narrative arc:
+% - Two folios (Kk1-5 f5v, Kk1-5 f9v) were additionally counted by
+%   hand by the Manuscripts Lab to give a per-folio ground truth,
+%   independent of the stock-level spreadsheet value.
+% - On those two folios the pipeline reports densities of 8.97 and
+%   9.04 lines/cm against a manual count of 9.0 lines/cm; the
+%   absolute errors are -0.35% and +0.48%.
+% - These are an order of magnitude smaller than the errors against
+%   the stock-level spreadsheet, strongly suggesting that the seven
+%   large discrepancies of the previous subsection are not detector
+%   failure but spreadsheet-stock mismatch (different folios within
+%   the same stock came from different mould pairs).
+% - This is the strongest available evidence that the pipeline itself
+%   is accurate to better than 1% in density on real manuscript paper.
+%
+% TODO: Figure 4.8 -- a two-panel figure: (a) calibrated comparison
+% on the two manual-GT folios; (b) overlay of pipeline density and
+% manual density on the same axis as the spreadsheet scatter of
+% Figure 4.7, highlighting how the two manual points collapse.
+
+\subsection{Ablation: Spectral Power versus Autocorrelation}
+\label{sec:benchmark:ablation}
+% Day 5 (5/29).
+%
+% Narrative arc:
+% - Re-run the pipeline with the older autocorrelation criterion of
+%   commit pre-caecc39 and report the differences on the same nine
+%   folios.
+% - Spectral power changes the headline density on six of the nine
+%   folios; the most striking is folio X where the autocorrelation
+%   peak at the noise correlation length was higher than the true
+%   peak.
+% - Quantify the change with the self-contrast z-score: the spectral
+%   detector gives larger z on every folio where both detectors
+%   converge, indicating a cleaner peak.
+%
+% TODO: Figure 4.9 -- two-panel scoring landscape on one folio,
+% autocorrelation on the left, spectral power on the right.
+
+\subsection{Failure Modes}
+\label{sec:benchmark:failures}
+% Day 5 (5/29).
+%
+% Narrative arc:
+% - Document three failure modes encountered:
+%   (i) Octave aliasing: folio Ff4-15 f24r reports 3.92 lines/cm
+%       against a spreadsheet value of 13.5, with a ratio close
+%       to 1/3.4 -- the detector locked onto a sub-harmonic of the
+%       true period. Likely cause: the laid signal at the true
+%       density was outside the period bank of the Gabor stage and
+%       therefore did not score above noise.
+%   (ii) Polarity flip: the very first transmitted-light folio
+%        analysed reported half the true density before the
+%        wire_is_darker flag was added; described in
+%        Section 3.4 already.
+%   (iii) Heavy ink coverage: folios where text dominates >40\% of
+%         the patch area produce unreliable interval distributions
+%         even where the headline density is correct. The
+%         self-contrast z-score and split-half stability both flag
+%         this case in the metric bundle, so it is not silently
+%         wrong, just visibly low-confidence.
+%
+% TODO: Figure 4.10 -- Ff4-15 f24r overlay showing the octave
+% aliasing visually; lines drawn at the detector's period look
+% obviously wrong against the underlying image.

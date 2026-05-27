@@ -133,11 +133,15 @@ def archive_results(pack: "ImagePack | None", config_path: str, *, serial: str |
         shutil.copy2(src, dst)
         copied.append(src.name)
 
-    # Config snapshot
+    # Config snapshot. Skip if --config already points inside archive_dir
+    # (e.g. results/<serial>/exp_param.yaml): copying a file onto itself
+    # raises PermissionError on Windows.
     cfg_src = Path(config_path)
     if cfg_src.exists():
-        shutil.copy2(cfg_src, archive_dir / cfg_src.name)
-        copied.append(cfg_src.name)
+        cfg_dst = archive_dir / cfg_src.name
+        if cfg_src.resolve() != cfg_dst.resolve():
+            shutil.copy2(cfg_src, cfg_dst)
+            copied.append(cfg_src.name)
 
     print(f"[Archive] {len(copied)} files -> results/{serial}/  ({', '.join(copied)})")
 

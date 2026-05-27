@@ -196,11 +196,12 @@ variation.
 \label{sec:discussion:ethics}
 
 The environmental footprint of the pipeline is small. A
-single-image MSI run with the five evaluation metrics takes well
+single-image MSI run with its four evaluation metrics takes well
 under a minute per folio on a laptop CPU. A full multi-phi DRP
-run takes between three and ten minutes per folio on the same
-hardware, with the bulk of the additional cost in the per-image
-phase fit and the split-half resampling. The corresponding energy
+run with the additional split-half metric takes between three and
+ten minutes per folio on the same hardware, with the bulk of the
+extra cost in the per-image phase fit and the split-half
+resampling. The corresponding energy
 cost is on the order of a few watt-hours in both cases. Even at
 the codex-scale workflow envisaged in the previous subsection,
 the compute energy is small compared with the alternative of

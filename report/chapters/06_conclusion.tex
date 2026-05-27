@@ -10,10 +10,14 @@ The project set out to recover a quantitative mould fingerprint of
 laid-line density, wire diameter and local orientation from a DRP
 acquisition of a historical paper folio, with no per-folio
 parameter tuning and with a quantified confidence for each
-estimate. The multi-phi pipeline of \Cref{sec:multiphi} delivers
-this. The headline accuracy figure is sub-one per cent absolute
-error in laid-line density on the two folios where an independent
-manual count was carried out, demonstrated in
+estimate. The detection chapter of \Cref{sec:multiphi} delivers
+this through two related variants: the multi-phi DRP variant that
+was the original project target, and the single-image MSI variant
+that lets the same pipeline run on the single-frame archives
+already held by major institutions. The headline accuracy figure
+is sub-one per cent absolute error in laid-line density on the
+two folios where an independent manual count was carried out,
+processed by the single-image MSI variant and demonstrated in
 \Cref{sec:benchmark:manual_gt}. The synthetic-phantom
 characterisation of \Cref{sec:benchmark:phantom} establishes that
 the period estimator is essentially noise-invariant down to a
@@ -89,8 +93,9 @@ identification.
 
 The largest single extension, and the natural sequel to the
 present project, is a confidence-aware aggregation across the
-folios of a complete codex. Given a DRP scan of every folio of a
-manuscript, the pipeline already returns a density and a metric
+folios of a complete codex. Given a per-folio image of every
+folio of a manuscript -- whether a single MSI frame or a full
+DRP stack -- the pipeline already returns a density and a metric
 bundle per folio; combining these into a per-codex profile would
 expose mould changes mid-codex, support binding-order
 reconstruction, and surface the kind of stock-level variation that
@@ -100,4 +105,5 @@ needed is the calibrated manual ground truth across a larger
 sample of folios to validate the confidence calibration of the
 metric bundle at scale. Once that calibration is in place, the
 pipeline becomes deployable as a service that a holding institution
-could run over its DRP archive without specialist intervention.
+could run over its existing MSI archive or a new DRP acquisition
+without specialist intervention.

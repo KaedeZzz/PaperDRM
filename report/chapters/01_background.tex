@@ -158,15 +158,13 @@ manuscripts of which at least 736 are written on
 paper~\cite{TODO_manuscripts_lab_mapping}; from these, nine folios
 spanning four manuscript stocks were selected for the present
 benchmark. The shelfmarks used in the report follow the Cambridge
-University Library convention and are summarised in
-\Cref{tab:dataset_summary} together with the spreadsheet ground-truth
-density recorded by the Manuscripts Lab for each stock. Two of the
-nine folios (Kk1-5 f5v and Kk1-5 f9v) were additionally counted by
-hand on the original folio, providing a higher-confidence calibrated
+University Library convention and are listed alongside the
+spreadsheet ground-truth density and the per-folio metric bundle
+in \Cref{sec:benchmark:perfolio}. Two of the nine folios
+(Kk.1.5 f5v and Kk.1.5 f9v) were additionally counted by hand
+on the original folio, providing a higher-confidence calibrated
 ground truth that is used in \Cref{sec:benchmark:manual_gt} to
 estimate the systematic accuracy of the pipeline.
-% TODO: Table 1.1 (tab:dataset_summary) -- folio, shelfmark, stock,
-% spreadsheet density, manual density (where available), modality.
 
 \subsection{Pipeline Overview}
 \label{sec:bg:contributions}
@@ -182,28 +180,23 @@ pipeline must operate with no per-folio parameter tuning beyond the
 optical scale, and must report enough internal evidence for a codicologist
  to judge whether to trust each estimate.
 
-The developed pipeline is organised as five processing
-stages, illustrated in \Cref{fig:pipeline_overview}. The loader
-processes the raw DRM image stack by applying a background subtraction
-to remove illumination non-uniformity. The direction-estimation
-stage reduces the four-dimensional stack to two two-dimensional maps
-that record, per pixel, how directional the local reflectance lobe
-is and the azimuth in which it points. The trigonometric patch
-enhancement stage uses those direction maps to construct an
-enhanced greyscale image in which laid lines stand out strongly
-against the background. The detection stage applies a frequency
-estimator, a spectral-power detector
-with dual-band cross-validation, to the enhanced image and returns
-the laid-line period and orientation. The evaluation stage finally
-computes a small bundle of quality metrics: the coefficient of
-determination of a harmonic model fitted to the detected lines, a
-self-contrast z-score against a null distribution of randomly rotated
-images, a split-half stability measure, and the per-segment wire
-full-width-at-half-maximum distribution. The five stages are
-described in turn in \Cref{sec:direction,sec:detection}, and the
-evaluation metrics are defined in \Cref{sec:detection:evaluation}.
-% TODO: Figure 1.X (fig:pipeline_overview) -- a five-stage flow
-% chart in the style of Andrew Figure 6.
+The developed pipeline supports two distinct kinds of input
+through a single common framework. The multi-phi DRP variant is
+the original target of the project and operates on the full
+directional reflectance stack produced by the DRM instrument: it
+aggregates normalised power spectra across all available
+azimuthal views, recovers a single dominant period, and combines
+per-view phases into a weighted circular mean with polarity and
+half-period auto-corrections. The single-image MSI variant is the
+extension that lets the same pipeline run on the single-frame
+transmitted-light scans already held in major MSI archives: it
+applies a radial fast-Fourier transform followed by a single
+Gabor cleanup pass at the locked period. Both variants share a
+common preprocessing step (background subtraction, automatic
+line-direction detection by spectral-power scan, polarity flag,
+configurable period search band), and feed the same evaluation
+bundle of quality metrics described in
+\Cref{sec:multiphi:evaluation}.
 
 Three contributions of this project deserve highlighting. The first
 is the staged DRP-based pipeline itself, which to the author's
@@ -221,16 +214,18 @@ on two folios provides strong quantitative accuracy figures
 yet reported for an automated laid-line pipeline on real manuscript
 material.
 
-Subsequent to this section, \Cref{sec:direction} describes the direction-estimation and
-patch-enhancement stages, including the first-order Fourier
-estimator that produces the per-pixel direction map.
-\Cref{sec:detection} describes the laid-line detector and the
-evaluation metrics, and follows the design narrative through which
-the projection autocorrelation initially used in the detector was
-replaced by a spectral-power criterion with dual-band
-cross-validation. \Cref{sec:benchmark} presents the phantom
-characterisation, the nine-folio results, the manual ground-truth
-comparison, and a set of failure modes. \Cref{sec:discussion}
+Subsequent to this section, \Cref{sec:first_attempts} describes
+two earlier detection attempts that did not work or did not work
+well, both because they shaped the design of the final pipeline
+and because the comparison with that pipeline is the natural
+ablation baseline. \Cref{sec:multiphi} describes the detection
+chapter itself, including the common preprocessing framework, the
+single-image MSI variant, the multi-phi DRP variant, and the
+shared evaluation metric bundle. \Cref{sec:benchmark} presents
+the synthetic phantom characterisation, the nine-folio MSI
+benchmark, the manual-ground-truth comparison, the four
+zoomed-in DRP datasets including the Da Rold controlled
+reproduction, and a catalogue of failure modes. \Cref{sec:discussion}
 interprets these results and addresses the limitations of the present
 pipeline. \Cref{sec:conclusion} summarises the findings,
 reflects on what worked and what did not, and lists candidate

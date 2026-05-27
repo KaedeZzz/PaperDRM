@@ -28,10 +28,13 @@ multi-image case.
 \label{sec:multiphi:common}
 
 Both variants take, as input, one or more greyscale images that
-have already been background-subtracted as described in
-\Cref{sec:theory:drp}. From the moment the image enters the
-detector, three further preprocessing steps are common to both
-variants.
+have already been background-subtracted. The subtraction is a
+straightforward Gaussian-blurred reference removed from the per-image
+mean so that the slowly varying illumination and the optical
+vignetting of the acquisition are suppressed while the
+high-spatial-frequency modulation of the laid lines is preserved.
+From the moment the image enters the detector, three further
+preprocessing steps are common to both variants.
 
 The first is rotation of the image so that the laid lines run
 vertically in the rotated frame, which simplifies the

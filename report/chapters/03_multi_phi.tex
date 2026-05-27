@@ -233,10 +233,12 @@ The post-alignment resultant length is reported alongside the
 final density as a diagnostic of how coherent the multi-phi
 evidence was, and a low value flags the case where the laid-line
 signal was so weak that the polarity-flip detection itself failed.
-% TODO: Figure 3.3 -- per-image phase polar plot before and after
-% polarity correction, with marker size proportional to per-image
-% weight. The "before" panel shows phases scattered around two
-% antipodal directions; the "after" panel shows them clustered.
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=0.95\linewidth]{phase_correction}
+  \caption{Per-image phase polar plot for dataset~10, before and after the $\pi$-flip polarity correction.}
+  \label{fig:phase_correction}
+\end{figure}
 
 \subsubsection{Weighted mean phase and half-period auto-correction}
 \label{sec:multiphi:final}

@@ -1,9 +1,12 @@
 """
 Standalone script: re-run the multi-phi detector on dataset 10 and
-plot the per-image phase polar diagram before and after the
-polarity correction described in Section 3.3.3 of the report.
+produce two §3 figures from the detector's internal state.
 
-Output: report/figures/phase_correction.pdf
+Outputs:
+- report/figures/phase_correction.pdf -- per-image phase polar
+  diagram before and after the polarity correction (§3.3.3).
+- report/figures/aggregated_spectrum.pdf -- per-image radial
+  power spectra overlaid on the aggregated spectrum (§3.3.2).
 """
 
 from __future__ import annotations
@@ -113,6 +116,35 @@ def run() -> None:
     print(f"[phase] wrote {path.relative_to(ROOT)}")
     print(f"[phase] {int(flipped.sum())}/{len(flipped)} images flipped; "
           f"R_raw={R_raw:.3f} -> R={R:.3f}")
+
+    # --- Aggregated spectrum figure (§3.3.2) ---------------------------
+    freqs = np.asarray(out["radial_freqs"])
+    P_agg = np.asarray(out["radial_power"])
+    P_per = np.asarray(out["power_per_image"])
+    peak_f = float(out["dominant_freq_cpp"])
+    period_px = float(out["dominant_period_px"])
+
+    fig2, ax2 = plt.subplots(figsize=(6.0, 3.3))
+    # Per-image spectra (thin grey) -- normalised by max for visual stacking
+    P_per_norm = P_per / (P_per.max(axis=1, keepdims=True) + 1e-30)
+    for i in range(P_per_norm.shape[0]):
+        ax2.plot(freqs, P_per_norm[i], color="#888888", linewidth=0.4, alpha=0.5)
+    # Aggregated spectrum (thick black) -- normalised by max for the same axis
+    P_agg_norm = P_agg / (P_agg.max() + 1e-30)
+    ax2.plot(freqs, P_agg_norm, color=BLACK, linewidth=1.5, label="aggregated")
+    ax2.axvline(peak_f, color=ACCENT, linestyle="--", linewidth=0.8,
+                label=f"peak at $T = {period_px:.1f}$ px")
+    ax2.set_xlabel("Spatial frequency (cycles/pixel)")
+    ax2.set_ylabel("Normalised power")
+    ax2.set_title("Per-image (grey) and aggregated (black) radial power spectra")
+    ax2.legend(loc="upper right")
+    ax2.grid(True, alpha=0.3, linewidth=0.4)
+    ax2.spines["top"].set_visible(False)
+    ax2.spines["right"].set_visible(False)
+    path2 = OUT / "aggregated_spectrum.pdf"
+    fig2.savefig(path2)
+    plt.close(fig2)
+    print(f"[agg] wrote {path2.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

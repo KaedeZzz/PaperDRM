@@ -83,12 +83,20 @@ existing MSI archives of major institutions consist of one image
 per folio rather than multi-angle stacks, and the project would
 not be of immediate practical use without it.
 
-The procedure is short. The rotated image is mean-subtracted, a
-two-dimensional fast Fourier transform is taken, and the
-two-dimensional power spectrum is summed along the vertical axis
-to give a one-dimensional radial profile on the horizontal
-frequency axis. The largest peak of the profile inside the period
-search band gives the laid-line period directly. A single Gabor
+The procedure is short. The rotated image $I(x,y)$ is
+mean-subtracted, a two-dimensional fast Fourier transform is
+taken, and the two-dimensional power spectrum is summed along the
+vertical axis to give a one-dimensional radial profile on the
+horizontal frequency axis:
+\begin{equation}
+  P(f) \;=\; \sum_y \bigl| \hat{I}(f, y) \bigr|^{2} ,
+  \qquad
+  f_{\mathrm{peak}} \;=\; \arg\max_{f \in \text{band}} P(f) .
+  \label{eq:radial_fft}
+\end{equation}
+The peak frequency $f_{\mathrm{peak}}$, restricted to the
+plausible period band of \Cref{sec:multiphi:common}, gives the
+laid-line period $T = 1/f_{\mathrm{peak}}$ directly. A single Gabor
 filter at the locked period, with the absolute-response option
 disabled to avoid the harmonic-doubling bias of the legacy
 detector in \Cref{sec:first_attempts:legacy}, is then applied to
@@ -193,6 +201,16 @@ is recovered from the inverse tangent of the two
 inner products. This part is identical to the single-image phase
 fit of \Cref{sec:first_attempts:simple} except that it is repeated
 $N$ times.
+
+Concretely, for image $i$ with broadband signal $s_i(x)$ the
+phase is recovered from the cosine and sine inner products at the
+locked angular frequency $\omega = 2\pi/T$:
+\begin{equation}
+  c_i \;=\; \sum_x s_i(x) \cos(\omega x), \qquad
+  d_i \;=\; \sum_x s_i(x) \sin(\omega x), \qquad
+  \phi_i \;=\; \mathrm{atan2}(d_i, c_i).
+  \label{eq:per_image_phase}
+\end{equation}
 
 The subtle complication is the following. As the illumination
 azimuth rotates around the page, the wire shadow that is

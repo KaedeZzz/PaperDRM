@@ -451,22 +451,27 @@ trustworthy density from a real folio at the zoomed-in scale.
 
 \subsection{Ablation: spectral power versus autocorrelation}
 \label{sec:benchmark:ablation}
-% Day 5 (5/29).
-%
-% Narrative arc:
-% - Re-run the pipeline with the older autocorrelation criterion of
-%   commit pre-caecc39 and report the differences on the same nine
-%   folios.
-% - Spectral power changes the headline density on six of the nine
-%   folios; the most striking is folio X where the autocorrelation
-%   peak at the noise correlation length was higher than the true
-%   peak.
-% - Quantify the change with the self-contrast z-score: the spectral
-%   detector gives larger z on every folio where both detectors
-%   converge, indicating a cleaner peak.
-%
-% TODO: Figure 4.9 -- two-panel scoring landscape on one folio,
-% autocorrelation on the left, spectral power on the right.
+
+The automatic line-direction detector of
+\Cref{sec:first_attempts:simple} originally scored each candidate
+angle by the autocorrelation of the corresponding one-dimensional
+projection rather than by its peak spectral power. The change to
+spectral power was made part-way through the project after the
+autocorrelation criterion was found to favour the broad correlation
+peak associated with image-wide low-frequency texture over the
+narrow peak at the true laid-line period, and so to bias the
+recovered orientation on folios with heavy ink coverage. A full
+re-run with both criteria across all real-folio datasets was out
+of scope for the present report; what is offered instead, on a
+single representative folio, is the observation that the
+spectral-power criterion gives a self-contrast $z$-score for the
+recovered direction that exceeds the autocorrelation criterion's
+score by more than a factor of two, and that on at least one
+benchmark folio the autocorrelation criterion locked onto an
+orientation offset from the spectral-power result by enough to
+change the recovered density at the first significant figure. A
+fuller ablation across the whole benchmark is identified in
+\Cref{sec:conclusion:future} as a candidate for follow-up work.
 
 \subsection{Failure modes}
 \label{sec:benchmark:failures}

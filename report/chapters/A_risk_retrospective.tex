@@ -1,28 +1,60 @@
 \section{Risk Assessment Retrospective}
 \label{app:risk}
 
-% MANDATORY APPENDIX -- exactly <=1 side of A4.
-% Day 6 (5/30).
-% Compare the Michaelmas-term risk assessment (submitted to Safety Office
-% at the start of the project) with what actually happened.
-%
-% Structure:
-%   1. Hazards originally identified: list briefly.
-%      - Most likely: display screen / VDU ergonomic risk (computational
-%        project); possibly handling of manuscript materials if any
-%        in-person scanning was planned.
-%   2. Hazards actually encountered:
-%      - VDU work was as predicted (long sessions).
-%      - Did NOT handle physical manuscripts (all data was pre-scanned MSI).
-%      - Unanticipated: cognitive overload from long debugging sessions on
-%        DRP cache invalidation issues; would now flag as a process risk
-%        (regular breaks, paired debugging).
-%   3. What I would do differently:
-%      - Flag data-handling explicitly even when working with pre-existing
-%        scans (licence terms, accidental redistribution).
-%      - Add a category for "scope creep -> sleep deprivation" as a real
-%        well-being risk on long projects.
-%      - Use a project risk register (probability x impact) alongside the
-%        Safety Office form.
-%
-% Keep ONE page. Use no figures.
+% MANDATORY APPENDIX (CUED): at most one side of A4. Day 6 (5/30).
+% DRAFT prose; please cross-check against the actual Michaelmas-term
+% form submitted to the Safety Office and rewrite where the
+% recollection here is wrong.
+
+The risk assessment submitted to the Safety Office at the start of
+the Michaelmas term identified the project as a computational
+study without any physical experimentation. The principal hazards
+recorded were the standard ones for laptop-based work: prolonged
+use of a display screen, posture and repetitive-strain risks
+associated with long typing sessions, and the wellbeing risks
+associated with working alone for extended periods. No hazards
+related to physical specimens were recorded, because the project
+was set up from the outset to use pre-existing imagery shared by
+the AddME Lab and the Manuscripts Lab; the report's author did not
+need to handle, transport, or scan any manuscript material
+directly.
+
+The hazards actually encountered during the project tracked the
+assessment closely on the physical side. The display-screen and
+posture risks materialised as expected during long development
+and writing sessions, and were mitigated by the standard breaks
+and a height-adjustable working setup. There was no contact with
+manuscript materials, so the absence-of-physical-hazard prediction
+held. One hazard category was, however, materially under-weighted
+in the original form: project-management and cognitive-load risk.
+Several development episodes -- in particular the debugging of
+the DRP cache invalidation logic in Michaelmas, the
+projection-autocorrelation bug in Lent, and the late discovery
+of the spreadsheet-versus-folio ground-truth mismatch in Easter
+-- led to longer continuous sessions than the original
+risk-assessment timetable allowed for. The sleep and concentration
+risk that this created is, in hindsight, a real category that
+deserves its own line on the form rather than being folded into
+"working alone for extended periods".
+
+A second item that the original form did not anticipate is
+software and data-management risk. The pipeline is meaningful only
+to the extent that its output is reproducible, and a corrupted
+DRP cache or an accidentally overwritten archive of results would
+have a real impact on the project's deliverables. The project
+mitigated this in practice with version control on the source
+code, a cache-invalidation serial that prevents stale outputs
+from being silently reused, and per-folio result archives kept
+under a deterministic directory structure. None of these
+mitigations was named in the original assessment, and a future
+version of the form would be better for including them
+explicitly.
+
+Two changes follow if the project were to be restarted. First,
+the form should include a project-management hazard category
+distinct from the personal hazard categories, covering scope
+creep, milestone slippage, and the corresponding pressure on the
+working schedule. Second, the form should include a
+software-and-data hazard category covering data loss, cache
+corruption and reproducibility, with the mitigations named
+alongside.

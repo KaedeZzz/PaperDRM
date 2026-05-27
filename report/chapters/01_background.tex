@@ -196,7 +196,44 @@ common preprocessing step (background subtraction, automatic
 line-direction detection by spectral-power scan, polarity flag,
 configurable period search band), and feed the same evaluation
 bundle of quality metrics described in
-\Cref{sec:multiphi:evaluation}.
+\Cref{sec:multiphi:evaluation}. \Cref{fig:pipeline_diagram}
+summarises the overall flow.
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=8mm and 5mm,
+  every node/.style={font=\small},
+  input/.style={rectangle, draw, minimum width=3.2cm, minimum height=0.7cm, fill=blue!8, align=center},
+  process/.style={rectangle, draw, rounded corners, minimum width=4.6cm, minimum height=0.7cm, fill=orange!10, align=center},
+  variant/.style={rectangle, draw, rounded corners, minimum width=5cm, minimum height=1.6cm, fill=orange!18, align=center},
+  output/.style={rectangle, draw, minimum width=5cm, minimum height=0.8cm, fill=green!12, align=center},
+  arr/.style={-Latex, thick}
+]
+\node[input] (drp) {DRP stack ($N$ grazing images)};
+\node[input, right=1.2cm of drp] (msi) {Single MSI image};
+
+\node[process, below=10mm of $(drp.south)!0.5!(msi.south)$] (bg) {Background subtraction};
+\node[process, below=of bg] (autodir) {Automatic line-direction detection};
+\node[process, below=of autodir] (pol) {Polarity flag + period search band};
+
+\node[variant, below=10mm of pol, xshift=-3.4cm] (mp) {Multi-phi DRP variant\\\footnotesize aggregated spectra $\to$ period\\\footnotesize per-image phase fit with polarity\\\footnotesize correction; weighted circular mean};
+\node[variant, below=10mm of pol, xshift=3.4cm] (si) {Single-image MSI variant\\\footnotesize radial FFT $\to$ period\\\footnotesize Gabor cleanup; phase fit\\\footnotesize at locked period};
+
+\node[output, below=10mm of pol, yshift=-2.4cm] (out) {Density, wire FWHM, per-folio grid\\and 4-/5-metric evaluation bundle};
+
+\draw[arr] (drp.south) -- ++(0,-3mm) -| (bg.north);
+\draw[arr] (msi.south) -- ++(0,-3mm) -| (bg.north);
+\draw[arr] (bg) -- (autodir);
+\draw[arr] (autodir) -- (pol);
+\draw[arr] (pol.south) -- ++(0,-3mm) -| (mp.north);
+\draw[arr] (pol.south) -- ++(0,-3mm) -| (si.north);
+\draw[arr] (mp.south) |- ([yshift=3mm]out.north) -- (out.north);
+\draw[arr] (si.south) |- ([yshift=3mm]out.north) -- (out.north);
+\end{tikzpicture}
+\caption{Pipeline overview; two input modalities, common preprocessing, two detector variants, shared output.}
+\label{fig:pipeline_diagram}
+\end{figure}
 
 Three contributions of this project deserve highlighting. The first
 is the staged DRP-based pipeline itself, which to the author's

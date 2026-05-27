@@ -110,24 +110,26 @@ transmitted-light or reflected-light image at a user-supplied
 orientation and read off the dominant peak. They are simple, fast,
 and reasonably robust on clean transmitted-light scans.
 
-The multi-phi pipeline of the present project differs from the
-prior projection-Fourier family in three respects. First, the
-orientation is not supplied by the user but recovered from the
-DRP stack itself by the spectral-power scan described in
-\Cref{sec:first_attempts:simple}, removing the orientation as a
-parameter that has to be set per folio. Second, the spectrum from
-which the period is read is not a single per-image spectrum but
-the aggregated spectrum of \Cref{sec:multiphi:aggregate} across
-all available azimuthal views, which converts the multiple grazing
-images that a DRP acquisition naturally provides into a
-signal-to-noise advantage. Third, each density estimate is
-accompanied by the metric bundle of
+The pipelines of the present project differ from the prior
+projection-Fourier family in three respects that apply to both
+variants. First, the line orientation is not supplied by the user
+but recovered from the image itself by the spectral-power scan
+described in \Cref{sec:first_attempts:simple}, removing the
+orientation as a parameter that has to be set per folio. Second,
+each density estimate is accompanied by the metric bundle of
 \Cref{sec:multiphi:evaluation}, which makes the confidence in the
-estimate inspectable rather than tacit. The cost of these
-differences is a longer per-folio runtime and a dependence on
-multi-angle imaging rather than a single transmitted-light scan;
-the gain is the sub-one-per-cent accuracy demonstrated in
-\Cref{sec:benchmark:manual_gt}.
+estimate inspectable rather than tacit. Third, the
+single-image MSI variant of \Cref{sec:multiphi:single} reaches the
+sub-one per cent accuracy demonstrated in
+\Cref{sec:benchmark:manual_gt} on real manuscript folios, which is
+better than the accuracies typically reported for projection
+Fourier methods on similar material. The multi-phi DRP variant
+extends the same framework with a coherent summation across
+azimuthal views, described in \Cref{sec:multiphi:aggregate}, that
+trades a longer per-folio runtime and the requirement of
+multi-angle imaging for the additional split-half stability metric
+and the controlled-sample confidence demonstrated on dataset 10 in
+\Cref{sec:benchmark:zoomed}.
 
 The other relevant line of prior work is the spectral total
 variation approach of Grossmann et al., which extracts chain and
@@ -135,13 +137,14 @@ laid features from a single reflected-light image by a denoising
 step rather than by frequency analysis~\cite{TODO_grossmann}. That
 method is complementary rather than directly comparable, because
 it produces an enhanced image that a human reader still interprets
-visually, whereas the present pipeline returns a numerical density
-estimate with a quantified uncertainty. A productive direction for
-future work would combine the two: use a total-variation
-decomposition as the preprocessing input to the multi-phi
-aggregator, in the hope that the cleaned image would push the
-self-contrast $z$-score above its current threshold on the
-low-signal folios identified in \Cref{sec:benchmark:failures}.
+visually, whereas both variants of the present pipeline return a
+numerical density estimate with a quantified uncertainty. A
+productive direction for future work would combine the two: use a
+total-variation decomposition as the preprocessing input to either
+the single-image or the multi-phi detector, in the hope that the
+cleaned image would push the self-contrast $z$-score above its
+current threshold on the low-signal folios identified in
+\Cref{sec:benchmark:failures}.
 
 \subsection{Implications for codicology}
 \label{sec:discussion:codicology}
@@ -165,10 +168,13 @@ in a way that manual counting cannot match. A typical late
 medieval codex contains between two hundred and four hundred
 folios. A manual count under raking light on every folio of such a
 codex is a multi-day specialist task that exposes the binding to
-repeated handling; the present pipeline could process the same
-codex in under a day on a laptop, given a pre-existing DRP
-acquisition, and would produce a per-folio density together with
-its metric bundle. The aggregate density profile of a codex,
+repeated handling; the single-image MSI variant of the present
+pipeline could process the same codex in under a day on a laptop
+from the kind of MSI archive that already exists at the major
+holding libraries, and the multi-phi DRP variant could process it
+with stronger confidence on the subset of folios for which a DRP
+acquisition is available. Either path produces a per-folio
+density together with its metric bundle. The aggregate density profile of a codex,
 folio by folio, would itself be a new kind of codicological
 object, with the potential to surface mould changes mid-codex that
 a per-stock spreadsheet would average over.
@@ -189,31 +195,39 @@ variation.
 \subsection{Environmental, social and ethical considerations}
 \label{sec:discussion:ethics}
 
-The environmental footprint of the pipeline is small. A full
-multi-phi run plus the five evaluation metrics takes between three
-and ten minutes per folio on a laptop CPU, and the corresponding
-energy cost is on the order of a few watt-hours. Even at the
-codex-scale workflow envisaged in the previous subsection, the
-compute energy is small compared with the alternative of repeated
-physical handling under raking light, which requires controlled
-laboratory conditions, transport of fragile material, and the time
-of skilled personnel. The dominant environmental cost of the
-underlying workflow is the DRP acquisition itself, which uses a
-microscope and a controllable light source over a session of order
-ten minutes per folio. The acquisition energy is also modest, and
-the per-folio amortisation improves further every time the same
-DRP stack is reanalysed with an improved pipeline.
+The environmental footprint of the pipeline is small. A
+single-image MSI run with the five evaluation metrics takes well
+under a minute per folio on a laptop CPU. A full multi-phi DRP
+run takes between three and ten minutes per folio on the same
+hardware, with the bulk of the additional cost in the per-image
+phase fit and the split-half resampling. The corresponding energy
+cost is on the order of a few watt-hours in both cases. Even at
+the codex-scale workflow envisaged in the previous subsection,
+the compute energy is small compared with the alternative of
+repeated physical handling under raking light, which requires
+controlled laboratory conditions, transport of fragile material,
+and the time of skilled personnel. The dominant environmental
+cost of the underlying workflow is the acquisition step, which
+in the MSI case has typically already been paid by the holding
+institution and in the DRP case adds a microscope session of
+order ten minutes per folio. The acquisition energy is also
+modest, and the per-folio amortisation improves further every
+time the same image or stack is reanalysed with an improved
+pipeline.
 
 The social value of the pipeline is in lowering the barrier to
 quantitative paper analysis for institutions that hold manuscript
 collections but do not host a resident codicologist. The
 historical workflow requires on-site specialist access to the
 physical folio; the present workflow requires only a calibrated
-DRP scan and a laptop. An institution that captures a DRP scan
-once can, in principle, share that scan with collaborators
-anywhere in the world for quantitative analysis, expanding the
-community of researchers who can contribute to mould-pair
-attributions. The same property carries a dual-use risk: the same
+image of the folio and a laptop. For the many institutions that
+already hold MSI archives, the single-image variant can be run
+directly on the existing scans, and any institution that captures
+a new DRP acquisition gains the additional confidence of the
+multi-phi variant. Either kind of digital surrogate can be
+shared with collaborators anywhere in the world for quantitative
+analysis, expanding the community of researchers who can
+contribute to mould-pair attributions. The same property carries a dual-use risk: the same
 density signature that helps confirm provenance can in principle
 support attribution claims used for art-market authentication, with
 consequences that go beyond pure scholarship. The mitigation

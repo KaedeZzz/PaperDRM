@@ -135,7 +135,7 @@ annulus encodes the source azimuth.
 The DRP is well suited to laid-line analysis because the laid-line
 modulation of the paper surface is too subtle to read off a flat-lit
 image but produces a clear directional signature in reflected light.
-Under uniform illumination the submillimetre thickness variation
+Under uniform illumination, the thickness variation
 caused by the laid wires gives only weak greyscale contrast. Viewed
 from a grazing angle aligned with the line normal, however, the same
 modulation casts a strong, directional shadow that is easy to see.
@@ -146,18 +146,6 @@ laid-line signal is strongest. This property is what makes the
 present pipeline simpler to operate than the projection-based
 methods of the previous section, where orientation has to be
 supplied as an external parameter.
-
-% --- Comparison to other RTI work paragraph --
-DRM is one member of the wider family of reflectance transformation
-imaging (RTI) techniques originally developed for cultural heritage
-applications~\cite{TODO_rti_malzbender}. RTI has been used
-successfully for surface-relief visualisation of seals, coins, and
-inscriptions, but its application to laid and chain lines has been
-limited, and the per-pixel directional information that the technique
-provides has not, to the author's knowledge, been used to estimate
-laid-line orientation automatically. Closing that specific gap is
-one of the contributions of the present project, described in
-\Cref{sec:bg:contributions}.
 
 \subsection{Manuscript Dataset}
 \label{sec:bg:dataset}
@@ -191,14 +179,12 @@ the local wire diameter $w$ expressed as a full-width-at-half-maximum
 in millimetres, and the local laid-line orientation $\alpha(x, y)$
 in degrees, along with an associated uncertainty for each. The
 pipeline must operate with no per-folio parameter tuning beyond the
-optical scale, must report enough internal evidence for a
-downstream codicologist to judge whether to trust each estimate,
-and must degrade reasonably on the noisy, ink-occluded, and warped
-folios encountered in real holdings.
+optical scale, and must report enough internal evidence for a codicologist
+ to judge whether to trust each estimate.
 
-To this end, the pipeline is organised as five sequential processing
+The developed pipeline is organised as five processing
 stages, illustrated in \Cref{fig:pipeline_overview}. The loader
-ingests the raw DRM image stack and applies a background subtraction
+processes the raw DRM image stack by applying a background subtraction
 to remove illumination non-uniformity. The direction-estimation
 stage reduces the four-dimensional stack to two two-dimensional maps
 that record, per pixel, how directional the local reflectance lobe
@@ -206,8 +192,8 @@ is and the azimuth in which it points. The trigonometric patch
 enhancement stage uses those direction maps to construct an
 enhanced greyscale image in which laid lines stand out strongly
 against the background. The detection stage applies a frequency
-estimator -- in the present implementation a spectral-power detector
-with dual-band cross-validation -- to the enhanced image and returns
+estimator, a spectral-power detector
+with dual-band cross-validation, to the enhanced image and returns
 the laid-line period and orientation. The evaluation stage finally
 computes a small bundle of quality metrics: the coefficient of
 determination of a harmonic model fitted to the detected lines, a
@@ -222,7 +208,7 @@ evaluation metrics are defined in \Cref{sec:detection:evaluation}.
 Three contributions of this project deserve highlighting. The first
 is the staged DRP-based pipeline itself, which to the author's
 knowledge is the first automated pipeline to recover laid-line
-density, orientation and wire diameter jointly from a DRP stack
+density, orientation and wire diameter from a DRP stack
 without per-folio parameter tuning. The second is a synthetic
 phantom characterisation framework that supports four orthogonal
 sweeps (period, signal-to-noise ratio, orientation, and wire width)
@@ -231,12 +217,11 @@ over a controllable line-pattern generator, and that is used in
 detector one variable at a time before applying it to real data.
 The third is the nine-folio benchmark introduced in
 \Cref{sec:bg:dataset}, which together with the manual ground truth
-on two folios provides the strongest quantitative accuracy figure
+on two folios provides strong quantitative accuracy figures
 yet reported for an automated laid-line pipeline on real manuscript
 material.
 
-The remainder of the report is organised as follows.
-\Cref{sec:direction} describes the direction-estimation and
+Subsequent to this section, \Cref{sec:direction} describes the direction-estimation and
 patch-enhancement stages, including the first-order Fourier
 estimator that produces the per-pixel direction map.
 \Cref{sec:detection} describes the laid-line detector and the
@@ -245,9 +230,8 @@ the projection autocorrelation initially used in the detector was
 replaced by a spectral-power criterion with dual-band
 cross-validation. \Cref{sec:benchmark} presents the phantom
 characterisation, the nine-folio results, the manual ground-truth
-comparison, and a catalogue of failure modes. \Cref{sec:discussion}
-interprets these results, addresses the limitations of the present
-pipeline, and considers its environmental, social and ethical
-implications. \Cref{sec:conclusion} summarises the findings,
+comparison, and a set of failure modes. \Cref{sec:discussion}
+interprets these results and addresses the limitations of the present
+pipeline. \Cref{sec:conclusion} summarises the findings,
 reflects on what worked and what did not, and lists candidate
 directions for future work.

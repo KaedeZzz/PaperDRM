@@ -1,0 +1,99 @@
+\section{Initial Detection Attempts}
+\label{sec:first_attempts}
+
+% PAGE TARGET: ~3 pages.
+% Andrew-style failure narrative: two approaches that did not work or did
+% not work well, leading to the revised multi-phi method of Section 3.
+
+Two approaches attempted to extract laid lines from a DRP stack: the first one 
+exploited the per-pixel directional information directly and built post-processing on top of it; while that
+approach turned out to be biased, a second approach was tried by applying a Fourier estimator on a single post-processed grazing-light image.
+That second approach worked on clean folios but proved fragile on the
+real benchmark. The two attempts are described here in turn, both
+because they shaped the design of the final pipeline in
+\Cref{sec:multiphi}.
+
+\subsection{Direct DRP per-pixel analysis}
+\label{sec:first_attempts:legacy}
+
+The first detector reduced each pixel's DRP to a dominant azimuth. For pixel $(x, y)$, the
+reflectance values $I(x, y, \theta, \phi)$ were first averaged over
+elevation $\theta$ to give a one-dimensional profile in azimuth. The
+mean was subtracted and the first-order Fourier coefficient of the
+residual was taken as a complex number $X + i Y$. The magnitude
+$\sqrt{X^2 + Y^2}$ measured how strongly that pixel lies toward one
+azimuth, and the angle $\mathrm{atan2}(Y, X)$ gave the dominant
+direction. The output of the stage was therefore two maps with the
+same spatial size as the folio: one of anisotropy strength and one of
+azimuth.
+% TODO: Figure 2.1 -- example pair (anisotropy map, azimuth map) on a
+% representative folio, with the laid-line direction visible as a
+% banded structure in the azimuth map.
+
+A simple direction map of this kind is too noisy to use as the input
+to a frequency detector. On the one hand, the inks, stains, and surface unevenness
+of real manuscripts produce strong local anistotropies and noises that largely dominants
+the response in comparison of the laid lines. Moreover, the laid lines themselves are not perfectly straight and aligned,
+so lines in different regions can have varying local directions, and a global detector would not find a single dominant pattern.
+Thus, the next stage therefore tiled the page with overlapping square patches of 512 pixels and computed, in each patch, the circular mean
+direction. Each pixel then received a Gaussian likelihood of agreeing
+with the patch direction, and the patch responses were blended across
+the page using a Hann window. The output was a greyscale image in
+which the laid-line orientation locally dominated and which could be
+fed to a frequency detector.
+% TODO: Figure 2.2 -- the patchwise trig-mask greyscale on the same
+% folio as Figure 2.1, showing how the laid lines become visually
+% prominent against the background.
+
+The frequency detector was a patchwise Gabor bank scanning periods
+from 4 to 80 pixels. For each patch, the period at which the
+filter response was strongest was taken as the local laid-line
+period, and a global density estimate was formed by computing the weighted sum of the
+patch responses. On synthetic phantoms with a known period, this
+pipeline consistently reported half of the true period; the
+underlying cause was traced to two biases in the Gabor
+stage. From a Fourier analysis perspective, the squared (absolute) Gabor response doubles the fundamental
+frequency of any input that crosses zero, so a clean sinusoidal
+laid-line signal appears at twice its true frequency in the squared
+response. Moreover, the proportional bandwidth of the Gabor bank meant that
+the higher-frequency response was also scored more favourably than
+the true peak. The combination locked the detector onto the wrong
+harmonic.
+
+The lesson from this attempt was straightforward. The DRP carries
+useful directional information, but reducing it to per-pixel azimuth
+maps before doing frequency analysis throws away too much of the
+signal-to-noise on the way through. The revised pipeline goes back
+to the raw images and uses the DRP only as a way to obtain several
+independent grazing-light views of the same folio.
+
+\subsection{Single grazing-light image with radial FFT}
+\label{sec:first_attempts:simple}
+
+The second attempt bypassed the direction map and the patchwise
+enhancement altogether. From the DRP stack a single grazing-light
+image was extracted at the steepest available elevation, and the
+one-dimensional power spectrum of the column-mean of that image
+(after rotation so that the laid lines ran vertically) was
+computed. The dominant peak in the spectrum, restricted to a
+plausible search band of eight to eighty pixels, gave the laid-line
+period directly. A single Gabor filter at the detected period was
+then applied to clean the one-dimensional signal, the phase was
+fitted to find the wire positions, and a grid was overlaid on the
+image. Wire diameter was estimated from the harmonic amplitudes of
+the broadband signal using a Gaussian-comb model.
+
+This pipeline is short and fast, and on a clean synthetic phantom it
+recovers the period to better than one per cent. On real folios it
+is also accurate when the chosen grazing image happens to be the one
+in which the laid lines are most visible. Its weakness is that the
+choice of grazing image is essentially arbitrary: depending on the
+folio surface curvature, the azimuth of the chosen view, and the
+location of ink coverage, one grazing image can give a clean peak
+while another gives mostly noise. The simple pipeline therefore
+trades the bias of the legacy approach for a single-frame brittleness
+that is hard to predict in advance.
+% TODO: Figure 2.3 -- two grazing images of the same folio at
+% different phi, both rotated to vertical, illustrating how the
+% laid-line contrast varies dramatically with azimuth.
+

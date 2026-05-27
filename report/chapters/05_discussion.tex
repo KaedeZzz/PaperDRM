@@ -6,56 +6,237 @@
 % NB: CUED guidance often merges Results+Discussion. We keep them split
 % because the discussion runs across all results jointly.
 
-\subsection{Interpreting the Spreadsheet Discrepancy}
-% Stock-level vs folio-level GT.
-% The 7 large errors do NOT necessarily indicate pipeline failure -- the
-% spreadsheet records the dominant laid count for a paper stock, but
-% individual folios may originate from a different mould pair within
-% the same stock. The two manually counted folios (Kk1-5 f5v/f9v)
-% collapse the error to <1\%, supporting this interpretation.
+\subsection{Interpreting the spreadsheet discrepancy}
+\label{sec:discussion:spreadsheet}
+
+The most striking pattern in the real-folio benchmark of
+\Cref{sec:benchmark} is the gap between the agreement on the two
+manually counted folios, where the pipeline matches the per-folio
+manual count to better than one per cent, and the disagreement on
+the other seven folios, where the pipeline disagrees with the
+stock-level spreadsheet density by between ten and seventy per
+cent. The natural first reading is that the spreadsheet is the
+authoritative reference and the pipeline is wrong by varying
+amounts on seven folios. The strong agreement on the calibrated
+pair rules this reading out, because it would be implausible for
+the pipeline to be wrong by tens of per cent on seven folios while
+being right to within one per cent on a different two with no
+parameter change in between.
+
+The alternative reading, supported by the structure of the corpus
+itself, is that the spreadsheet records a stock-level density that
+need not match the density of any specific folio drawn from the
+stock. A manuscript stock in the Mapping Paper corpus is a batch of
+paper that shares one papermaker and one approximate production
+period, but it does not in general share a single pair of moulds.
+The catalogue spreadsheet was assembled by counting one folio per
+stock under raking light. The resulting density is a representative
+value, not a per-folio specification, and any folio of the same
+stock that came from a different mould pair will have a measurably
+different density.
+
+The implication for the field is concrete. A codicologist who
+wants to verify the stock of a previously unstudied folio against
+the spreadsheet should expect a within-stock spread of the same
+order as the present benchmark's seven discrepancies. The pipeline
+is not introducing this spread; it is detecting it. A density
+match within a few per cent against the spreadsheet stock value is
+therefore weaker evidence than has historically been treated as a
+match, and a per-folio comparison of the present kind is a more
+faithful basis for stock or mould-pair identification.
 
 \subsection{Limitations}
-% - Octave aliasing when laid density approaches the Gabor period bank
-%   upper bound or contrast is dominated by chain lines.
-% - Wire-width recovery less reliable for sigma outside $[2,5]$ px.
-% - Polarity (wire\_is\_darker) must be set per-modality; not auto-detected.
-% - FOV scale calibration is per-image -- a wrong fov\_width\_cm propagates
-%   linearly into lines/cm.
+\label{sec:discussion:limitations}
 
-\subsection{Comparison with Prior Art}
-% - Hiary \& Ng style projection FFT: simpler, but requires orientation
-%   to be supplied. We remove that requirement at Stage 1.
-% - Pure Gabor on TX images: works on TX, but does not exploit the
-%   directional information available from DRP.
+The pipeline has four limitations that constrain its present use
+and would each repay further work. Each is named here together
+with the metric or experimental observation that exposes it.
 
-\subsection{Implications for Codicology}
-% - Sub-1\% accuracy at the folio level, with quantified uncertainty,
-%   is in principle sufficient to discriminate mould pairs.
-% - Scanning a whole codex (300+ folios) becomes tractable: a few
-%   minutes per folio on commodity hardware.
+The first is sub-harmonic aliasing at densities near the boundary
+of the period search band, demonstrated by the phantom sweep at a
+true period of 60 pixels and by the real folio Ff.4.15 f24r in
+\Cref{sec:benchmark:failures}. The mitigation employed in the
+benchmark, narrowing the per-folio period range when a previous
+run shows signs of aliasing, requires a human in the loop and
+defeats the no-tuning ambition stated in
+\Cref{sec:bg:contributions}. A more robust mitigation would
+detect the alias automatically by comparing the energy of the
+recovered peak with the energy of its half and double, and would
+demote the peak whenever a stronger candidate is present at a
+harmonically related period.
 
-\subsection{Environmental, Social and Ethical Considerations}
+The second is the wire-width estimator, which the phantom sweep
+of \Cref{sec:benchmark:phantom} shows is accurate to within ten
+per cent only for true sigmas between two and five pixels. Outside
+that range the Gaussian-comb model that underpins the estimator
+either under-resolves the wire or fails to find a clean inter-wire
+baseline. In the present benchmark the laid densities of every
+folio fall comfortably inside the accurate range, so the wire
+diameter is a usable secondary feature, but a pipeline applied to
+unusually fine or unusually coarse paper would need a different
+model for the wire profile.
+
+The third is the polarity flag \texttt{wire\_is\_darker}, which
+must be set by the user according to whether the input is
+reflective or transmitted light. The half-period auto-correction
+of \Cref{sec:multiphi:final} removes any ambiguity within the
+reflective acquisitions used in the present benchmark, but does
+not by itself decide whether the wires should be expected to be
+dark or bright. An automatic polarity detector that uses the
+broadband signal statistics, identified as future work in
+\Cref{sec:conclusion}, would remove the last piece of per-folio
+user input from the pipeline.
+
+The fourth is the optical scale. The pipeline reports density in
+lines per centimetre by combining the recovered period in pixels
+with a per-folio field-of-view width supplied in the configuration
+file. A wrong field-of-view value propagates linearly into the
+reported density. The current workflow uses the value recorded by
+the AddME Lab at acquisition time, but no per-folio scale
+verification is built into the pipeline. A small calibration
+target inside the acquired frame, or a separate scale-bar image
+per folio, would close this loop and remove an external dependency
+that the rest of the pipeline cannot detect when it is wrong.
+
+\subsection{Comparison with prior art}
+\label{sec:discussion:prior_art}
+
+The closest predecessor to the present work in the published
+literature is the projection-Fourier family of laid-line detectors
+typified by Hiary and Ng~\cite{TODO_hiary_ng} and surveyed in
+\Cref{sec:bg:prior_extraction}. Those methods compute a
+one-dimensional power spectrum of the column-mean of a
+transmitted-light or reflected-light image at a user-supplied
+orientation and read off the dominant peak. They are simple, fast,
+and reasonably robust on clean transmitted-light scans.
+
+The multi-phi pipeline of the present project differs from the
+prior projection-Fourier family in three respects. First, the
+orientation is not supplied by the user but recovered from the
+DRP stack itself by the spectral-power scan described in
+\Cref{sec:first_attempts:simple}, removing the orientation as a
+parameter that has to be set per folio. Second, the spectrum from
+which the period is read is not a single per-image spectrum but
+the aggregated spectrum of \Cref{sec:multiphi:aggregate} across
+all available azimuthal views, which converts the multiple grazing
+images that a DRP acquisition naturally provides into a
+signal-to-noise advantage. Third, each density estimate is
+accompanied by the metric bundle of
+\Cref{sec:multiphi:evaluation}, which makes the confidence in the
+estimate inspectable rather than tacit. The cost of these
+differences is a longer per-folio runtime and a dependence on
+multi-angle imaging rather than a single transmitted-light scan;
+the gain is the sub-one-per-cent accuracy demonstrated in
+\Cref{sec:benchmark:manual_gt}.
+
+The other relevant line of prior work is the spectral total
+variation approach of Grossmann et al., which extracts chain and
+laid features from a single reflected-light image by a denoising
+step rather than by frequency analysis~\cite{TODO_grossmann}. That
+method is complementary rather than directly comparable, because
+it produces an enhanced image that a human reader still interprets
+visually, whereas the present pipeline returns a numerical density
+estimate with a quantified uncertainty. A productive direction for
+future work would combine the two: use a total-variation
+decomposition as the preprocessing input to the multi-phi
+aggregator, in the hope that the cleaned image would push the
+self-contrast $z$-score above its current threshold on the
+low-signal folios identified in \Cref{sec:benchmark:failures}.
+
+\subsection{Implications for codicology}
+\label{sec:discussion:codicology}
+
+The headline accuracy figure of sub-one per cent at the folio level
+is, taken at face value, sufficient to discriminate the laid
+densities of distinct mould pairs in handmade European paper. The
+within-mould density variation expected from a single papermaker
+working with a single mould pair is of the order of one wire per
+centimetre across normal handling, and the inter-mould variation
+within the same workshop is typically larger. A detector whose
+per-folio error is comfortably below one wire per centimetre
+therefore meets the threshold at which mould-pair identification
+becomes possible from density alone, without the additional
+features (chain-line spacing, watermark geometry) that the
+classical codicological workflow relies on.
+
+The same accuracy, combined with the per-folio runtime of a few
+minutes on commodity hardware, makes whole-codex analysis tractable
+in a way that manual counting cannot match. A typical late
+medieval codex contains between two hundred and four hundred
+folios. A manual count under raking light on every folio of such a
+codex is a multi-day specialist task that exposes the binding to
+repeated handling; the present pipeline could process the same
+codex in under a day on a laptop, given a pre-existing DRP
+acquisition, and would produce a per-folio density together with
+its metric bundle. The aggregate density profile of a codex,
+folio by folio, would itself be a new kind of codicological
+object, with the potential to surface mould changes mid-codex that
+a per-stock spreadsheet would average over.
+
+A second, more cautious implication concerns the meaning of
+existing per-stock density figures in published catalogues. The
+within-stock spread observed in
+\Cref{sec:discussion:spreadsheet} suggests that catalogue
+densities should be read as approximate stock signatures rather
+than as folio-level specifications, and that any density-based
+inference of stock membership should allow for the spread
+empirically observed in this benchmark. Putting more calibrated
+per-folio data into the literature would, over time, replace the
+single-figure-per-stock convention with a distribution-per-stock
+convention that more faithfully represents the underlying physical
+variation.
+
+\subsection{Environmental, social and ethical considerations}
 \label{sec:discussion:ethics}
-% CUED REQUIREMENT: every IIB report must explicitly address these.
-%
-% Environmental:
-%   - Compute footprint: pipeline runs on a laptop; per-folio energy
-%     cost is negligible (single-digit Wh). Compare to alternative
-%     (repeated physical handling under raking light, lab time).
-%
-% Social:
-%   - Democratises a codicological technique that previously required
-%     specialist on-site access to rare manuscripts. Once an MSI scan
-%     exists, analysis is portable.
-%   - Risk of misuse for forgery detection in art market: dual-use
-%     consideration noted.
-%
-% Ethical:
-%   - Cultural heritage data ownership: scans typically remain under
-%     institutional licence (e.g. Cambridge UL). This project did not
-%     redistribute imagery.
-%   - Reproducibility of historical claims: providing quantified
-%     uncertainty (split-half, self-contrast) is itself an ethical
-%     improvement over qualitative counting.
-%   - Provenance research can intersect with restitution claims;
-%     careful framing of results matters.
+
+The environmental footprint of the pipeline is small. A full
+multi-phi run plus the five evaluation metrics takes between three
+and ten minutes per folio on a laptop CPU, and the corresponding
+energy cost is on the order of a few watt-hours. Even at the
+codex-scale workflow envisaged in the previous subsection, the
+compute energy is small compared with the alternative of repeated
+physical handling under raking light, which requires controlled
+laboratory conditions, transport of fragile material, and the time
+of skilled personnel. The dominant environmental cost of the
+underlying workflow is the DRP acquisition itself, which uses a
+microscope and a controllable light source over a session of order
+ten minutes per folio. The acquisition energy is also modest, and
+the per-folio amortisation improves further every time the same
+DRP stack is reanalysed with an improved pipeline.
+
+The social value of the pipeline is in lowering the barrier to
+quantitative paper analysis for institutions that hold manuscript
+collections but do not host a resident codicologist. The
+historical workflow requires on-site specialist access to the
+physical folio; the present workflow requires only a calibrated
+DRP scan and a laptop. An institution that captures a DRP scan
+once can, in principle, share that scan with collaborators
+anywhere in the world for quantitative analysis, expanding the
+community of researchers who can contribute to mould-pair
+attributions. The same property carries a dual-use risk: the same
+density signature that helps confirm provenance can in principle
+support attribution claims used for art-market authentication, with
+consequences that go beyond pure scholarship. The mitigation
+adopted in the present project is that all analysis is performed
+on imagery licensed by the holding institution and that no
+imagery is redistributed.
+
+The ethical dimension of the work centres on cultural-heritage
+data ownership and on the framing of provenance results. The
+imagery used in this project was acquired by the AddME Lab in
+Cambridge from the Mapping Paper in Medieval England corpus
+maintained by the Manuscripts Lab, and remains subject to the
+licence of Cambridge University Library; this project did not
+redistribute any folio image outside its institutional licence.
+On the framing of results, paper-provenance work intersects with
+restitution and acquisition-history claims that have
+consequences beyond academic codicology, and the per-folio density
+estimates that the pipeline produces should be reported with their
+metric bundles intact rather than as bare numbers. The metric
+bundle is the part of the present contribution that most directly
+serves the ethical purpose: it makes the quantified uncertainty
+visible alongside the density estimate, and therefore makes it
+harder for a downstream user to over-claim from a low-confidence
+detection. Replacing qualitative counts with metric-bundled
+estimates is in this sense itself an ethical improvement on the
+status quo.

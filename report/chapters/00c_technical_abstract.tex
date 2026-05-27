@@ -11,39 +11,94 @@ Author: Zhanfeng Zhou\\
 College: TODO\\
 Supervisor: TODO\\[1em]
 
-% --- Body of the abstract (write last, target ~2 pages) ------------------
-% Paragraph 1: problem context. Handmade paper carries a mould fingerprint;
-% laid-line density and chain-line spacing are forensic identifiers used
-% by codicologists; current practice is manual; MSI/DRP image stacks now
-% exist at scale but no robust automated pipeline turns them into the
-% required quantitative data.
-%
-% Paragraph 2: approach. A five-stage DRP-based pipeline that estimates
-% laid-line orientation automatically from the per-pixel directional
-% reflectance, then refines that estimate patchwise, then runs a
-% spectral-power detector against the enhanced grayscale image, and
-% finally reports a small bundle of evaluation metrics (R^2 of harmonic
-% fit, self-contrast z-score, split-half stability, wire FWHM
-% distribution).
-%
-% Paragraph 3: phantom validation. A synthetic line generator with
-% controllable period, SNR, orientation and wire-width gives the
-% benchmark for detector accuracy under known ground truth; period
-% recovery within plus/minus 2.5\% across 10--50 px; essentially
-% SNR-invariant down to SNR = 2.
-%
-% Paragraph 4: real-folio results. Pipeline applied to a benchmark of
-% nine folios drawn from four manuscript stocks in the Cambridge UL
-% collection, with two folios additionally counted by hand to provide
-% calibrated ground truth. Sub-1\% density error on the two calibrated
-% folios; the remaining seven show a systematic deviation from the
-% library spreadsheet records that is attributed to stock-versus-folio
-% mismatch rather than to detector failure.
-%
-% Paragraph 5: conclusions. The pipeline reaches an accuracy that is in
-% principle sufficient to discriminate mould pairs. Failure modes are
-% characterised (octave aliasing at high density; polarity-flip for
-% transmitted-light samples). Future work covers automatic polarity
-% detection, joint chain-line analysis, and mould-mate matching.
+Handmade European paper carries, embedded in its structure, a
+fingerprint of the mould on which it was formed. The closely
+spaced laid wires and the more widely spaced chain wires of the
+mould produce a small but reproducible periodic thickness
+modulation on the dried sheet, with a density and a wire diameter
+that vary from one mould pair to another and can therefore be
+used by codicologists to date, localise and group otherwise
+undated manuscripts. The standard workflow for measuring these
+features is manual counting under raking light, which is slow,
+observer-dependent, and exposes fragile material to repeated
+handling. Multispectral image (MSI) archives and directional
+reflectance microscopy (DRM) acquisitions now exist at scale at
+major holding institutions including Cambridge University
+Library, but no robust automated pipeline turns these into the
+quantitative mould-fingerprint data that codicology actually
+requires.
+
+This project closes that gap with a single detection pipeline
+that supports two distinct kinds of input. The multi-phi DRP
+variant is the original target and operates on the full
+directional reflectance stack produced by the AddME Lab DRM
+instrument in the Department of Engineering: it aggregates
+normalised power spectra across all available azimuthal views,
+recovers a single dominant period from the aggregated spectrum,
+fits the per-view phase with a polarity-aware correction, and
+combines the per-view phases into a weighted circular mean with a
+half-period auto-correction step. The single-image MSI variant is
+the extension that lets the same pipeline run on the legacy
+single-frame archives held by libraries: it applies a radial
+fast-Fourier transform followed by a single Gabor cleanup pass to
+the same effect. The two variants share a common preprocessing
+and evaluation framework: background subtraction, automatic
+line-direction detection by spectral-power scan, a polarity flag
+and a configurable period search band; together with an
+evaluation bundle that reports for every folio the harmonic-fit
+$R^2$, the empirical interval distribution, a self-contrast
+$z$-score against rotated null directions, the per-segment wire
+full-width-at-half-maximum, and for multi-phi input additionally
+a split-half period stability across random partitions of the
+azimuthal views.
+
+Detector accuracy is first characterised on a synthetic phantom
+that places periodic Gaussian wire shadows at a controlled
+period, orientation, wire width and additive noise level. Period
+recovery is within $\pm 2.5\,\%$ across the full range of
+laid densities encountered in practice (10 to 50 pixels per
+period), essentially invariant to noise down to a signal-to-noise
+ratio of two, and accompanied by a single failure point at the
+top of the period search band that is identified later as the
+sub-harmonic alias mode. Orientation recovery is within one
+degree across the full range of laid-line angles, and wire-width
+recovery is within ten per cent for wire sigmas between two and
+five pixels.
+
+The pipeline is then applied to two real-folio benchmarks. The
+first is a set of nine MSI folios drawn from four manuscript
+stocks in the Cambridge University Library collection,
+catalogued by the Manuscripts Lab in the Faculty of English under
+the Mapping Paper in Medieval England project. The catalogue
+spreadsheet records one density per stock; the pipeline
+disagrees with the spreadsheet by between ten and seventy per
+cent on seven of those folios. On the two further folios for
+which an independent per-folio manual count was carried out, the
+pipeline agrees with the manual count to within one per cent.
+The seven larger errors are therefore attributed to within-stock
+mould-pair variation that the catalogue spreadsheet does not
+resolve, rather than to detector failure. The second benchmark
+is a group of four DRP datasets at higher magnification:
+dataset 10 is a sheet of paper hand-made by Professor Da Rold
+using a reproduction of a fifteenth-century European mould, and
+the pipeline reports 8.31 lines per centimetre on it with a
+strong metric bundle (self-contrast $z = +4.05$); the remaining
+three datasets are zoomed-in real folios that illustrate the
+crop and period-range recipes that recover trustworthy density
+estimates from low-signal acquisitions.
+
+The headline accuracy figure of sub-one per cent on calibrated
+folios is sufficient, in principle, to discriminate the laid
+densities of distinct mould pairs without recourse to the
+chain-line spacing or watermark geometry that the classical
+codicological workflow relies on. The metric bundle accompanying
+every density estimate makes the confidence in the estimate
+inspectable rather than tacit, so that low-signal folios can be
+flagged automatically rather than silently mis-reported.
+Identified directions for further work include automatic
+detection of the sub-harmonic alias mode, automatic detection of
+the polarity flag, joint chain-line analysis to expose a richer
+mould fingerprint, and confidence-aware aggregation across the
+folios of a complete codex.
 
 \newpage

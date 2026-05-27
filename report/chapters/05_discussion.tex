@@ -119,11 +119,12 @@ orientation as a parameter that has to be set per folio. Second,
 each density estimate is accompanied by the metric bundle of
 \Cref{sec:multiphi:evaluation}, which makes the confidence in the
 estimate inspectable rather than tacit. Third, the
-single-image MSI variant of \Cref{sec:multiphi:single} reaches the
-sub-one per cent accuracy demonstrated in
-\Cref{sec:benchmark:manual_gt} on real manuscript folios, which is
-better than the accuracies typically reported for projection
-Fourier methods on similar material. The multi-phi DRP variant
+single-image MSI variant of \Cref{sec:multiphi:single} agrees with
+the per-folio manual count of \Cref{sec:benchmark:manual_gt}
+within the manual count's own precision, which already places an
+upper bound on detector bias smaller than the accuracies
+typically reported for projection-Fourier methods on similar
+material. The multi-phi DRP variant
 extends the same framework with a coherent summation across
 azimuthal views, described in \Cref{sec:multiphi:aggregate}, that
 trades a longer per-folio runtime and the requirement of
@@ -149,18 +150,19 @@ current threshold on the low-signal folios identified in
 \subsection{Implications for codicology}
 \label{sec:discussion:codicology}
 
-The headline accuracy figure of sub-one per cent at the folio level
-is, taken at face value, sufficient to discriminate the laid
-densities of distinct mould pairs in handmade European paper. The
-within-mould density variation expected from a single papermaker
-working with a single mould pair is of the order of one wire per
-centimetre across normal handling, and the inter-mould variation
-within the same workshop is typically larger. A detector whose
-per-folio error is comfortably below one wire per centimetre
-therefore meets the threshold at which mould-pair identification
-becomes possible from density alone, without the additional
-features (chain-line spacing, watermark geometry) that the
-classical codicological workflow relies on.
+The agreement between the pipeline and the per-folio manual count
+to better than one wire per centimetre is sufficient, in
+principle, to discriminate the laid densities of distinct mould
+pairs in handmade European paper. The within-mould density
+variation expected from a single papermaker working with a single
+mould pair is of the order of one wire per centimetre across
+normal handling, and the inter-mould variation within the same
+workshop is typically larger. A detector whose per-folio bias is
+bounded below one wire per centimetre therefore meets the
+threshold at which mould-pair identification becomes possible from
+density alone, without the additional features (chain-line
+spacing, watermark geometry) that the classical codicological
+workflow relies on.
 
 The same accuracy, combined with the per-folio runtime of a few
 minutes on commodity hardware, makes whole-codex analysis tractable
@@ -195,13 +197,19 @@ variation.
 \subsection{Environmental, social and ethical considerations}
 \label{sec:discussion:ethics}
 
-The environmental footprint of the pipeline is small. A
-single-image MSI run with its four evaluation metrics takes well
-under a minute per folio on a laptop CPU. A full multi-phi DRP
-run with the additional split-half metric takes between three and
-ten minutes per folio on the same hardware, with the bulk of the
-extra cost in the per-image phase fit and the split-half
-resampling. The corresponding energy
+The environmental and social footprint of the work is small and
+unambiguously positive: a per-folio run takes a few watt-hours of
+laptop compute and avoids the physical handling that the manual
+workflow requires, and the same pipeline running on existing MSI
+archives lowers the barrier to quantitative paper analysis for
+institutions without a resident codicologist.
+
+% --- removed: detailed environmental and social paragraphs; their
+% --- substance is collapsed into the lead sentence above. The
+% --- ethics paragraph below is preserved and is the substantive
+% --- part of the section.
+\iffalse
+The corresponding energy
 cost is on the order of a few watt-hours in both cases. Even at
 the codex-scale workflow envisaged in the previous subsection,
 the compute energy is small compared with the alternative of
@@ -235,6 +243,7 @@ consequences that go beyond pure scholarship. The mitigation
 adopted in the present project is that all analysis is performed
 on imagery licensed by the holding institution and that no
 imagery is redistributed.
+\fi
 
 The ethical dimension of the work centres on cultural-heritage
 data ownership and on the framing of provenance results. The

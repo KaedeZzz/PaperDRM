@@ -6,23 +6,28 @@
 % target; single-image MSI variant is the extension that lets the
 % pipeline also handle single-frame archive scans.
 
-The detection step is the part of the pipeline at which the present
-project supports two distinct kinds of input. The original target of
-the project is a DRP acquisition, in which the same folio is
-photographed under many lighting directions and the detector can
-combine all of them into a single more confident estimate. The
-extension is a single multispectral (MSI) image of the folio, of
-the kind held in the existing archives of many institutions, in
-which only one frame is available and the detector must work with
-no azimuthal redundancy. The two variants share a common
-preprocessing and evaluation framework, described in
-\Cref{sec:multiphi:common}, and differ only at the period-fitting
-step itself. The multi-phi DRP variant is described in
-\Cref{sec:multiphi:multi} and the single-image MSI variant in
-\Cref{sec:multiphi:single}. Both variants feed the shared
-evaluation bundle of \Cref{sec:multiphi:evaluation}, with one
-metric -- split-half stability -- only well defined for the
-multi-image case.
+The pipeline as it actually runs in the rest of the report is a
+single detector with two variants on a shared framework. This is
+distinct from the two failed approaches of
+\Cref{sec:first_attempts}, which were both abandoned. The two
+variants here are the final design and differ from one another
+only in the kind of input they accept: the multi-phi DRP variant
+takes a full directional reflectance stack acquired under many
+lighting directions, and the single-image MSI variant takes a
+single greyscale image of the kind held in existing institutional
+archives. The two variants share preprocessing
+(\Cref{sec:multiphi:common}) and the evaluation metric bundle
+(\Cref{sec:multiphi:evaluation}), and differ only at the
+period-fitting step itself: the single-image variant is described
+in \Cref{sec:multiphi:single} and the multi-phi variant in
+\Cref{sec:multiphi:multi}. The multi-phi variant is the original
+target of the project, where the multiple azimuthal views can be
+combined coherently into a more confident estimate; the
+single-image variant is the extension that lets the same
+framework run on legacy single-frame archives. Of the five
+evaluation metrics, four apply to both variants; the fifth,
+split-half period stability, is only well defined when more than
+one image is available.
 
 \subsection{Common preprocessing and line-direction detection}
 \label{sec:multiphi:common}
@@ -48,14 +53,11 @@ direction at which the one-dimensional projection of the rotated
 image has the strongest peak in the plausible period band is
 chosen.
 
-The second is a polarity flag, called \texttt{wire\_is\_darker}
-in the implementation, that records whether the laid wires appear
-dark (the usual case for reflective grazing images) or bright (the
-usual case for transmitted-light images, where the wires sit over
-locally thinner paper and admit more light). The flag affects the
-sign of the broadband signal that is fed to the phase fit and
-ensures that the recovered grid lands on the wire positions rather
-than on the inter-wire positions.
+The second is a polarity flag that records whether the laid wires
+appear dark (reflective grazing images) or bright (transmitted-light
+images, where the wires sit over locally thinner paper). The flag
+controls the sign of the broadband signal so that the fitted grid
+lands on the wire positions rather than between them.
 
 The third is the period search band, supplied as a configurable
 range in physical units (centimetres) and converted to pixels using

@@ -38,43 +38,32 @@ pixels at a fixed period of 24 pixels. The headline number for each
 sweep is the mean absolute error of the recovered quantity
 expressed as a percentage of the true value, averaged over the five
 random seeds.
-\begin{figure}[t]
+\begin{figure}[!htbp]
   \centering
   \begin{subfigure}{0.49\linewidth}
     \includegraphics[width=\linewidth]{phantom_period_sweep}
-    \caption{Period sweep. The single failure point at 60 px is
-      sub-harmonic alias.}
+    \caption{Period sweep.}
     \label{fig:phantom_period}
   \end{subfigure}
   \hfill
   \begin{subfigure}{0.49\linewidth}
     \includegraphics[width=\linewidth]{phantom_snr_sweep}
-    \caption{SNR sweep. Period error flat at $+1.6\,\%$ across
-      the range; wire-width bias is SNR-independent.}
+    \caption{SNR sweep.}
     \label{fig:phantom_snr}
   \end{subfigure}
   \\[0.4em]
   \begin{subfigure}{0.49\linewidth}
     \includegraphics[width=\linewidth]{phantom_angle_sweep}
-    \caption{Orientation sweep. Recovered angle within one degree
-      at every true angle except $+90^{\circ}$.}
+    \caption{Orientation sweep.}
     \label{fig:phantom_angle}
   \end{subfigure}
   \hfill
   \begin{subfigure}{0.49\linewidth}
     \includegraphics[width=\linewidth]{phantom_sigma_sweep}
-    \caption{Wire-width sweep. Recovery within ten per cent for
-      true sigma between two and five pixels.}
+    \caption{Wire-width sweep.}
     \label{fig:phantom_sigma}
   \end{subfigure}
-  \caption{Synthetic phantom characterisation across four
-    orthogonal sweeps. Each point is the mean of five random
-    seeds at that parameter setting. Together the four sweeps
-    establish that period is recovered to within $\pm 2.5\,\%$
-    across the practical range, the recovery is essentially
-    SNR-invariant, the orientation is recovered to within one
-    degree, and the wire width is recovered to within ten per cent
-    in the relevant sigma band.}
+  \caption{Synthetic phantom characterisation; mean of five seeds per point.}
   \label{fig:phantom_sweeps}
 \end{figure}
 
@@ -178,7 +167,7 @@ $95\,\%$ confidence interval of $[0.35, 0.40]$ mm. The
 self-consistency contrast is low at $z = 0.72$, which is the one
 soft point in the metric bundle for this folio and is discussed
 below.
-\begin{figure}[t]
+\begin{figure}[!htbp]
   \centering
   \begin{subfigure}{0.48\linewidth}
     \includegraphics[width=\linewidth]{f5v_overlay}
@@ -200,15 +189,10 @@ below.
   \hfill
   \begin{subfigure}{0.48\linewidth}
     \includegraphics[width=\linewidth]{f5v_split}
-    \caption{Split-half check: returns a trivial zero variance on
-      single-image input, consistent with the deterministic
-      single-frame pipeline.}
+    \caption{Split-half (trivial on single-image input).}
     \label{fig:f5v_split}
   \end{subfigure}
-  \caption{Four-panel detection summary for the reference folio
-    Kk.1.5 f5v. The detector reports 8.97 lines per centimetre
-    against a manual count of 9.0 (absolute error $-0.35\,\%$) and
-    a per-segment wire FWHM of 0.39 mm at the median.}
+  \caption{Detection summary, Kk.1.5 f5v.}
   \label{fig:perfolio_f5v}
 \end{figure}
 
@@ -271,58 +255,28 @@ identify the stock of a previously unstudied folio. Eight of the
 nine folios in the benchmark have a spreadsheet density recorded
 for their stock, and the comparison between the pipeline output
 and the spreadsheet value is summarised in \Cref{fig:vs_spreadsheet}.
-\begin{figure}[t]
+\begin{figure}[!htbp]
   \centering
   \includegraphics[width=0.7\linewidth]{spreadsheet_scatter}
-  \caption{Pipeline density against ground-truth density on the
-    nine-folio benchmark. Circles use the stock-level spreadsheet
-    density as the reference; triangles use the per-folio manual
-    count available for two folios. The seven circles all sit
-    below the $y = x$ line by between ten and seventy per cent,
-    while the two triangles agree with $y = x$ to within one per
-    cent.}
+  \caption{Pipeline density vs ground truth on the nine-folio benchmark.}
   \label{fig:vs_spreadsheet}
 \end{figure}
 
-Read at face value, the result is bad. The pipeline reports a
-density lower than the spreadsheet on every one of the eight folios
-for which a spreadsheet value exists, with absolute errors ranging
-from $-10\,\%$ on Hh.2.12 f190 to $-71\,\%$ on Ff.4.15 f24r. The
-systematic under-count would be alarming if it were a real
-detector bias, because a detector that under-counted laid density
-across the board would be useless as a forensic identifier.
+The pipeline reports a density lower than the spreadsheet on
+every one of the eight folios for which a spreadsheet value
+exists, with absolute errors from $-10\,\%$ on Hh.2.12 f190 to
+$-71\,\%$ on Ff.4.15 f24r. Read at face value this would suggest a
+systematic detector bias.
 
-Two facts rescue the result from this reading. The first is the
-observation already made at the end of \Cref{sec:benchmark:perfolio}:
-on the two folios for which an additional manual count was made by
-the Manuscripts Lab researchers, the pipeline agrees with the manual
-count to better than one per cent. The manual counts on those two
-folios disagree with the spreadsheet value for their stock by exactly
-the same amount that the pipeline does, which is impossible to
-explain as a detector failure since the manual count and the
-pipeline arrive at the same number through entirely different
-procedures.
-
-The second is the structure of the spreadsheet itself. The
-spreadsheet records one density per stock, not one per folio, and
-the recorded value comes from whichever folio the original
-researcher happened to inspect. A manuscript stock in this corpus
-is a batch of paper that shares one papermaker and one approximate
-period, but it does not necessarily share a single pair of moulds.
-Within a stock, different folios can come from different moulds and
-therefore can have measurably different laid densities. The
-Kk.1.5 stock 235a/b records a spreadsheet density of 12 lines per
-centimetre, but the two folios of that stock in the present
-benchmark, f5v and f9v, are both 9 lines per centimetre by hand
-count. The spreadsheet is not wrong; it records a real density on
-a different folio of the same stock.
-
-The implication for the rest of the spreadsheet comparison is that
-the seven non-calibrated errors should be read as the magnitude of
-the within-stock variation in this corpus, not as the magnitude of
-the pipeline error. The next subsection makes this explicit by
-comparing the pipeline against an additional manual ground truth on
-two folios.
+That reading is ruled out by the calibrated pair of
+\Cref{sec:benchmark:manual_gt}: on Kk.1.5 f5v and f9v the manual
+count and the pipeline arrive, through entirely different
+procedures, at densities that agree with each other and disagree
+with the spreadsheet by the same amount. A detector with a
+systematic bias could not produce that pattern. The implication
+is that the spreadsheet itself is the source of the disagreement,
+and the codicological interpretation of why that should be the
+case is taken up in \Cref{sec:discussion:spreadsheet}.
 
 \subsection{Calibrated validation against a manual ground truth}
 \label{sec:benchmark:manual_gt}
@@ -337,15 +291,28 @@ case, and the rounded density on both folios was nine lines per
 centimetre. This number is the per-folio ground truth used in the
 remainder of the section.
 
+The manual count itself has finite precision: a one-centimetre
+window over a density of nine lines per centimetre carries an
+intrinsic counting uncertainty of $\pm 1$ wire, or about
+$\pm 11\,\%$ in fractional terms. This sets a floor on what the
+manual reference can resolve, and the pipeline error figures that
+follow should be read as agreeing with the manual count within
+the manual count's own precision rather than as an absolute
+measurement of pipeline accuracy.
+
 The pipeline reports a density of 8.97 lines per centimetre on
 Kk.1.5 f5v and 9.04 lines per centimetre on Kk.1.5 f9v. The
-absolute errors against the manual count are $-0.35\,\%$ and
-$+0.48\,\%$ respectively. These are the smallest density errors
-reported for any laid-line detection pipeline known to the author
-on real, ink-bearing manuscript paper, and they are smaller by an
-order of magnitude than the errors reported against the
-spreadsheet ground truth in \Cref{sec:benchmark:spreadsheet} for
-the other seven folios.
+absolute differences against the rounded manual count are
+$-0.35\,\%$ and $+0.48\,\%$ respectively -- well within the
+$\pm 11\,\%$ resolution of the manual reference, and at least an
+order of magnitude smaller than the differences reported against
+the spreadsheet ground truth in \Cref{sec:benchmark:spreadsheet}
+for the other seven folios. What this comparison shows is that the
+pipeline does not introduce any bias larger than the manual count
+can detect; what it does not show is that the pipeline is
+accurate to sub-one per cent in any absolute sense, since a
+discrepancy at that level would be invisible to the manual
+reference.
 
 The two manual-GT folios anchor the interpretation of the rest of
 the benchmark. They establish that the pipeline itself, given a
@@ -362,15 +329,10 @@ pair. Under this reading the seven errors of
 \Cref{sec:benchmark:spreadsheet} are not pipeline noise but
 genuine, codicologically meaningful within-stock variation that the
 pipeline is detecting correctly.
-\begin{figure}[t]
+\begin{figure}[!htbp]
   \centering
   \includegraphics[width=0.7\linewidth]{manual_gt_bars}
-  \caption{Pipeline density against the manual count on the two
-    calibrated folios. Each pair of bars is annotated with the
-    pipeline error as a percentage of the manual count. Both
-    errors are below one per cent in absolute value, which is at
-    least an order of magnitude smaller than the spreadsheet-level
-    errors of \Cref{fig:vs_spreadsheet}.}
+  \caption{Pipeline vs manual count on the two calibrated folios.}
   \label{fig:manual_gt}
 \end{figure}
 
@@ -426,7 +388,7 @@ scale. The density and the wire diameter that the pipeline
 reports for dataset 10 are the most defensible per-folio numbers
 in this report and are the appropriate primary reference against
 which the rest of the benchmark should be read.
-\begin{figure}[t]
+\begin{figure}[!htbp]
   \centering
   \begin{subfigure}{0.48\linewidth}
     \includegraphics[width=\linewidth]{darold_overlay}
@@ -451,12 +413,7 @@ which the rest of the benchmark should be read.
     \caption{Self-contrast against null directions.}
     \label{fig:darold_selfc}
   \end{subfigure}
-  \caption{Four-panel detection summary for dataset 10, a sheet of
-    paper made by hand by Professor Da Rold using a reproduction
-    of a fifteenth-century European mould. The pipeline reports
-    8.31 lines per centimetre with self-contrast $z = +4.05$,
-    harmonic-fit $R^2 = 0.35$, and per-segment wire FWHM
-    $0.38$ mm at the median.}
+  \caption{Detection summary, dataset 10 (Da Rold reproduction).}
   \label{fig:darold_panel}
 \end{figure}
 
@@ -550,17 +507,10 @@ true peak. The corresponding mitigation, used for datasets 2b and
 4 in \Cref{sec:benchmark:zoomed}, is to narrow the period search
 band so that the offending harmonic is excluded from the band
 before the peak is read.
-\begin{figure}[t]
+\begin{figure}[!htbp]
   \centering
   \includegraphics[width=0.7\linewidth]{ff4_15_overlay}
-  \caption{Sub-harmonic alias failure on the folio Ff.4.15 f24r.
-    The detector's grid is drawn at the recovered period of
-    approximately 42 px, which corresponds to 3.92 lines per
-    centimetre at the acquisition scale. The underlying laid-line
-    pattern is visibly much denser than the overlaid grid,
-    consistent with the spreadsheet value of 13.5 lines per
-    centimetre and the per-folio metric bundle that flagged this
-    detection as low-confidence.}
+  \caption{Sub-harmonic alias failure on Ff.4.15 f24r; grid at 42 px vs true ${\approx}12$ px.}
   \label{fig:fail_octave}
 \end{figure}
 

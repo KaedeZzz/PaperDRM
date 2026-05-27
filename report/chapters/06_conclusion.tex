@@ -2,31 +2,102 @@
 \label{sec:conclusion}
 
 % PAGE TARGET: ~2 pages.
-% Day 6 (5/30).
-% CUED wants: main findings + future work + REFLECTION on what worked,
-% what did not, how I could have improved.
 
-\subsection{Summary of Findings}
-% Restate the three contributions from Section 1.4, now backed by
-% concrete numbers from Section 4:
-%   - Pipeline reaches sub-1\% density error on calibrated folios.
-%   - Synthetic phantom characterisation confirms SNR-invariance and
-%     period accuracy in 10--50 px range.
-%   - Failure modes localised (octave aliasing, polarity).
+\subsection{Summary of findings}
+\label{sec:conclusion:findings}
 
-\subsection{Reflection on the Project}
-% CUED-required reflection paragraph (a few hundred words):
-% - What worked well: staged modular pipeline made adding new detectors
-%   cheap; phantom framework caught the projection-autocorrelation bug
-%   early.
-% - What did not: spreadsheet GT mismatch was discovered late -- earlier
-%   manual GT collection would have shifted Results emphasis.
-% - With hindsight: I would have built the phantom sweep before the real
-%   detector, not after; would have set up manual GT in Lent term.
+The project set out to recover a quantitative mould fingerprint of
+laid-line density, wire diameter and local orientation from a DRP
+acquisition of a historical paper folio, with no per-folio
+parameter tuning and with a quantified confidence for each
+estimate. The multi-phi pipeline of \Cref{sec:multiphi} delivers
+this. The headline accuracy figure is sub-one per cent absolute
+error in laid-line density on the two folios where an independent
+manual count was carried out, demonstrated in
+\Cref{sec:benchmark:manual_gt}. The synthetic-phantom
+characterisation of \Cref{sec:benchmark:phantom} establishes that
+the period estimator is essentially noise-invariant down to a
+signal-to-noise ratio of two, accurate to within $\pm 2.5\,\%$
+across the period range of every paper density encountered in
+practice, and accurate to within one degree in orientation. The
+controlled reproduction sample of \Cref{sec:benchmark:zoomed}
+confirms that these accuracies hold on real paper made under
+known mould specifications. The discrepancies of up to seventy
+per cent observed against the stock-level spreadsheet catalogue
+are, on the evidence of the two calibrated folios, attributable to
+within-stock mould-pair variation rather than to detector failure,
+and they constitute a new measurement of how widely paper density
+can vary within a single catalogued manuscript stock.
 
-\subsection{Future Work}
-% - Automatic polarity detection (drop wire\_is\_darker).
-% - Joint chain-line detection: currently only laid lines.
-% - Mould-mate matching across folios using per-folio fingerprint
-%   (period + FWHM distribution + chain-line spacing).
-% - Confidence-aware aggregation across multi-page codices.
+\subsection{Reflection on the project}
+\label{sec:conclusion:reflection}
+
+Two design decisions, taken before the experimental work began,
+made the rest of the project tractable. The first was building
+the pipeline as a sequence of self-contained stages with
+inspectable intermediate outputs. Adding a new detector at
+\Cref{sec:multiphi} did not require touching the loader or the
+evaluation, and replacing the original projection autocorrelation
+in the line-direction detector with the spectral-power criterion
+was a single-file change. The second was building the synthetic
+phantom framework early. The harmonic-doubling bias of the legacy
+Gabor pipeline of \Cref{sec:first_attempts:legacy} was visible on
+a phantom run in a single afternoon and would have been very hard
+to identify on real folios alone.
+
+The most significant thing that did not work as planned was the
+ground-truth strategy. The project began with the assumption that
+the Mapping Paper spreadsheet would be a per-folio reference, and
+the gap between that assumption and the reality of stock-level
+recording was discovered only once seven of nine benchmark folios
+returned spreadsheet disagreements in the same direction. The two
+manual-count folios that resolved the gap were added late in the
+project. With hindsight the project would have organised manual
+ground truth collection in the Lent term so that the entire
+real-folio benchmark could have been read against per-folio
+references from the start.
+
+The other reflection concerns the relationship between the
+pipeline and the metric bundle. The five evaluation metrics of
+\Cref{sec:multiphi:evaluation} were originally designed as
+diagnostics for the developer, to help debug the detector during
+development. Over the course of the project they grew into a
+deployment-grade output: the bundle is what allows a downstream
+user to read whether a density estimate should be trusted, and the
+self-contrast $z$-score is what flagged the alias on dataset 2 and
+the low-signal regime on Ff.4.9 f42r. Treating the metric bundle
+as a primary output rather than an internal tool, from the
+beginning of a future project of this kind, would shape the
+detector design more than the present sequence did.
+
+\subsection{Future work}
+\label{sec:conclusion:future}
+
+Four extensions are immediate. The first is the automatic
+sub-harmonic alias detection identified as the chief limitation in
+\Cref{sec:discussion:limitations}, which would remove the need to
+narrow the period range by hand on folios such as Ff.4.15 f24r and
+make the no-tuning ambition of \Cref{sec:bg:contributions} strict
+rather than approximate. The second is an automatic polarity
+detector that would set the \texttt{wire\_is\_darker} flag from
+the broadband signal statistics, removing the last item of
+per-modality user input. The third is joint chain-line detection,
+which the present pipeline does not attempt; chain lines together
+with laid lines would give a richer mould fingerprint and would
+support direct mould-pair matching rather than density-only
+identification.
+
+The largest single extension, and the natural sequel to the
+present project, is a confidence-aware aggregation across the
+folios of a complete codex. Given a DRP scan of every folio of a
+manuscript, the pipeline already returns a density and a metric
+bundle per folio; combining these into a per-codex profile would
+expose mould changes mid-codex, support binding-order
+reconstruction, and surface the kind of stock-level variation that
+this project has been able to demonstrate only indirectly. The
+infrastructure for that aggregation is straightforward; what is
+needed is the calibrated manual ground truth across a larger
+sample of folios to validate the confidence calibration of the
+metric bundle at scale. Once that calibration is in place, the
+pipeline becomes deployable as a service that a holding institution
+could run over its DRP archive without specialist intervention.

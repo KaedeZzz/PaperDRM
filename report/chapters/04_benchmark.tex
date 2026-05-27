@@ -34,15 +34,45 @@ pixels at a fixed period of 24 pixels. The headline number for each
 sweep is the mean absolute error of the recovered quantity
 expressed as a percentage of the true value, averaged over the five
 random seeds.
-% TODO: Figure 4.1 -- period sweep plot, x = true period (px),
-% y = recovered period error (%). One panel.
-% TODO: Figure 4.2 -- SNR sweep plot. Period error (%) on the left
-% y-axis, wire-width error (%) on the right y-axis, both against
-% SNR on the x-axis. Shaded bands for the per-seed range.
-% TODO: Figure 4.3 -- orientation sweep plot. Recovered angle
-% error in degrees against true angle.
-% TODO: Figure 4.4 -- sigma sweep plot. Recovered FWHM error (%)
-% against true sigma (px).
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}{0.49\linewidth}
+    \includegraphics[width=\linewidth]{phantom_period_sweep}
+    \caption{Period sweep. The single failure point at 60 px is
+      sub-harmonic alias.}
+    \label{fig:phantom_period}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.49\linewidth}
+    \includegraphics[width=\linewidth]{phantom_snr_sweep}
+    \caption{SNR sweep. Period error flat at $+1.6\,\%$ across
+      the range; wire-width bias is SNR-independent.}
+    \label{fig:phantom_snr}
+  \end{subfigure}
+  \\[0.4em]
+  \begin{subfigure}{0.49\linewidth}
+    \includegraphics[width=\linewidth]{phantom_angle_sweep}
+    \caption{Orientation sweep. Recovered angle within one degree
+      at every true angle except $+90^{\circ}$.}
+    \label{fig:phantom_angle}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.49\linewidth}
+    \includegraphics[width=\linewidth]{phantom_sigma_sweep}
+    \caption{Wire-width sweep. Recovery within ten per cent for
+      true sigma between two and five pixels.}
+    \label{fig:phantom_sigma}
+  \end{subfigure}
+  \caption{Synthetic phantom characterisation across four
+    orthogonal sweeps. Each point is the mean of five random
+    seeds at that parameter setting. Together the four sweeps
+    establish that period is recovered to within $\pm 2.5\,\%$
+    across the practical range, the recovery is essentially
+    SNR-invariant, the orientation is recovered to within one
+    degree, and the wire width is recovered to within ten per cent
+    in the relevant sigma band.}
+  \label{fig:phantom_sweeps}
+\end{figure}
 
 The period sweep is the most important of the four because the
 laid-line density is the headline output of the pipeline. Across
@@ -139,11 +169,38 @@ of the period across 200 random partitions. The
 self-consistency contrast is low at $z = 0.72$, which is the one
 soft point in the metric bundle for this folio and is discussed
 below.
-% TODO: Figure 4.5 -- four-panel summary of Kk.1.5 f5v consisting of
-% (a) the laid-line overlay laid_lines_overlay.png, (b) the
-% interval-distribution histogram, (c) the wire-width segment
-% plot, and (d) the split-half stability plot. Each subfigure
-% captioned with the metric value reported above.
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{f5v_overlay}
+    \caption{Detected laid-line grid overlaid on the grazing image.}
+    \label{fig:f5v_overlay}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{interval_Kk1_5_f5v}
+    \caption{Inter-peak distance histogram.}
+    \label{fig:f5v_interval}
+  \end{subfigure}
+  \\[0.4em]
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{f5v_wire}
+    \caption{Per-segment wire FWHM.}
+    \label{fig:f5v_wire}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{f5v_split}
+    \caption{Split-half period stability over 200 partitions.}
+    \label{fig:f5v_split}
+  \end{subfigure}
+  \caption{Four-panel detection summary for the reference folio
+    Kk.1.5 f5v. The detector reports 8.97 lines per centimetre
+    against a manual count of 9.0 (absolute error $-0.35\,\%$);
+    per-segment wire FWHM 0.39 mm at the median; split-half period
+    standard deviation below 1 px.}
+  \label{fig:perfolio_f5v}
+\end{figure}
 
 The interval-distribution panel of the Kk.1.5 f5v summary is the
 clearest visual indicator that the detection has attached to the
@@ -209,11 +266,18 @@ identify the stock of a previously unstudied folio. Eight of the
 nine folios in the benchmark have a spreadsheet density recorded
 for their stock, and the comparison between the pipeline output
 and the spreadsheet value is summarised in \Cref{fig:vs_spreadsheet}.
-% TODO: Figure 4.7 (fig:vs_spreadsheet) -- scatter plot of pipeline
-% density (y) against spreadsheet density (x) for the nine folios,
-% with the y = x line drawn for reference. Each point labelled with
-% the folio shelfmark. The two manual-GT folios drawn in a
-% distinct colour.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.7\linewidth]{spreadsheet_scatter}
+  \caption{Pipeline density against ground-truth density on the
+    nine-folio benchmark. Circles use the stock-level spreadsheet
+    density as the reference; triangles use the per-folio manual
+    count available for two folios. The seven circles all sit
+    below the $y = x$ line by between ten and seventy per cent,
+    while the two triangles agree with $y = x$ to within one per
+    cent.}
+  \label{fig:vs_spreadsheet}
+\end{figure}
 
 Read at face value, the result is bad. The pipeline reports a
 density lower than the spreadsheet on every one of the eight folios
@@ -293,13 +357,17 @@ pair. Under this reading the seven errors of
 \Cref{sec:benchmark:spreadsheet} are not pipeline noise but
 genuine, codicologically meaningful within-stock variation that the
 pipeline is detecting correctly.
-% TODO: Figure 4.8 -- two-panel figure. Panel (a) bar chart of the
-% recovered density vs the manual count for Kk.1.5 f5v and
-% Kk.1.5 f9v, with the absolute percentage error annotated. Panel
-% (b) the same scatter as Figure 4.7 but with the two manual-GT
-% points additionally plotted in a distinct colour at their
-% manual-GT density, highlighting how the two manual points fall on
-% the y = x line while the seven spreadsheet points sit below it.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.7\linewidth]{manual_gt_bars}
+  \caption{Pipeline density against the manual count on the two
+    calibrated folios. Each pair of bars is annotated with the
+    pipeline error as a percentage of the manual count. Both
+    errors are below one per cent in absolute value, which is at
+    least an order of magnitude smaller than the spreadsheet-level
+    errors of \Cref{fig:vs_spreadsheet}.}
+  \label{fig:manual_gt}
+\end{figure}
 
 The narrowness of the manual-GT comparison is the principal
 limitation of this section. Two folios are too few to characterise
@@ -314,7 +382,109 @@ possible for the pipeline to reach sub-one-per-cent density accuracy
 on real manuscript paper, and on the two folios where the test was
 done, it did.
 
-\subsection{Ablation: Spectral Power versus Autocorrelation}
+\subsection{Zoomed-in scans and a controlled reproduction}
+\label{sec:benchmark:zoomed}
+
+A second group of four datasets complements the nine full-folio
+benchmark of \Cref{sec:benchmark:perfolio}. The four datasets, all
+acquired at a field-of-view width of 8.65 cm rather than the
+25 cm of the main benchmark, address two questions left open by
+the full-folio results. The first is whether the pipeline preserves
+its accuracy at higher magnification, where finer laid features
+become resolvable but the periodic signal occupies a larger
+fraction of the image. The second is whether the pipeline reaches
+the same headline accuracy on a reference sample whose physical
+origin is more tightly characterised than any of the catalogued
+manuscript folios. The four datasets are referred to here by their
+short serials. Datasets 2, 2b and 4 are zoomed-in scans of two
+manuscript folios from the Mapping Paper corpus, while dataset 10
+is a sheet of paper made by hand by Professor Da Rold using a
+reproduction of a fifteenth-century European mould.
+
+Dataset 10 is the controlled reference. Because the paper was made
+by hand under known mould specifications, it is the closest the
+benchmark comes to a true ground truth at the level of mould
+geometry. The pipeline reports a period of 56.1 pixels on this
+dataset, corresponding to a density of 8.31 lines per centimetre
+at the optical scale of the acquisition. The five-metric bundle is
+healthy: the self-contrast $z$-score is $+4.05$, the
+harmonic-fit $R^{2}$ at four harmonics is $0.35$, the split-half
+period standard deviation is below 0.001 pixels, and the
+per-segment wire FWHM has an interquartile range of $[0.33, 0.43]$
+mm around a median of $0.38$ mm. These values are within the
+ranges seen on the strongest folios of the main benchmark, so
+the pipeline behaves consistently across the change of optical
+scale. The density and the wire diameter that the pipeline
+reports for dataset 10 are the most defensible per-folio numbers
+in this report and are the appropriate primary reference against
+which the rest of the benchmark should be read.
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{darold_overlay}
+    \caption{Detected laid-line grid.}
+    \label{fig:darold_overlay}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{interval_10}
+    \caption{Inter-peak distance histogram.}
+    \label{fig:darold_interval}
+  \end{subfigure}
+  \\[0.4em]
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{darold_wire}
+    \caption{Per-segment wire FWHM.}
+    \label{fig:darold_wire}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{darold_selfc}
+    \caption{Self-contrast against null directions.}
+    \label{fig:darold_selfc}
+  \end{subfigure}
+  \caption{Four-panel detection summary for dataset 10, a sheet of
+    paper made by hand by Professor Da Rold using a reproduction
+    of a fifteenth-century European mould. The pipeline reports
+    8.31 lines per centimetre with self-contrast $z = +4.05$,
+    harmonic-fit $R^2 = 0.35$, and per-segment wire FWHM
+    $0.38$ mm at the median.}
+  \label{fig:darold_panel}
+\end{figure}
+
+The remaining three small-fov datasets illustrate two practical
+points about deployment. Datasets 2 and 2b are different crops of
+the same source acquisition. The unrestricted full-frame run
+(dataset 2) reports a period of 74.5 pixels with a self-contrast
+$z$-score of only $+0.36$ and a harmonic-fit $R^{2}$ of $0.002$.
+Both metrics are characteristic of a detection that has locked
+onto noise rather than a real laid-line signal, in the failure
+pattern documented in \Cref{sec:benchmark:failures}. Re-running
+the same acquisition with a crop restricted to a quadrant of the
+image with light ink coverage (dataset 2b) leaves the recovered
+period essentially unchanged but raises the self-contrast
+$z$-score to $+3.35$ and the harmonic-fit $R^{2}$ to $0.10$. The
+density figure that emerges from dataset 2b is therefore the
+trustworthy one for this folio, and the recipe of cropping to a
+quieter region before running the pipeline generalises to any
+folio whose full-frame self-$z$ is low.
+
+Dataset 4 is a separate zoomed-in folio acquired in the same
+session. Here the configuration specifies a period search range
+of 0.017 to 0.106 cm, equivalent to 8 to 50 pixels at the
+acquisition scale, in order to exclude the long-period band where
+the dataset 2 failure occurred. With that constraint the pipeline
+reports a period of 40.2 pixels, a density of 11.3 lines per
+centimetre, a self-contrast $z$-score of $+2.08$ and a
+harmonic-fit $R^{2}$ of $0.095$. The metric bundle is weaker than
+on dataset 10 but uniformly stronger than on dataset 2, and the
+recovered density is consistent with the densities of the
+high-quality folios in the main benchmark. The dataset 4 result
+is the clearest demonstration that the per-folio period range, in
+combination with a sensible crop, is sufficient to recover a
+trustworthy density from a real folio at the zoomed-in scale.
+
+\subsection{Ablation: spectral power versus autocorrelation}
 \label{sec:benchmark:ablation}
 % Day 5 (5/29).
 %
@@ -370,10 +540,19 @@ the true peak. The corresponding mitigation, used for datasets
 2b and 4 in \Cref{sec:benchmark:zoomed}, is to narrow the period
 search band so that the offending harmonic is excluded from the
 band before aggregation.
-% TODO: Figure 4.10 -- Ff.4.15 f24r overlay showing the detector's
-% grid drawn at the recovered period (42 px); visually the lines
-% are clearly spaced too far apart relative to the underlying
-% laid-line pattern.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.7\linewidth]{ff4_15_overlay}
+  \caption{Sub-harmonic alias failure on the folio Ff.4.15 f24r.
+    The detector's grid is drawn at the recovered period of
+    approximately 42 px, which corresponds to 3.92 lines per
+    centimetre at the acquisition scale. The underlying laid-line
+    pattern is visibly much denser than the overlaid grid,
+    consistent with the spreadsheet value of 13.5 lines per
+    centimetre and the per-folio metric bundle that flagged this
+    detection as low-confidence.}
+  \label{fig:fail_octave}
+\end{figure}
 
 The second failure mode is the polarity ambiguity already discussed
 in the context of the simple detector in

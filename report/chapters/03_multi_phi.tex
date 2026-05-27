@@ -1,19 +1,122 @@
-\section{Multi-Phi Spectral Aggregation}
+\section{Detection}
 \label{sec:multiphi}
 
-% PAGE TARGET: ~7 pages.
-% Andrew-style "revised technique" chapter. The default pipeline used
-% for all results in Section 4.
+% PAGE TARGET: ~9 pages.
+% Two-variant detection chapter. Multi-phi DRP variant is the project
+% target; single-image MSI variant is the extension that lets the
+% pipeline also handle single-frame archive scans.
 
-The multi-phi detector is the pipeline used to produce every result
-in \Cref{sec:benchmark}. It is built on a single observation about
-the structure of a DRP stack at fixed elevation: as the source
+The detection step is the part of the pipeline at which the present
+project supports two distinct kinds of input. The original target of
+the project is a DRP acquisition, in which the same folio is
+photographed under many lighting directions and the detector can
+combine all of them into a single more confident estimate. The
+extension is a single multispectral (MSI) image of the folio, of
+the kind held in the existing archives of many institutions, in
+which only one frame is available and the detector must work with
+no azimuthal redundancy. The two variants share a common
+preprocessing and evaluation framework, described in
+\Cref{sec:multiphi:common}, and differ only at the period-fitting
+step itself. The multi-phi DRP variant is described in
+\Cref{sec:multiphi:multi} and the single-image MSI variant in
+\Cref{sec:multiphi:single}. Both variants feed the shared
+evaluation bundle of \Cref{sec:multiphi:evaluation}, with one
+metric -- split-half stability -- only well defined for the
+multi-image case.
+
+\subsection{Common preprocessing and line-direction detection}
+\label{sec:multiphi:common}
+
+Both variants take, as input, one or more greyscale images that
+have already been background-subtracted as described in
+\Cref{sec:theory:drp}. From the moment the image enters the
+detector, three further preprocessing steps are common to both
+variants.
+
+The first is rotation of the image so that the laid lines run
+vertically in the rotated frame, which simplifies the
+one-dimensional power spectrum calculation that follows. The
+line direction supplied to the rotation is either set by the user
+or estimated automatically by the spectral-power scan described
+in \Cref{sec:first_attempts:simple}. In the automatic case the
+search is centred on the direction perpendicular to the long side
+of the cropped folio, with a half-range of twenty degrees, and the
+direction at which the one-dimensional projection of the rotated
+image has the strongest peak in the plausible period band is
+chosen.
+
+The second is a polarity flag, called \texttt{wire\_is\_darker}
+in the implementation, that records whether the laid wires appear
+dark (the usual case for reflective grazing images) or bright (the
+usual case for transmitted-light images, where the wires sit over
+locally thinner paper and admit more light). The flag affects the
+sign of the broadband signal that is fed to the phase fit and
+ensures that the recovered grid lands on the wire positions rather
+than on the inter-wire positions.
+
+The third is the period search band, supplied as a configurable
+range in physical units (centimetres) and converted to pixels using
+the per-folio field-of-view width. Restricting the search to a
+plausible range, typically eight to eighty pixels at the
+acquisition scale of this report, rejects spurious peaks from
+slow page curvature at the low-frequency end and from photographic
+noise at the high-frequency end. Configurations that report a
+narrower per-folio range, such as eight to fifty pixels for some
+of the zoomed-in datasets in \Cref{sec:benchmark:zoomed}, also
+help reject the sub-harmonic aliasing failure mode discussed in
+\Cref{sec:benchmark:failures}.
+
+\subsection{Single-image MSI variant}
+\label{sec:multiphi:single}
+
+The single-image variant takes a single greyscale image as input
+and estimates the laid-line period from a one-dimensional power
+spectrum, as the simple track of \Cref{sec:first_attempts:simple}
+does. The variant has been retained here as a first-class branch
+of the pipeline rather than as an early attempt, because the
+existing MSI archives of major institutions consist of one image
+per folio rather than multi-angle stacks, and the project would
+not be of immediate practical use without it.
+
+The procedure is short. The rotated image is mean-subtracted, a
+two-dimensional fast Fourier transform is taken, and the
+two-dimensional power spectrum is summed along the vertical axis
+to give a one-dimensional radial profile on the horizontal
+frequency axis. The largest peak of the profile inside the period
+search band gives the laid-line period directly. A single Gabor
+filter at the locked period, with the absolute-response option
+disabled to avoid the harmonic-doubling bias of the legacy
+detector in \Cref{sec:first_attempts:legacy}, is then applied to
+the rotated image to produce a clean one-dimensional signal on
+which the phase is fitted. The grid positions follow from the
+fitted phase and the locked period, and the wire-width is
+estimated from the harmonic amplitudes of the broadband signal in
+the same way as for the multi-phi variant.
+
+The single-image variant has no analogue of the polarity
+correction or the half-period auto-correction described below in
+\Cref{sec:multiphi:phase,sec:multiphi:final}, because both
+mechanisms rely on having more than one azimuthal view of the same
+folio. The polarity ambiguity is therefore resolved instead by the
+user-supplied \texttt{wire\_is\_darker} flag, which has to be set
+correctly per modality (reflective vs transmitted-light) but does
+not need to be tuned per folio. On all the MSI folios used in
+\Cref{sec:benchmark:perfolio} the flag is set to \texttt{false}
+because the imaging is transmitted-light TX940IR.
+
+\subsection{Multi-phi DRP variant}
+\label{sec:multiphi:multi}
+
+The multi-phi variant is the detector for which the project was
+originally designed and from which the bulk of the algorithmic
+contribution comes. It is built on a single observation about the
+structure of a DRP stack at fixed elevation: as the source
 azimuth $\phi$ rotates around the folio, the laid lines remain in
 the same position, but the rest of the image -- paper texture,
 fibre clumps, ink edges -- changes with $\phi$. A frequency
 estimator that sums over several azimuthal views therefore
 accumulates the laid-line signal while averaging the
-$\phi$-random noise down. Analyzing mathematically, averaging $N$
+$\phi$-random noise down. Quantitatively, averaging $N$
 independent measurements of a constant signal improves the
 signal-to-noise ratio by a factor of $\sqrt{N}$, where $N$ is the
 number of azimuthal samples in the DRP stack, typically of order
@@ -22,7 +125,7 @@ ten to twenty.
 % values illustrating that the laid lines are visible in the same
 % place in all four, while the surrounding texture changes.
 
-\subsection{Collecting one grazing image per phi}
+\subsubsection{Collecting one grazing image per phi}
 \label{sec:multiphi:collect}
 
 For each azimuth $\phi$ in the DRP stack, the image at the steepest
@@ -35,7 +138,7 @@ identical pixel registration with the underlying folio. These images
 go through the same background subtraction pipeline to enhance contrast
 and relevant features.
 
-\subsection{Aggregating power spectra across azimuth}
+\subsubsection{Aggregating power spectra across azimuth}
 \label{sec:multiphi:aggregate}
 
 Each of the $N$ images is rotated so that the laid lines lie
@@ -72,7 +175,7 @@ subsection fits the phase.
 % folio, showing that the per-image peak is washed out by noise but
 % the aggregated peak is sharp.
 
-\subsection{Per-image phase fit and polarity correction}
+\subsubsection{Per-image phase fit and polarity correction}
 \label{sec:multiphi:phase}
 
 Knowing the period is not enough to place the grid. The phase of the
@@ -112,7 +215,7 @@ signal was so weak that the polarity-flip detection itself failed.
 % weight. The "before" panel shows phases scattered around two
 % antipodal directions; the "after" panel shows them clustered.
 
-\subsection{Weighted mean phase and half-period auto-correction}
+\subsubsection{Weighted mean phase and half-period auto-correction}
 \label{sec:multiphi:final}
 
 The aligned per-image phases are then combined into a single mean
@@ -209,15 +312,19 @@ for a random direction, which is the signature of a folio that does
 not contain any usable laid-line signal at all.
 
 The split-half stability asks whether the detection depends on any
-one image. The $N$ grazing images are partitioned at random into
-two disjoint halves; the detector is run on each half independently,
-and the standard deviation of the recovered period over many such
-partitions is reported. A small standard deviation, of the order of
-one per cent of the locked period, indicates that the same period
-would have been recovered from a quite different subset of the data.
-A large standard deviation indicates that the detection rests on
-one or two azimuthal views and would have changed substantially had
-those views been absent.
+one image. The $N$ grazing images of a DRP acquisition are
+partitioned at random into two disjoint halves; the detector is
+run on each half independently, and the standard deviation of the
+recovered period over many such partitions is reported. A small
+standard deviation, of the order of one per cent of the locked
+period, indicates that the same period would have been recovered
+from a quite different subset of the data. A large standard
+deviation indicates that the detection rests on one or two
+azimuthal views and would have changed substantially had those
+views been absent. The metric is only defined for the multi-phi
+DRP variant of \Cref{sec:multiphi:multi}, since the single-image
+variant has only one image to work with; on a single-image folio
+the metric bundle therefore has four members rather than five.
 
 The per-segment wire-width distribution asks whether the laid wires
 behave consistently across the page. The folio is divided into a

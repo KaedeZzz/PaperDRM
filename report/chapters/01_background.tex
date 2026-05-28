@@ -21,9 +21,10 @@ bed of fine laid wires, of the order of eight to fifteen per
 centimetre, runs perpendicular to the chain wires. As the wet pulp
 settles, it deposits more material in the spaces between wires than
 directly over the wires themselves, so that the dried sheet ends up
-with a periodic thickness pattern that mirrors the wire layout. Held
-up to a strong light, this pattern appears as a series of pale and
-dark lines that is visible to human eyes.
+with a periodic thickness pattern that mirrors the wire
+layout~\cite{enomae2010laidlines}. Held up to a strong light, this
+pattern appears as a series of pale and dark lines that is visible
+to human eyes.
 % TODO: insert Figure here -- photograph of a mould (cf. Andrew Fig 1),
 % or a labelled close-up of a folio showing laid and chain lines
 % (cf. Andrew Fig 2).
@@ -69,7 +70,9 @@ Ng~\cite{hiary2007paper}, applied projection-based Fourier methods to
 thresholded transmitted-light scans, extracting the laid-line density
 from the dominant peak in a one-dimensional power spectrum of the
 column sum. Subsequent variants substituted Gabor filter banks,
-autocorrelation, or wavelet decompositions. These methods are simple to implement and reasonably
+autocorrelation, or wavelet decompositions, of which the AD751
+software of Atanasiu~\cite{atanasiu_ad751} is a widely used
+implementation. These methods are simple to implement and reasonably
 robust to global illumination, but they share three common weaknesses:
 the line orientation must be supplied externally or estimated as a
 separate pre-processing step, the spectrum is computed over the whole
@@ -91,6 +94,22 @@ Lubbe~\cite{vanderlubbe2001rembrandt}, which combines morphological filters
 with vertical projections, give cleaner signals but require expensive
 imaging that is out of reach for most institutions.
 
+More recent work has approached the problem from two further
+directions. Dedicated transmitted-light imaging hardware such as
+the Watermark Imaging System of Sethares et
+al.~\cite{sethares2023wimsy} produces aligned surface, raking-light
+and transmitted-light captures that make laid and chain features
+easier to read, and deep-learning segmentation models such as
+ChainLineNet~\cite{sindel2021chainlinenet} can localise chain lines
+in transmitted-light scans with very little hand annotation.
+Closest in spirit to the present project is the moldmate-
+identification system of Gorske et al.~\cite{gorske2021moldmate},
+which combines watermark geometry, chain-line spacing and laid-line
+density into a single quantitative match score; the present
+pipeline addresses only the laid-line component of that
+combination, but as an automated detector with a per-folio
+confidence figure.
+
 The transmitted-light and radiographic modalities used by these prior
 methods share a more fundamental limitation: they collapse the
 three-dimensional micro-relief of the folio surface onto a single
@@ -111,8 +130,15 @@ instrument fixes a camera above a sample stage and steps a
 controllable light source through a regular grid of elevation and
 azimuth angles, capturing one image per direction. The original
 purpose of the DRM was to characterise the surface texture of
-crystalline metallic samples~\cite{wittwer2021drm}, and its first
-application to handmade paper is recent.
+crystalline metallic samples~\cite{gaskey2020opticalchar,
+wittwer2021drm}, and its first application to handmade paper is
+recent. Conceptually the DRM sits in the broader family of
+reflectance transformation imaging (RTI) techniques introduced by
+Malzbender et al.~\cite{malzbender2001ptm}, which record the
+per-pixel reflectance as a function of illumination direction
+rather than as a single flat-lit value; the DRM differs from a
+typical RTI capture in the density of the angular sampling lattice
+and in the microscope-scale optical resolution.
 % TODO: insert Figure -- DRM hardware schematic or photograph
 % (cf. Andrew Fig 3, who simply uses an iPad sketch).
 
@@ -159,11 +185,11 @@ spanning four manuscript stocks were selected for the present
 benchmark. The shelfmarks used in the report follow the Cambridge
 University Library convention and are listed alongside the
 spreadsheet ground-truth density and the per-folio metric bundle
-in \Cref{sec:benchmark:msi:perfolio}. Two of the nine folios
-(Kk.1.5 f5v and Kk.1.5 f9v) were additionally counted by hand
-on the original folio, providing a higher-confidence calibrated
-ground truth that is used in \Cref{sec:benchmark:msi:manual_gt} to
-estimate the systematic accuracy of the pipeline.
+in \Cref{sec:benchmark:msi:perfolio}. Every folio in the benchmark
+was additionally counted by hand using a custom annotation tool,
+giving a per-folio manual ground truth that is set against both
+the pipeline output and the catalogue spreadsheet in
+\Cref{sec:benchmark:msi:manual_gt}.
 
 \subsection{Pipeline Overview}
 \label{sec:bg:contributions}

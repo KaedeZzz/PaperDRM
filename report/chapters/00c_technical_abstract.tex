@@ -68,16 +68,21 @@ five pixels.
 The pipeline is then applied to two real-folio benchmarks. The
 first is a set of nine MSI folios drawn from four manuscript
 stocks in the Cambridge University Library collection,
-catalogued by the Manuscripts Lab in the Faculty of English under
-the Mapping Paper in Medieval England project. The catalogue
-spreadsheet records one density per stock; the pipeline
-disagrees with the spreadsheet by between ten and seventy per
-cent on seven of those folios. On the two further folios for
-which an independent per-folio manual count was carried out, the
-pipeline agrees with the manual count to within one per cent.
-The seven larger errors are therefore attributed to within-stock
-mould-pair variation that the catalogue spreadsheet does not
-resolve, rather than to detector failure. The second benchmark
+catalogued by the Manuscripts Lab in the Faculty of English
+under the Mapping Paper in Medieval England project. Every folio
+of the benchmark was annotated independently by hand using a
+custom annotation tool, giving a per-folio manual count to set
+against the pipeline output and against the existing catalogue
+spreadsheet. Three observations follow from the comparison.
+The catalogue spreadsheet and the new per-folio manual count,
+both careful hand-counts, disagree with each other by a median
+of roughly twelve per cent, which sets the realistic
+inter-counter variability of hand-counting on this material. The
+pipeline agrees with the per-folio manual count to within ten per
+cent on eight of the nine folios -- closer than the spreadsheet
+manages on six of the same nine folios. The ninth folio,
+Ff.4.15 f24r, is a sub-harmonic alias failure flagged
+unambiguously by the metric bundle. The second benchmark
 is a group of four DRP datasets at higher magnification:
 dataset 10 is a sheet of paper hand-made by Professor Da Rold
 using a reproduction of a fifteenth-century European mould, and
@@ -87,13 +92,14 @@ three datasets are zoomed-in real folios that illustrate the
 crop and period-range recipes that recover trustworthy density
 estimates from low-signal acquisitions.
 
-The agreement between the pipeline and the manual count on the
-two calibrated folios is well within the manual count's own
-precision of about $\pm 1$ wire per centimetre, which is the
-threshold at which mould-pair identification by density alone
-becomes possible without recourse to the chain-line spacing or
-watermark geometry that the classical codicological workflow
-relies on. The metric bundle accompanying
+The pipeline reproduces a per-folio manual count to roughly half
+the variability between two independent hand-counts of the same
+folio. That places its accuracy within the inter-counter spread
+that codicology already accepts for density-based mould-pair
+identification, with the additional properties that a manual
+count cannot provide: a deterministic numerical output, a
+per-folio confidence bundle, and a per-folio runtime of minutes
+on commodity hardware. The metric bundle accompanying
 every density estimate makes the confidence in the estimate
 inspectable rather than tacit, so that low-signal folios can be
 flagged automatically rather than silently mis-reported.

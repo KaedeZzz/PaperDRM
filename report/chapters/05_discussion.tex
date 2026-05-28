@@ -10,40 +10,50 @@
 \label{sec:discussion:spreadsheet}
 
 The most striking pattern in the real-folio benchmark of
-\Cref{sec:benchmark} is the gap between the agreement on the two
-manually counted folios, where the pipeline matches the per-folio
-manual count to better than one per cent, and the disagreement on
-the other seven folios, where the pipeline disagrees with the
-stock-level spreadsheet density by between ten and seventy per
-cent. The natural first reading is that the spreadsheet is the
-authoritative reference and the pipeline is wrong by varying
-amounts on seven folios. The strong agreement on the calibrated
-pair rules this reading out, because it would be implausible for
-the pipeline to be wrong by tens of per cent on seven folios while
-being right to within one per cent on a different two with no
-parameter change in between.
+\Cref{sec:benchmark} is the gap between the pipeline and the
+catalogue spreadsheet on seven of the nine MSI folios, with
+errors ranging from ten to seventy per cent. The natural first
+reading is that the spreadsheet is the authoritative reference
+and the pipeline is wrong by varying amounts; that reading is
+ruled out by the per-folio manual count of
+\Cref{sec:benchmark:manual_gt}, which agrees with the pipeline
+more closely than it agrees with the spreadsheet on six of the
+nine folios.
 
-The alternative reading, supported by the structure of the corpus
-itself, is that the spreadsheet records a stock-level density that
-need not match the density of any specific folio drawn from the
-stock. A manuscript stock in the Mapping Paper corpus is a batch of
-paper that shares one papermaker and one approximate production
-period, but it does not in general share a single pair of moulds.
-The catalogue spreadsheet was assembled by counting one folio per
-stock under raking light. The resulting density is a representative
-value, not a per-folio specification, and any folio of the same
-stock that came from a different mould pair will have a measurably
-different density.
+The interpretation that makes the comparison coherent, and the
+one that the meeting with Prof Da Rold settled, is that the
+spreadsheet figure is itself a careful hand-count and therefore
+carries the same intrinsic difficulty as any other hand-count on
+this material. The two independent hand-counts of the present
+benchmark -- the catalogue spreadsheet compiled by the
+Manuscripts Lab and the per-folio re-count made for this report --
+differ from each other by a median of roughly twelve per cent
+across the nine folios, with individual disagreements as large as
+thirty per cent. That spread is the inter-counter variability of
+laid-line counting on real manuscript paper, and the pipeline
+output sits inside it rather than outside it.
 
-The implication for the field is concrete. A codicologist who
-wants to verify the stock of a previously unstudied folio against
-the spreadsheet should expect a within-stock spread of the same
-order as the present benchmark's seven discrepancies. The pipeline
-is not introducing this spread; it is detecting it. A density
-match within a few per cent against the spreadsheet stock value is
-therefore weaker evidence than has historically been treated as a
-match, and a per-folio comparison of the present kind is a more
-faithful basis for stock or mould-pair identification.
+A secondary point follows from the same observation. The
+catalogue spreadsheet records one density per manuscript stock,
+measured on one folio of the stock; a stock is a batch of paper
+with one papermaker and one approximate production period, but
+not in general one pair of moulds. Some of the inter-counter
+disagreement above will therefore reflect real within-stock
+density variation between folios cut from different sheets of the
+same batch, rather than measurement noise alone. Distinguishing
+the two contributions would require manual counts on additional
+folios of the same stock, which is identified in
+\Cref{sec:conclusion:future} as the most valuable extension of
+the present project.
+
+The practical implication is that a density match within a few
+per cent against a catalogue spreadsheet entry should be treated
+as approximate agreement rather than as a confirmed match, and
+that a per-folio comparison of the kind enabled by the present
+pipeline -- which produces a deterministic, reproducible number
+on every folio in a few minutes -- is a more faithful basis for
+stock or mould-pair identification than reliance on a single
+catalogue figure.
 
 \subsection{Limitations}
 \label{sec:discussion:limitations}
@@ -119,12 +129,13 @@ orientation as a parameter that has to be set per folio. Second,
 each density estimate is accompanied by the metric bundle of
 \Cref{sec:multiphi:evaluation}, which makes the confidence in the
 estimate inspectable rather than tacit. Third, the
-single-image MSI variant of \Cref{sec:multiphi:single} agrees with
-the per-folio manual count of \Cref{sec:benchmark:manual_gt}
-within the manual count's own precision, which already places an
-upper bound on detector bias smaller than the accuracies
-typically reported for projection-Fourier methods on similar
-material. The multi-phi DRP variant
+single-image MSI variant of \Cref{sec:multiphi:single} reproduces
+the per-folio manual count of \Cref{sec:benchmark:manual_gt} more
+closely than the catalogue spreadsheet does on six of nine folios,
+which places the detector inside the inter-counter variability
+of careful hand-counting on this material -- a stronger
+agreement than the accuracies typically reported for
+projection-Fourier methods on similar imagery. The multi-phi DRP variant
 extends the same framework with a coherent summation across
 azimuthal views, described in \Cref{sec:multiphi:aggregate}, that
 trades a longer per-folio runtime and the requirement of
@@ -150,19 +161,20 @@ current threshold on the low-signal folios identified in
 \subsection{Implications for codicology}
 \label{sec:discussion:codicology}
 
-The agreement between the pipeline and the per-folio manual count
-to better than one wire per centimetre is sufficient, in
-principle, to discriminate the laid densities of distinct mould
+The pipeline's per-folio agreement with a careful manual count,
+to within roughly half the inter-counter variability of two
+independent hand-counts on the same paper, is sufficient in
+principle to discriminate the laid densities of distinct mould
 pairs in handmade European paper. The within-mould density
 variation expected from a single papermaker working with a single
 mould pair is of the order of one wire per centimetre across
 normal handling, and the inter-mould variation within the same
-workshop is typically larger. A detector whose per-folio bias is
-bounded below one wire per centimetre therefore meets the
-threshold at which mould-pair identification becomes possible from
-density alone, without the additional features (chain-line
-spacing, watermark geometry) that the classical codicological
-workflow relies on.
+workshop is typically larger. A detector whose per-folio error
+sits inside the inter-counter spread of expert hand-counting
+therefore meets the threshold at which mould-pair identification
+becomes possible from density alone, without the additional
+features (chain-line spacing, watermark geometry) that the
+classical codicological workflow relies on.
 
 The same accuracy, combined with the per-folio runtime of a few
 minutes on commodity hardware, makes whole-codex analysis tractable

@@ -236,6 +236,46 @@ def spreadsheet_scatter() -> None:
     _save(fig, "spreadsheet_scatter.pdf")
 
 
+def three_way_comparison() -> None:
+    """Pipeline vs spreadsheet vs per-folio manual GT on the 9-folio MSI benchmark."""
+    import glob
+    # Load per-folio manual GTs
+    manuals = {}
+    for p in sorted(glob.glob(str(RESULTS / "*" / "manual_gt.json"))):
+        d = json.load(open(p))
+        manuals[d["serial"]] = d["lpc_median"]
+    # Load pipeline + spreadsheet
+    with open(RESULTS / "pipeline_vs_spreadsheet.json") as f:
+        data = json.load(f)
+
+    serials, ss, pipe, man = [], [], [], []
+    for r in data:
+        s = r["serial"]
+        if s not in manuals:
+            continue
+        serials.append(s)
+        ss.append(r["gt_lines_per_cm"])
+        pipe.append(r["lines_per_cm_mean"])
+        man.append(manuals[s])
+
+    n = len(serials)
+    x = np.arange(n)
+    w = 0.27
+    fig, ax = plt.subplots(figsize=(7.2, 3.6))
+    ax.bar(x - w, man, w, color=BLACK, label="manual count")
+    ax.bar(x,     pipe, w, color=ACCENT, label="pipeline")
+    ax.bar(x + w, ss,   w, color=GREY, label="spreadsheet")
+    ax.set_xticks(x)
+    ax.set_xticklabels([s.replace("_", " ") for s in serials],
+                       rotation=30, ha="right", fontsize=7)
+    ax.set_ylabel("Density (lines/cm)")
+    ax.set_title("Three-way comparison on the nine-folio MSI benchmark")
+    ax.legend(loc="upper right", ncol=3)
+    ax.grid(True, axis="y", alpha=0.3, linewidth=0.4)
+    ax.set_axisbelow(True)
+    _save(fig, "three_way_comparison.pdf")
+
+
 def manual_gt_bars() -> None:
     """Figure 4.8 panel A: bar chart pipeline vs manual GT for two calibrated folios."""
     with open(RESULTS / "pipeline_vs_spreadsheet.json") as f:
@@ -274,6 +314,7 @@ def main() -> None:
     interval_histogram("10", name="Dataset 10 (Da Rold reproduction)")
     spreadsheet_scatter()
     manual_gt_bars()
+    three_way_comparison()
 
 
 if __name__ == "__main__":

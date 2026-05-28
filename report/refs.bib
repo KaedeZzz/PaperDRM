@@ -1,16 +1,8 @@
 % IIB project report bibliography.
-% Add entries as you cite. Use biber. Use @article / @inproceedings / @book.
 
-@article{hiary2007paper,
-  author  = {Hiary, Hazem and Ng, Kia},
-  title   = {A System for Segmenting and Extracting Paper-based Watermark Designs},
-  journal = {International Journal on Digital Libraries},
-  year    = {2007},
-  volume  = {6},
-  number  = {4},
-  pages   = {351--361}
-}
-
+% ---------------------------------------------------------------------------
+% Codicology / paper history
+% ---------------------------------------------------------------------------
 @book{darold2020paper,
   author    = {Da Rold, Orietta},
   title     = {Paper in Medieval England: From Pulp to Fictions},
@@ -24,9 +16,81 @@
   doi       = {10.1017/9781108886536}
 }
 
-% TODO add:
-% - van der Lubbe et al. on watermark / laid-line image processing
-% - Bicchieri et al. on paper analysis with MSI
-% - Original RTI / DRP papers (Malzbender et al., 2001)
-% - Cambridge UL MINIARE project descriptions
-% - Any laid-line spectral analysis references
+@misc{mappingpaper,
+  title        = {Mapping Medieval Paper in England},
+  author       = {{The Manuscripts Lab}},
+  organization = {Faculty of English, University of Cambridge},
+  year         = {2015},
+  howpublished = {\url{https://www.english.cam.ac.uk/manuscriptslab/mapping-medieval-paper-in-england/}},
+  note         = {Project led by Orietta Da Rold; corpus of 5841 manuscripts, 736 on paper.}
+}
+
+% ---------------------------------------------------------------------------
+% Watermark / chain-line / laid-line analysis -- prior work
+% ---------------------------------------------------------------------------
+@article{hiary2007paper,
+  author  = {Hiary, Hazem and Ng, Kia},
+  title   = {A System for Segmenting and Extracting Paper-based Watermark Designs},
+  journal = {International Journal on Digital Libraries},
+  year    = {2007},
+  volume  = {6},
+  number  = {4},
+  pages   = {351--361}
+}
+
+@article{grossmann2023chain,
+  author  = {Grossmann, Tamara G. and Sch{\"o}nlieb, Carola-Bibiane and Da Rold, Orietta},
+  title   = {Extracting chain lines and laid lines from digital images of medieval paper using spectral total variation decomposition},
+  journal = {Heritage Science},
+  year    = {2023},
+  volume  = {11},
+  number  = {1},
+  pages   = {180},
+  doi     = {10.1186/s40494-023-01013-3}
+}
+
+@inproceedings{vanderlubbe2001rembrandt,
+  author    = {Van der Lubbe, Jan C. A. and Van Someren, Eduard P. and Reinders, Marcel J. T.},
+  title     = {Dating and authentication of {Rembrandt}'s etchings with the help of computational intelligence},
+  booktitle = {Proceedings of the International Cultural Heritage Informatics Meeting},
+  year      = {2001},
+  pages     = {485--492}
+}
+
+@misc{wenger2010bernstein,
+  author       = {Wenger, Emanuel},
+  title        = {Paper history and expertise provided by the {eContentplus} project {Bernstein}},
+  year         = {2010},
+  howpublished = {Bernstein --- The Memory of Paper},
+  note         = {Bernstein consortium watermark database, \url{https://bernstein.oeaw.ac.at/}}
+}
+
+@misc{wies,
+  title        = {{WIES}: Watermarks in Incunabula printed in {Espa\~{n}a}},
+  author       = {van Thienen, Gerard},
+  year         = {2008},
+  howpublished = {\url{https://bernstein.oeaw.ac.at/databases/wies/}},
+  note         = {Roughly 6000 watermark rubbings from incunabula printed in Spain; included in the Bernstein database.}
+}
+
+% ---------------------------------------------------------------------------
+% Imaging instruments
+% ---------------------------------------------------------------------------
+@article{wittwer2021drm,
+  author  = {Wittwer, Matthew and Gaskey, Bernard and Seita, Matteo},
+  title   = {An automated and unbiased grain segmentation method based on directional reflectance microscopy},
+  journal = {Materials Characterization},
+  year    = {2021},
+  volume  = {174},
+  pages   = {110978},
+  doi     = {10.1016/j.matchar.2021.110978}
+}
+
+@misc{miniare,
+  title        = {{MINIARE}: Manuscript Illumination -- Non-Invasive Analysis, Research and Expertise},
+  author       = {{The Fitzwilliam Museum}},
+  organization = {University of Cambridge},
+  year         = {2012},
+  howpublished = {\url{https://miniare.fitzmuseum.cam.ac.uk/}},
+  note         = {Cross-disciplinary project on non-invasive multispectral imaging of illuminated manuscripts.}
+}

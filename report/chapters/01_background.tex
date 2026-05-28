@@ -51,7 +51,7 @@ diameters are all collapsed to a single scalar. At the same time,
 major research libraries -- including Cambridge University Library,
 the Bodleian, and the Bibliothèque nationale de France -- now
 routinely capture multispectral image stacks of their
-holdings~\cite{TODO_msi_libraries}. These stacks contain far more
+holdings~\cite{miniare}. These stacks contain far more
 information than a single density estimate, but no robust automated
 pipeline yet exists to turn them into the quantitative
 mould-fingerprint data that codicology actually requires. Closing
@@ -65,12 +65,11 @@ historical paper has a small but established literature. Most existing
 techniques operate on transmitted-light or radiographic images,
 treating the folio as a two-dimensional signal with a dominant spatial
 frequency. The earliest systematic study, by Hiary and
-Ng~\cite{TODO_hiary_ng}, applied projection-based Fourier methods to
+Ng~\cite{hiary2007paper}, applied projection-based Fourier methods to
 thresholded transmitted-light scans, extracting the laid-line density
 from the dominant peak in a one-dimensional power spectrum of the
-column sum. Subsequent variants substituted Gabor filter
-banks~\cite{TODO_gabor_paper}, autocorrelation, or wavelet
-decompositions. These methods are simple to implement and reasonably
+column sum. Subsequent variants substituted Gabor filter banks,
+autocorrelation, or wavelet decompositions. These methods are simple to implement and reasonably
 robust to global illumination, but they share three common weaknesses:
 the line orientation must be supplied externally or estimated as a
 separate pre-processing step, the spectrum is computed over the whole
@@ -80,7 +79,7 @@ density.
 
 A second strand of work has grown out of large-scale bibliographic
 projects such as the Bernstein and WIES
-initiatives~\cite{TODO_bernstein,TODO_wies}, which catalogue watermarks
+initiatives~\cite{wenger2010bernstein,wies}, which catalogue watermarks
 across European collections. The emphasis there has been on capturing
 high-quality transmitted-light images and on building searchable
 databases of watermark designs, with comparatively little attention to
@@ -88,7 +87,7 @@ the periodic chain-and-laid background that surrounds the watermark.
 Pipelines in this strand tend to be tuned per-image by a human
 operator rather than run as a single automated process. Radiographic
 methods such as the chain-line detection of Van der
-Lubbe~\cite{TODO_vanderlubbe}, which combines morphological filters
+Lubbe~\cite{vanderlubbe2001rembrandt}, which combines morphological filters
 with vertical projections, give cleaner signals but require expensive
 imaging that is out of reach for most institutions.
 
@@ -112,7 +111,7 @@ instrument fixes a camera above a sample stage and steps a
 controllable light source through a regular grid of elevation and
 azimuth angles, capturing one image per direction. The original
 purpose of the DRM was to characterise the surface texture of
-crystalline metallic samples~\cite{TODO_seita_drm}, and its first
+crystalline metallic samples~\cite{wittwer2021drm}, and its first
 application to handmade paper is recent.
 % TODO: insert Figure -- DRM hardware schematic or photograph
 % (cf. Andrew Fig 3, who simply uses an iPad sketch).
@@ -155,7 +154,7 @@ Mapping Paper in Medieval England corpus curated by Professor
 Orietta Da Rold and the Manuscripts Lab in the Faculty of English at
 Cambridge~\cite{darold2020paper}. The corpus comprises 5841
 manuscripts of which at least 736 are written on
-paper~\cite{TODO_manuscripts_lab_mapping}; from these, nine folios
+paper~\cite{mappingpaper}; from these, nine folios
 spanning four manuscript stocks were selected for the present
 benchmark. The shelfmarks used in the report follow the Cambridge
 University Library convention and are listed alongside the

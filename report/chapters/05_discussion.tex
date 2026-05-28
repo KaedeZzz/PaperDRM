@@ -16,7 +16,7 @@ errors ranging from ten to seventy per cent. The natural first
 reading is that the spreadsheet is the authoritative reference
 and the pipeline is wrong by varying amounts; that reading is
 ruled out by the per-folio manual count of
-\Cref{sec:benchmark:manual_gt}, which agrees with the pipeline
+\Cref{sec:benchmark:msi:manual_gt}, which agrees with the pipeline
 more closely than it agrees with the spreadsheet on six of the
 nine folios.
 
@@ -65,7 +65,7 @@ with the metric or experimental observation that exposes it.
 The first is sub-harmonic aliasing at densities near the boundary
 of the period search band, demonstrated by the phantom sweep at a
 true period of 60 pixels and by the real folio Ff.4.15 f24r in
-\Cref{sec:benchmark:failures}. The mitigation employed in the
+\Cref{sec:benchmark:msi:failures}. The mitigation employed in the
 benchmark, narrowing the per-folio period range when a previous
 run shows signs of aliasing, requires a human in the loop and
 defeats the no-tuning ambition stated in
@@ -76,7 +76,7 @@ demote the peak whenever a stronger candidate is present at a
 harmonically related period.
 
 The second is the wire-width estimator, which the phantom sweep
-of \Cref{sec:benchmark:phantom} shows is accurate to within ten
+of \Cref{sec:benchmark:msi:phantom} shows is accurate to within ten
 per cent only for true sigmas between two and five pixels. Outside
 that range the Gaussian-comb model that underpins the estimator
 either under-resolves the wire or fails to find a clean inter-wire
@@ -130,7 +130,7 @@ each density estimate is accompanied by the metric bundle of
 \Cref{sec:multiphi:evaluation}, which makes the confidence in the
 estimate inspectable rather than tacit. Third, the
 single-image MSI variant of \Cref{sec:multiphi:single} reproduces
-the per-folio manual count of \Cref{sec:benchmark:manual_gt} more
+the per-folio manual count of \Cref{sec:benchmark:msi:manual_gt} more
 closely than the catalogue spreadsheet does on six of nine folios,
 which places the detector inside the inter-counter variability
 of careful hand-counting on this material -- a stronger
@@ -141,7 +141,7 @@ azimuthal views, described in \Cref{sec:multiphi:aggregate}, that
 trades a longer per-folio runtime and the requirement of
 multi-angle imaging for the additional split-half stability metric
 and the controlled-sample confidence demonstrated on dataset 10 in
-\Cref{sec:benchmark:zoomed}.
+\Cref{sec:benchmark:drp:zoomed}.
 
 The other relevant line of prior work is the spectral total
 variation approach of Grossmann et al., which extracts chain and
@@ -156,7 +156,7 @@ total-variation decomposition as the preprocessing input to either
 the single-image or the multi-phi detector, in the hope that the
 cleaned image would push the self-contrast $z$-score above its
 current threshold on the low-signal folios identified in
-\Cref{sec:benchmark:failures}.
+\Cref{sec:benchmark:msi:failures}.
 
 \subsection{Implications for codicology}
 \label{sec:discussion:codicology}

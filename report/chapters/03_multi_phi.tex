@@ -67,9 +67,9 @@ acquisition scale of this report, rejects spurious peaks from
 slow page curvature at the low-frequency end and from photographic
 noise at the high-frequency end. Configurations that report a
 narrower per-folio range, such as eight to fifty pixels for some
-of the zoomed-in datasets in \Cref{sec:benchmark:zoomed}, also
+of the zoomed-in datasets in \Cref{sec:benchmark:drp:zoomed}, also
 help reject the sub-harmonic aliasing failure mode discussed in
-\Cref{sec:benchmark:failures}.
+\Cref{sec:benchmark:msi:failures}.
 
 \subsection{Single-image MSI variant}
 \label{sec:multiphi:single}
@@ -114,7 +114,7 @@ folio. The polarity ambiguity is therefore resolved instead by the
 user-supplied \texttt{wire\_is\_darker} flag, which has to be set
 correctly per modality (reflective vs transmitted-light) but does
 not need to be tuned per folio. On all the MSI folios used in
-\Cref{sec:benchmark:perfolio} the flag is set to \texttt{false}
+\Cref{sec:benchmark:msi:perfolio} the flag is set to \texttt{false}
 because the imaging is transmitted-light TX940IR.
 
 \subsection{Multi-phi DRP variant}
@@ -370,5 +370,5 @@ other four can usually be diagnosed by reading which metric is bad
 and locating the relevant feature in the corresponding plot.
 \Cref{sec:benchmark} reports the five for every folio in the
 benchmark, and the failure cases collected in
-\Cref{sec:benchmark:failures} are organised around which metric or
+\Cref{sec:benchmark:msi:failures} are organised around which metric or
 combination of metrics first identified each problem.

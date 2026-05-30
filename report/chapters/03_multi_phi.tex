@@ -134,9 +134,20 @@ independent measurements of a constant signal improves the
 signal-to-noise ratio by a factor of $\sqrt{N}$, where $N$ is the
 number of azimuthal samples in the DRP stack, typically of order
 ten to twenty.
-% TODO: Figure 3.1 -- a row of grazing images at four different phi
-% values illustrating that the laid lines are visible in the same
-% place in all four, while the surrounding texture changes.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{grazing_quad}
+  \caption{Four grazing-light views of the same region of the
+  benchmark folio (dataset~4, $\theta = 15^\circ$, centre crop) at
+  azimuths $\phi$ separated by $45^\circ$. The laid-line positions
+  are unchanged across the four views, but the contrast with which
+  they appear varies strongly with $\phi$. A single view is therefore
+  a noisy estimator, while the coherent multi-$\phi$ aggregation
+  introduced below recovers a stable period even when individual
+  views are weak.}
+  \label{fig:multiphi:grazing_quad}
+\end{figure}
 
 \subsubsection{Collecting one grazing image per phi}
 \label{sec:multiphi:collect}
@@ -275,10 +286,19 @@ dominant period, the absolute phase, the line direction, and the
 resulting grid in the original-image coordinate frame, along with
 the diagnostic resultant lengths and per-image weights described
 above.
-% TODO: Figure 3.4 -- a representative overlay showing the final
-% grid drawn on the bg-subtracted grazing image used as the
-% reference. Choose Kk1-5 f5v as the example since this is the
-% best-case folio in Section 4.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=0.7\linewidth]{f5v_overlay_zoom}
+  \caption{Zoomed inset of the detected laid-line grid drawn on the
+  background-subtracted reference image of Kk.1.5 f5v (the best-case
+  folio of the MSI benchmark; the full-folio overlay appears in
+  \Cref{fig:perfolio_f5v}). Yellow horizontal lines mark the
+  detected laid wires at the locked period, and the vertical lines
+  delimit one-centimetre cells. Each line registers visibly with the
+  underlying laid-line banding even where ink coverage is heavy.}
+  \label{fig:multiphi:overlay_zoom}
+\end{figure}
 
 \subsection{Evaluation metrics}
 \label{sec:multiphi:evaluation}
@@ -322,9 +342,12 @@ coefficient of variation gives a robust measure of how regular the
 laid lines actually are; a value below about ten per cent indicates
 a well-formed mould signature, and a much larger value either
 indicates physical damage to the folio or a detection that has
-attached to noise rather than to a real periodicity.
-% TODO: Figure 3.5 -- histogram of laid-line intervals on Kk1-5 f5v,
-% with the locked period marked by a vertical line.
+attached to noise rather than to a real periodicity. An example for
+Kk.1.5 f5v is given by \Cref{fig:f5v_interval} in
+\Cref{sec:benchmark}: the empirical inter-peak distances are
+concentrated tightly around the locked period (red dashed line) with
+no secondary mode at any harmonic, which is the signature of a clean
+detection.
 
 The self-consistency contrast asks whether the detected
 direction itself is special, by comparing the detector score along

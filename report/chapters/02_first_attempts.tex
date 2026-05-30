@@ -26,9 +26,19 @@ azimuth, and the angle $\mathrm{atan2}(Y, X)$ gave the dominant
 direction. The output of the stage was therefore two maps with the
 same spatial size as the folio: one of anisotropy strength and one of
 azimuth.
-% TODO: Figure 2.1 -- example pair (anisotropy map, azimuth map) on a
-% representative folio, with the laid-line direction visible as a
-% banded structure in the azimuth map.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{anisotropy_azimuth}
+  \caption{Per-pixel DRP-derived direction maps on the benchmark folio
+  (dataset~4, downsampled by~8, single-folio crop). Left: anisotropy
+  magnitude $\|M\|$, the normalised modulus of the first azimuthal
+  Fourier coefficient; the watermark structure of the mould is clearly
+  visible. Right: azimuth $\arg(M)$ (cyclic colour scale,
+  $\pm180^\circ$); the laid-line direction shows as a banded structure
+  but is heavily contaminated by per-pixel noise.}
+  \label{fig:fa:dirmap}
+\end{figure}
 
 A simple direction map of this kind is too noisy to use as the input
 to a frequency detector. On the one hand, the inks, stains, and surface unevenness
@@ -41,9 +51,20 @@ with the patch direction, and the patch responses were blended across
 the page using a Hann window. The output was a greyscale image in
 which the laid-line orientation locally dominated and which could be
 fed to a frequency detector.
-% TODO: Figure 2.2 -- the patchwise trig-mask greyscale on the same
-% folio as Figure 2.1, showing how the laid lines become visually
-% prominent against the background.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=0.85\linewidth]{trigmask}
+  \caption{Patchwise trigonometric mask computed from the azimuth map
+  of \Cref{fig:fa:dirmap}. Per-patch dominant directions are
+  collapsed into a Gaussian likelihood map (
+  $\sigma_\phi = 12^\circ$, $96 \times 96$ pixel patches with
+  $50\%$ overlap), then stitched across the page with a Hann window.
+  The laid-line banding is locally enhanced relative to
+  ink, fibre noise, and the structural watermark features still
+  visible in the underlying anisotropy.}
+  \label{fig:fa:trigmask}
+\end{figure}
 
 The frequency detector was a patchwise Gabor bank scanning periods
 from 4 to 80 pixels. For each patch, the period at which the
@@ -93,7 +114,19 @@ location of ink coverage, one grazing image can give a clean peak
 while another gives mostly noise. The simple pipeline therefore
 trades the bias of the legacy approach for a single-frame brittleness
 that is hard to predict in advance.
-% TODO: Figure 2.3 -- two grazing images of the same folio at
-% different phi, both rotated to vertical, illustrating how the
-% laid-line contrast varies dramatically with azimuth.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{grazing_pair}
+  \caption{Two grazing-light views of the same folio acquired at the
+  same elevation $\theta = 15^\circ$ but at azimuths $\phi$ separated
+  by $90^\circ$ (dataset~4, centre crop). Left ($\phi = 0^\circ$,
+  source azimuth normal to the laid lines): strong, directional
+  banding is clearly visible. Right ($\phi = 90^\circ$, source azimuth
+  parallel to the laid lines): the banding is almost suppressed.
+  A single-image radial FFT detector run on the right-hand frame
+  alone returns mostly noise, which motivates the multi-$\phi$
+  aggregation of \Cref{sec:multiphi}.}
+  \label{fig:fa:grazing_pair}
+\end{figure}
 

@@ -25,9 +25,19 @@ with a periodic thickness pattern that mirrors the wire
 layout~\cite{enomae2010laidlines}. Held up to a strong light, this
 pattern appears as a series of pale and dark lines that is visible
 to human eyes.
-% TODO: insert Figure here -- photograph of a mould (cf. Andrew Fig 1),
-% or a labelled close-up of a folio showing laid and chain lines
-% (cf. Andrew Fig 2).
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=0.78\linewidth]{folio_anatomy}
+  \caption{Reflected-light close-up of a folio from the present DRP
+  benchmark (dataset 4, $\theta=15^\circ$ grazing illumination from
+  $\phi=0^\circ$). The vertical, close-spaced banding visible across the
+  field is the periodic thickness modulation cast by the laid wires of
+  the mould; the wider feature at lower right is a diagonal artefact
+  of the folio surface. Chain lines are spaced two to three centimetres
+  apart and are not resolved at this magnification.}
+  \label{fig:bg:folio_anatomy}
+\end{figure}
 
 Each mould was made by hand, with wires drawn and tied by an individual
 artisan, so no two moulds are exactly identical. Moreover, paper was
@@ -139,8 +149,61 @@ per-pixel reflectance as a function of illumination direction
 rather than as a single flat-lit value; the DRM differs from a
 typical RTI capture in the density of the angular sampling lattice
 and in the microscope-scale optical resolution.
-% TODO: insert Figure -- DRM hardware schematic or photograph
-% (cf. Andrew Fig 3, who simply uses an iPad sketch).
+
+\begin{figure}[!htbp]
+  \centering
+  \begin{tikzpicture}[scale=1.0, every node/.style={font=\small}]
+    % --- side view: theta angle ----------------------------------------
+    \begin{scope}
+      % Sample stage (the folio), drawn in perspective
+      \draw[fill=gray!18, draw=black!60]
+        (-3.2,0) -- (3.2,0) -- (4.1,0.7) -- (-2.3,0.7) -- cycle;
+      \node[anchor=west] at (1.6,0.18) {\footnotesize folio};
+
+      % Page normal
+      \draw[->, thick, dashed] (0,0.35) -- (0,3.7)
+        node[above right=-2pt] {$\hat{n}$};
+
+      % Camera box, fixed on the normal
+      \node[draw, rounded corners=2pt, minimum width=1.4cm,
+            minimum height=0.8cm, fill=white] (cam) at (0,4.2) {camera};
+      \draw[->] (cam.south) -- (0,0.55);
+
+      % Light source at elevation theta from the normal
+      \coordinate (src) at (-2.6,2.3);
+      \filldraw[fill=orange!85, draw=black] (src) circle (4pt);
+      \node[left=2pt] at (src) {\footnotesize light source};
+      \draw[->, very thick, orange!85!black] (src) -- (0,0.35);
+
+      % Theta arc
+      \draw[blue!70!black] (0,1.6) arc[start angle=90, end angle=139, radius=1.6];
+      \node[blue!70!black] at (-0.55,1.85) {$\theta$};
+
+      \node[anchor=north] at (0,-0.05) {\footnotesize (a) side view};
+    \end{scope}
+
+    % --- top view: phi azimuth -----------------------------------------
+    \begin{scope}[xshift=8cm, yshift=2cm]
+      \draw[->] (-2,0) -- (2,0) node[right] {$x$};
+      \draw[->] (0,-2) -- (0,2) node[above] {$y$};
+      \draw[blue!70!black] (0,0) circle (1.6);
+      % Projected source direction at phi
+      \draw[->, very thick, orange!85!black] (0,0) -- (-1.13,1.13);
+      \filldraw[fill=orange!85, draw=black] (-1.13,1.13) circle (3.5pt);
+      \draw[blue!70!black] (0.6,0) arc[start angle=0, end angle=135, radius=0.6];
+      \node[blue!70!black] at (0.4,0.42) {$\phi$};
+      \node[anchor=north] at (0,-1.95) {\footnotesize (b) top view};
+    \end{scope}
+  \end{tikzpicture}
+  \caption{Schematic of the directional reflectance microscope. The
+  camera is fixed normal to a flat sample stage that carries the folio,
+  and a programmable light source is stepped through a regular grid in
+  elevation $\theta$ (from the page normal $\hat n$) and azimuth $\phi$
+  (in the plane of the page). For each grid point a single frame is
+  captured; the stack of all frames is the directional reflectance
+  profile (DRP) used throughout this report.}
+  \label{fig:bg:drm_schematic}
+\end{figure}
 
 % --- DRP definition paragraph --
 For each spatial pixel $(x, y)$ on the folio, the DRM produces a
@@ -153,8 +216,22 @@ single pixel, a DRP appears as an annular heat map: the outer
 ring corresponds to grazing illumination, the inner ring to
 near-normal illumination, and the angular coordinate around the
 annulus encodes the source azimuth.
-% TODO: insert Figure -- DRP annular plot example
-% (cf. Andrew Fig 4: pixel DRP for a single laid-line peak).
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=0.55\linewidth]{drp_polar}
+  \caption{Annular DRP at a single pixel of the benchmark folio
+  (dataset~4, $50 \times 50$ pixel average centred near mid-page,
+  background-subtracted). Radial coordinate is the source elevation
+  $\theta$ (ranging from $10^\circ$ to $65^\circ$); angular coordinate
+  is the source azimuth $\phi$ (full circle, $9^\circ$ steps). The
+  two-lobed brightness pattern at $\phi \approx 0^\circ$ and
+  $\phi \approx 180^\circ$ is the signature of a laid-line shadow:
+  the pixel is brightest when the wires are side-illuminated from
+  either side along their common normal, and dimmest when the source
+  azimuth is parallel to the wires.}
+  \label{fig:bg:drp_polar}
+\end{figure}
 
 % --- Why DRP suits laid-line detection paragraph --
 The DRP is well suited to laid-line analysis because the laid-line

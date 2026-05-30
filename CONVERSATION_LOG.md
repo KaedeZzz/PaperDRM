@@ -8,6 +8,66 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-30 — IIB report: ch1/ch2/ch3 missing figures + duplication-artefact ROI crop + TinyTeX install
+
+### 背景
+
+IIB final report 进入 proofread 阶段（截止 2026-06-01）。Audit 发现 ch1（Background）和 ch2（First Attempts）完全没有图（仅有 9 处 `% TODO` 占位），ch3（Multi-phi）也缺 3 张。本 session 把 9 张图都补上、改 .tex、并在本机装了 TinyTeX 把 PDF build 出来；过程中诊断出一处采集层面的横向 duplication artefact 并在所有相关图里裁掉。
+
+### 1. 图生成（7 张新 PDF + 1 TikZ）
+
+**新建 `scripts/make_report_figures.py`** — 一次产出所有数据驱动的图。复用 `data/cache/drp.dat`（已存在的 background-subtracted DRP cache，shape `(2160, 4096, 40, 12)` uint8）。
+
+- **Fig 1.1 `folio_anatomy.pdf`**：raw `0_15.jpg` 中心裁剪 + CLAHE 增强 + 标注 "laid wires" 箭头、"laid-line spacing" 双箭头括号、1 cm scale bar。
+- **Fig 1.2** TikZ 内联（写在 `chapters/01_background.tex`）：DRM 硬件示意图，side view + top view 双面板，标 θ 仰角和 φ 方位角。
+- **Fig 1.3 `drp_polar.pdf`**：单像素 DRP annular plot（50×50 px 区域均值），phi 0–351° × theta 10–65° 的极坐标 pcolormesh，两瓣 laid-line peak 可见。
+- **Fig 2.1 `anisotropy_azimuth.pdf`**：downsampled-by-8 DRP stack → `drp_direction_map`（本地复制 `paperdrm.stage1_features.direction` 逻辑避免依赖完整 ImagePack） → 双面板（magnitude + azimuth）。
+- **Fig 2.2 `trigmask.pdf`**：直接调 `paperdrm.stage2_enhance.trig_mask.patchwise_trigonometric_mask`（`enhance=False` 避开 CLAHE 在死像素边界的洗白 artefact）。
+- **Fig 2.3 `grazing_pair.pdf`**：raw `0_15.jpg` 和 `90_15.jpg` 中心裁剪并排，共用 percentile 拉伸保证亮度可比；演示 §2.2 phi 依赖论点。
+- **Fig 3.1 `grazing_quad.pdf`**：φ=0/45/90/135° 四面板，theta=15° 固定。
+- **Fig 3.4 `f5v_overlay_zoom.pdf`**：`results/Kk1-5_f5v/grid_1cm_overlay.jpg` 中心放大裁，黄色 grid 与 laid 线对齐清晰可见。
+- **Fig 3.5**：复用既有 `interval_Kk1_5_f5v.pdf`，ch3 改成 cross-reference 到 ch4 的 `\Cref{fig:f5v_interval}` 避免重复占页。
+
+`chapters/01_background.tex` / `02_first_attempts.tex` / `03_multi_phi.tex` 替换 9 处 TODO 为 `\begin{figure}…\end{figure}` 环境，全部 chapter 文件 `% TODO` 现已归零。
+
+### 2. Duplication artefact 诊断 + 裁剪修复
+
+User 在 PDF 上发现 Fig 2.1（anisotropy + azimuth）两个 panel 右侧都有一份**复制的内容**——视觉上明显，但单帧 pixel 比对查不到。
+
+**诊断过程**：
+- 单帧自相关（raw 或 cache slice）：peak 仅 0.17 且 offset 与 duplication 不符（实测是 laid-line 周期）→ 单帧无 duplication signature。
+- Cache mean（40 phi × 12 theta = 480 帧平均）后再做高通 + 自相关：peak **0.64 at shift (0, ±1364 raw px)**。这是采集层 duplication 的指纹：单帧 SNR 太低看不出，averaging 把 sqrt(480) ≈ 22× 抬升把信号放出来。
+- 验证不是 bifolio：user 自己拍的照片，确认实物是单 folio + 单 watermark；这是硬件/采集层 artefact。
+
+**修复**：脚本里加 `ROI_X_MAX = 2000`（raw cols 0–2000，~半张图，小于 1364 offset 的两倍 → 副本被截掉一半 cols 跳出 ROI）。所有依赖 DRP 数据的图函数（`fig_folio_anatomy` / `fig_drp_polar` / `downsampled_drp_stack` / `fig_grazing_pair` / `fig_grazing_quad`）都改用 `cx = ROI_X_MAX // 2`，重新生成。Fig 2.1 caption 删掉了"binding gutter is clearly visible"（之前那个 gutter 其实就是 duplication 接缝，不是装订线）。
+
+### 3. 工具链修复 + TeX 安装
+
+- **`.venv` 重建**：macOS iCloud 同步把 venv 里的 python symlink 重命名成 `python3 2` 等含空格的死链；`rm -rf .venv && python3 -m venv .venv` 重装 deps（numpy/scipy/matplotlib/opencv-python/pillow/pyyaml/tqdm）。
+- **TinyTeX 安装** 到 `~/Library/TinyTeX`（unix bin 在 `bin/universal-darwin`）。sudo 没过所以 PATH 没写进 `.zshrc`，待 user 决定是否补；目前用绝对路径 build。`tlmgr install` 补全 biber/biblatex/titlesec/siunitx/microtype/cleveref/subcaption/pgf/caption/etoolbox 等包。
+- **PDF build**：`latexmk -pdf -interaction=nonstopmode main.tex` 通过，38 页 / ~12.6 MB；只剩一处 0.3 pt overfull hbox（ch3 line 86–91）和几个 underfull spacing，化妆品级别可忽略。
+
+### 4. Report 现状（commit 时）
+
+✅ 9 处图 TODO 全部解决，所有 chapter 文件无 `% TODO`。
+
+🟠 还剩的 stub（之前 audit 已识别，本 session 未动）：
+- `chapters/B_reproducibility.tex`、`C_code_listings.tex`、`D_additional_overlays.tex` 仍是注释占位
+- 9-folio benchmark 表 (`tabular`) 仍未做 LaTeX 版（数据在 `figure_list.md`）
+- Bib 有 2 条未引用（`gaskey2020opticalchar`, `wittwer2021drm`）
+- `figures/manual_gt_bars.pdf` 未 include
+- Title page Cambridge crest 还是 `\fbox{[Cambridge crest]}` 占位
+- `% TODO` 在 `chapters/03_multi_phi.tex` 仍有 0 处（全清）；其它正文章节 0 处
+
+### 涉及文件
+
+- 新建：`scripts/make_report_figures.py`
+- 新 PDF（`report/figures/`）：`folio_anatomy.pdf` `drp_polar.pdf` `anisotropy_azimuth.pdf` `trigmask.pdf` `grazing_pair.pdf` `grazing_quad.pdf` `f5v_overlay_zoom.pdf`
+- 改 `.tex`：`chapters/01_background.tex` `chapters/02_first_attempts.tex` `chapters/03_multi_phi.tex`
+- Build 产物 `report/main.pdf` 按 `report/.gitignore` 仍被忽略，不进 commit；只新生成的 `report/figures/*.pdf`（白名单豁免）会进。
+
+---
+
 ## 2026-05-24（续）— 手动 GT 标注工具 + 全数据集对比
 
 ### 背景

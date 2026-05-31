@@ -323,22 +323,37 @@ check is done.
 
 The harmonic fit quality $R^2$ asks whether the spectral peak is a
 real harmonic structure. A Fourier series with the locked
-fundamental and the first three harmonics is fitted to the broadband
-signal, and the coefficient of determination is reported. A value
-close to one means that almost all of the variance of the signal is
-explained by harmonics of the detected period, which is what a real
+fundamental $f_0$ and the first three harmonics is fitted to the
+broadband one-dimensional signal $s(x)$,
+\begin{equation}
+  \hat{s}(x) \;=\; \sum_{k=1}^{3} \bigl[
+    a_k \cos(2\pi k f_0 x) + b_k \sin(2\pi k f_0 x)
+  \bigr],
+  \qquad
+  R^2 \;=\; 1 - \frac{\sum_x \bigl(s(x) - \hat{s}(x)\bigr)^2}
+                      {\sum_x \bigl(s(x) - \bar{s}\bigr)^2},
+  \label{eq:harmonic_r2}
+\end{equation}
+and $R^2$ is reported as the harmonic fit quality. A value close to
+one means that almost all of the variance of the signal is explained
+by harmonics of the detected period, which is what a real
 laid-line pattern produces. A low value flags a peak that was the
 largest in the spectrum but did not correspond to a clean periodic
 structure, for example a peak caused by paper curvature or by a
 single high-amplitude artefact.
 
 The empirical interval distribution asks the same question in the
-spatial domain. Peaks of the broadband signal are detected within a
-narrow tolerance of the locked period, and the distribution of
-peak-to-peak distances is reported as a median, an interquartile
-range, and a coefficient of variation. The median gives the
-per-folio density once the optical scale is applied. The
-coefficient of variation gives a robust measure of how regular the
+spatial domain. Peaks $\{x_i\}_{i=1}^{N}$ of the broadband signal are
+detected within a narrow tolerance of the locked period; the
+inter-peak gaps $g_i = x_{i+1} - x_i$ are summarised by their median
+and a robust coefficient of variation
+\begin{equation}
+  \mathrm{CV} \;=\; \frac{\sigma_g}{\mathrm{median}(g_i)},
+  \label{eq:interval_cv}
+\end{equation}
+where $\sigma_g$ is the sample standard deviation of $\{g_i\}$. The
+median gives the per-folio density once the optical scale is applied.
+The coefficient of variation is a robust measure of how regular the
 laid lines actually are; a value below about ten per cent indicates
 a well-formed mould signature, and a much larger value either
 indicates physical damage to the folio or a detection that has
@@ -350,40 +365,63 @@ no secondary mode at any harmonic, which is the signature of a clean
 detection.
 
 The self-consistency contrast asks whether the detected
-direction itself is special, by comparing the detector score along
-the inferred laid-line orientation with its scores along a sequence
-of randomly chosen non-laid-line directions on the same image. The
-result is reported as the $z$-score of the laid-line score against
-this empirical null distribution. A value above about five indicates
-that the detected direction is uniquely periodic, which is the
-expected behaviour for a folio with real laid lines. A value near
-zero indicates that the detector would have reported a similar score
-for a random direction, which is the signature of a folio that does
-not contain any usable laid-line signal at all.
+direction itself is special, by comparing the detector score $S(\theta)$
+along the inferred laid-line orientation $\theta^\star$ with its
+scores along $K$ randomly chosen non-laid-line directions
+$\{\theta_k\}_{k=1}^{K}$ on the same image. The result is the
+$z$-score of the laid-line score against this empirical null
+distribution,
+\begin{equation}
+  z \;=\; \frac{S(\theta^\star) - \overline{S(\theta_k)}}
+                {\widehat{\sigma}\bigl(S(\theta_k)\bigr)},
+  \label{eq:self_contrast_z}
+\end{equation}
+where the mean and sample standard deviation are taken over the $K$
+random directions. A value above about five indicates that the
+detected direction is uniquely periodic, which is the expected
+behaviour for a folio with real laid lines. A value near zero
+indicates that the detector would have reported a similar score for
+a random direction, which is the signature of a folio that does not
+contain any usable laid-line signal at all.
 
 The split-half stability asks whether the detection depends on any
 one image. The $N$ grazing images of a DRP acquisition are
-partitioned at random into two disjoint halves; the detector is
-run on each half independently, and the standard deviation of the
-recovered period over many such partitions is reported. A small
-standard deviation, of the order of one per cent of the locked
+partitioned at random into two disjoint halves, $M$ times. The
+detector is run independently on each half, yielding two recovered
+periods $p_m^{(1)}, p_m^{(2)}$ per partition, and the dispersion of
+the half-detector periods is reported as
+\begin{equation}
+  \sigma_{\mathrm{split}} \;=\;
+  \mathop{\mathrm{std}}_{m, h}\; p_m^{(h)},
+  \qquad m = 1, \dots, M,\; h \in \{1, 2\}.
+  \label{eq:split_half}
+\end{equation}
+A small dispersion, of the order of one per cent of the locked
 period, indicates that the same period would have been recovered
-from a quite different subset of the data. A large standard
-deviation indicates that the detection rests on one or two
-azimuthal views and would have changed substantially had those
-views been absent. The metric is only defined for the multi-phi
-DRP variant of \Cref{sec:multiphi:multi}, since the single-image
-variant has only one image to work with; on a single-image folio
-the metric bundle therefore has four members rather than five.
+from a quite different subset of the data. A large dispersion
+indicates that the detection rests on one or two azimuthal views
+and would have changed substantially had those views been absent.
+The metric is only defined for the multi-phi DRP variant of
+\Cref{sec:multiphi:multi}, since the single-image variant has only
+one image to work with; on a single-image folio the metric bundle
+therefore has four members rather than five.
 
 The per-segment wire-width distribution asks whether the laid wires
-behave consistently across the page. The folio is divided into a
-small number of stripes along the laid-line direction, and the wire
-full-width-at-half-maximum is fitted independently within each
-stripe. The interquartile range of the per-stripe widths captures
-spatial variation that the global wire-width figure smooths over,
-and a large range flags either local damage, surface curvature, or
-a sheet that was not properly flattened during imaging.
+behave consistently across the page. The folio is divided into $J$
+stripes along the laid-line direction; in each stripe $j$ a
+Gaussian-comb model is fitted to the broadband signal and the wire
+sigma $\sigma_j$ is converted to a full-width-at-half-maximum,
+$\mathrm{FWHM}_j = 2\sqrt{2\ln 2}\,\sigma_j$. The metric reports the
+interquartile range
+\begin{equation}
+  \mathrm{IQR}_{\mathrm{FWHM}} \;=\;
+  Q_3\bigl(\mathrm{FWHM}_j\bigr) - Q_1\bigl(\mathrm{FWHM}_j\bigr),
+  \label{eq:wire_iqr}
+\end{equation}
+which captures spatial variation that the global wire-width figure
+smooths over. A large $\mathrm{IQR}_{\mathrm{FWHM}}$ flags either
+local damage, surface curvature, or a sheet that was not properly
+flattened during imaging.
 
 The five metrics overlap deliberately. A single failure mode
 typically degrades at least two of them at once, so a folio that is

@@ -41,16 +41,19 @@ azimuth.
 \end{figure}
 
 A simple direction map of this kind is too noisy to use as the input
-to a frequency detector. On the one hand, the inks, stains, and surface unevenness
-of real manuscripts produce strong local anistotropies and noises that largely dominants
-the response in comparison of the laid lines. Moreover, the laid lines themselves are not perfectly straight and aligned,
-so lines in different regions can have varying local directions, and a global detector would not find a single dominant pattern.
-Thus, the next stage therefore tiled the page with overlapping square patches of 512 pixels and computed, in each patch, the circular mean
-direction. Each pixel then received a Gaussian likelihood of agreeing
-with the patch direction, and the patch responses were blended across
-the page using a Hann window. The output was a greyscale image in
-which the laid-line orientation locally dominated and which could be
-fed to a frequency detector.
+to a frequency detector. The inks, stains and surface unevenness of
+real manuscripts produce strong local anisotropies that dominate the
+response over the much weaker laid-line signal; the laid wires
+themselves are not perfectly straight and aligned, so different
+regions of the same folio carry slightly different local directions
+and a global detector finds no single dominant pattern. The next
+stage therefore tiled the page with overlapping $512 \times 512$ pixel
+patches and computed, in each patch, the circular mean direction of
+the per-pixel azimuth map. Each pixel then received a Gaussian
+likelihood of agreeing with its patch's mean direction, and the patch
+responses were blended across the page with a Hann window. The output
+was a greyscale image in which the laid-line orientation locally
+dominated and which could be fed to a frequency detector.
 
 \begin{figure}[!htbp]
   \centering
@@ -69,17 +72,43 @@ fed to a frequency detector.
 The frequency detector was a patchwise Gabor bank scanning periods
 from 4 to 80 pixels. For each patch, the period at which the
 filter response was strongest was taken as the local laid-line
-period, and a global density estimate was formed by computing the weighted sum of the
-patch responses. On synthetic phantoms with a known period, this
-pipeline consistently reported half of the true period; the
-underlying cause was traced to two biases in the Gabor
-stage. From a Fourier analysis perspective, the squared (absolute) Gabor response doubles the fundamental
-frequency of any input that crosses zero, so a clean sinusoidal
-laid-line signal appears at twice its true frequency in the squared
-response. Moreover, the proportional bandwidth of the Gabor bank meant that
-the higher-frequency response was also scored more favourably than
-the true peak. The combination locked the detector onto the wrong
-harmonic.
+period, and a global density estimate was formed as the
+score-weighted vote of the patch winners. The pipeline failed
+cleanly on the synthetic phantom of \Cref{sec:benchmark:msi:phantom}.
+\Cref{fig:fa:legacy_phantom} sweeps the true phantom period from
+$12$ to $40$ pixels and runs both the patchwise Gabor and the
+final single-image FFT detector of
+\Cref{sec:first_attempts:simple} for reference. The FFT detector
+tracks the diagonal within two per cent across the sweep; the
+patchwise Gabor estimate collapses to the lower boundary of the
+candidate-period grid at four pixels for true periods $16$, $24$,
+$28$, $32$ and $40$, with a single high-side excursion to
+$41$ pixels at true period $20$.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\linewidth]{legacy_vs_simple_phantom}
+  \caption{Recovered period from the legacy patchwise Gabor detector
+  and from the final single-image FFT detector on the synthetic
+  Gaussian-comb phantom (SNR $= 15$, wire $\sigma = 2$ px), swept
+  across true periods from $12$ to $40$ pixels. Left: recovered vs
+  true period; the FFT detector lies on the diagonal while the
+  Gabor estimate is dominated by alias responses at the boundary of
+  the candidate-period grid. Right: signed period error.}
+  \label{fig:fa:legacy_phantom}
+\end{figure}
+
+The failure was traced to two compounding biases in the Gabor stage.
+The squared (absolute) response of a Gabor filter doubles the
+fundamental frequency of any input that crosses zero, so a
+sinusoidal laid-line signal at frequency $f_0$ contributes a strong
+peak at $2 f_0$ to the patchwise score. The Gabor bank itself is
+constant-Q, with kernel sigma scaling proportionally to the period,
+so a higher-frequency response is integrated over a smaller spatial
+support and scored more favourably than the true peak. The two
+biases pull in the same direction across the candidate grid and
+drive the per-patch winner to the smallest available period; on the
+sweep of \Cref{fig:fa:legacy_phantom} that period is four pixels.
 
 The lesson from this attempt was straightforward. The DRP carries
 useful directional information, but reducing it to per-pixel azimuth

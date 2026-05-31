@@ -8,6 +8,60 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-31（续）— IIB report: examiner-style review + §2 quantitative legacy failure + §3.4 metric equations + typo pass
+
+### 背景
+
+距交稿 24 小时内。User 让我以工程系评委视角通读整份 PDF 给评分 + 优缺点。读完给的判断：**First class, 72–75 区间**——方法论严谨度（phantom + manual GT + multi-phi novel contribution + 5-metric bundle + inter-counter variability 论证）能撑 First，但 §2 失败 baseline 没有定量证据 / §3.4 metric 缺正式定义 / 几个 typo 这几点会被严格 examiner 压分。User 选择立刻修 3 项。
+
+### 1. §2 加 phantom-based 定量失败证据
+
+写 `scripts/legacy_vs_simple_phantom.py`：用 §4 已有的 `make_synthetic_image` 生成已知 period 的 Gaussian-comb phantom，在同一张图上同时跑 legacy 的 `estimate_laidline_frequency_gabor_patches`（保持 main.py 原配置：`periods_px=list(range(4, 81))`、`weight_scale=3.0`）和 final `detect_laid_lines_simple`。
+
+发现：legacy 的真实失败模式**不是** prose 之前声称的"consistently reported half"。实际行为是 **score-weighted vote 退化到 candidate-period grid 的边界**——7 个 phantom periods (12–40 px) 里 5 个被 lock 到 4 px (grid min)、1 个被 lock 到 41 px (≈ 2× true，period=20 那个 outlier)。final FFT detector 在同样 sweep 上误差 < 2%。
+
+诚实重写 §2.1 第 5 段：删掉"consistently reported half"原 claim，改成"score-weighted vote drives the per-patch winner to the smallest available period; on the sweep of [Fig] that period is four pixels"。两个 bias 解释（abs-response 倍频 + Gabor bank constant-Q proportional bandwidth）保留——这两个**机制**正确，只是合成后净效应是 grid 边界 alias 而不是恰好 period/2。
+
+新图 `legacy_vs_simple_phantom.pdf`：双面板，左 recovered vs true 含 $y=x$ 对角线、右 signed error。Legacy 几乎所有点都在 grid 边界 4 px。
+
+### 2. §3.4 给每个 metric 一行公式
+
+之前 §3.4 五个 metric 全是 prose 描述，无公式——viva 易被攻击。每个加 `equation` 环境：
+
+- **Harmonic R²** (`eq:harmonic_r2`)：$\hat{s}(x) = \sum_{k=1}^{3}[a_k\cos(2\pi k f_0 x) + b_k\sin(2\pi k f_0 x)]$，$R^2 = 1 - \mathrm{SS}_{\mathrm{res}}/\mathrm{SS}_{\mathrm{tot}}$
+- **Interval CV** (`eq:interval_cv`)：$\mathrm{CV} = \sigma_g / \mathrm{median}(g_i)$，$g_i$ 是相邻 peak 距离
+- **Self-contrast z** (`eq:self_contrast_z`)：$z = (S(\theta^\star) - \overline{S(\theta_k)}) / \widehat{\sigma}(S(\theta_k))$，K 个随机方向作 null distribution
+- **Split-half stability** (`eq:split_half`)：$\sigma_{\mathrm{split}} = \mathrm{std}_{m,h}\, p_m^{(h)}$，M 次随机二分 × 两半
+- **Wire FWHM IQR** (`eq:wire_iqr`)：$\mathrm{IQR}_{\mathrm{FWHM}} = Q_3(\mathrm{FWHM}_j) - Q_1(\mathrm{FWHM}_j)$，J 个 stripe
+
+### 3. Typo pass
+
+`02_first_attempts.tex`：
+- `anistotropies` → `anisotropies`
+- `dominants` → `dominate`（subject 是复数 anisotropies，verb 也要复数；script 自动改成 `dominates` 后我手动改成 `dominate` 并顺手拧了一下整段语法）
+- 同步把那段"in comparison of the laid lines"等多个 awkward phrasing 顺一下
+
+跑了全 chapter 的 typo regex scan（24 种常见拼写错误），没发现别的命中。
+
+### 4. Build 收尾
+
+PDF 由 39 涨到 **40 pages**（new figure 推后 1 页）。printed page 数：main body 31 + bib 1.5 + Appendix A 0.5 + Appendix B 1 = ~34 printed pages，依然 well under CUED 50/53 上限。仅剩唯一 0.3 pt overfull hbox 在 ch3 line 86–91（pre-existing，无关本轮改动）。所有 `\Cref` cross-ref 全 resolve（无 `??`）。
+
+### 涉及文件
+
+- 新建：`scripts/legacy_vs_simple_phantom.py` `report/figures/legacy_vs_simple_phantom.pdf` `results/phantom/legacy_vs_simple.json`
+- 改：`report/chapters/02_first_attempts.tex`（typos + 新 figure + prose rewrite）`report/chapters/03_multi_phi.tex`（5 个 equation 环境）`CONVERSATION_LOG.md`
+
+### Examiner review 留给提交后的 nice-to-haves（未做，本轮 user 没要求）
+
+- §5 Discussion 偏短（~2 页），尤其 codicology implications 那段值得展开
+- §6.3 future work 4 条都只 1–2 句话，没具体 hypothesis
+- 报告完全没 disclose dataset 4 raw-data 的 horizontal duplication artefact（acquisition-level 1364 px 复制，我们这轮裁掉了但没在 §3.1 或 limitations 说明）—— 如果 examiner 仔细看 raw 数据或在 viva 问 data quality，回答可能 awkward
+- Title page 还是 `\fbox{[Cambridge crest]}` 占位（Andrew 用了正经 logo）
+- Title page 日期 "June 2026"（无所谓）
+
+---
+
 ## 2026-05-31 — IIB report: Andrew-comparison audit + appendix cleanup + 9-folio benchmark table
 
 ### 背景

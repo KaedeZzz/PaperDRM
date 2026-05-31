@@ -8,6 +8,61 @@ and any open follow-ups.
 
 ---
 
+## 2026-05-31 — IIB report: Andrew-comparison audit + appendix cleanup + 9-folio benchmark table
+
+### 背景
+
+距交稿剩 24 小时。读了 supervisor 提供的 Andrew Liang 2024 IIB report（47 页 PDF）做对比 audit，按 user 优先级清单收尾：删 C/D stub 附录、填 B Reproducibility、加 9-folio benchmark 表、重 build 检查页数。
+
+### 1. 与 Andrew 报告的结构对比
+
+Andrew 47 页：Background → Initial Measurement → Revised Technique → Line Detection → **Chain Line Detection** → **Side-Dependent Features** (felt vs wire side, L'Echo Seurat 引用) → Conclusion → Bibliography → **单一 Appendix: Reflection on Risk Assessment**。
+
+- 用户报告**已比 Andrew 更严谨**：合成 phantom 度量 / 9-folio 手动 GT / multi-phi 方法 / 5-metric bundle / ethics 子节 — 这些 Andrew 都没有。
+- Andrew 有用户没有的内容（chain line / felt-vs-wire side / NMF）属于 **不同方向的探索**，用户 §6.3 已 explicitly 写进 future work，不补。
+- Andrew 只有**一个**附录（Risk Reflection），没有 Reproducibility / Code Listings / Additional Overlays — 印证 C/D 可以放心删。
+
+### 2. 清单动作
+
+**(a) 删 C/D stub 附录** — `git rm chapters/{C_code_listings,D_additional_overlays}.tex`，从 `main.tex` 移掉对应 `\input{}`。两个文件本来就只有注释占位。
+
+**(b) 假警报：不动 bib 中 `gaskey2020opticalchar` 和 `wittwer2021drm`** — 上一轮 audit 用的 regex 不跨行，漏了 §1.3 里 `\cite{gaskey2020opticalchar,\nwittwer2021drm}` 这种多行 cite。这两条 ref 是有引用的，留着。
+
+**(c) 填 Appendix B Reproducibility** — 从 8 行注释 stub 改成完整 1 页：
+- Repo URL: `https://github.com/KaedeZzz/PaperDRM`
+- Commit hash: `2565320` (pipeline branch 上 results/ 产出对应的 head)
+- Python 3.10+ venv + requirements.txt 创建命令
+- 代表性 `exp_param.yaml` 样例（Kk1-5_f5v）
+- End-to-end run via `main.py` 说明
+
+**(d) 加 9-folio benchmark LaTeX 表** (`\Cref{tab:msi_benchmark}`) 到 §4.2.4 紧跟 `three_way_comparison` 图后。
+
+Headline 数据是从 `results/pipeline_vs_spreadsheet.json` 和每个 folio 的 `manual_gt.json` 重新算出来的——`figure_list.md` 那张老表只有 spreadsheet 列没 manual 列。Manual GT 用每个 folio 自己 JSON 里的 `cm_per_px` 反推 lines/cm，结果与 §4 prose 完全对齐（Hh.2.12 f190 pipeline=manual=8.91，Ff.4.15 f24r alias case 3.92 vs 12.08）。表 7 列：folio / spreadsheet GT / manual GT / pipeline / err vs manual / FWHM mm / self-contrast z。
+
+Caption 里给出 headline 统计：
+- pipeline median absolute error vs manual: **5.1%** (含 alias case) / **4.6%** (排除 alias case)
+- spreadsheet median absolute error vs manual: **11.8%**
+- 即"pipeline 跟 manual 的吻合度比 spreadsheet 跟 manual 吻合度高一倍以上"
+
+### 3. Build 收尾
+
+- 第一轮 rebuild 触发 65pt overfull hbox 在 B_repro line 27–32（`\texttt{results/<folio>/exp\_param.yaml}` 这种长不可断 `\texttt` 段挤进短行）→ 把路径拆开、texttt 用得克制点 → 降到 38pt → 进一步精简措辞 → **清零**。
+- 仅剩唯一 0.3pt overfull 在 ch3 line 86–91（开 session 前就在，化妆品级别）。
+- **最终 PDF: 39 PDF pages**：front matter 6（罗马 i–v + 无号 title），main body printed 1–30，bibliography printed 31，Appendix A printed 32，Appendix B printed 33。**33 printed pages 远低于 CUED 50 页上限**；总页 39 也低于 53 上限。
+
+### 涉及文件
+
+- 删：`report/chapters/C_code_listings.tex` `report/chapters/D_additional_overlays.tex`
+- 改：`report/main.tex` `report/chapters/B_reproducibility.tex` `report/chapters/04_benchmark.tex` `CONVERSATION_LOG.md`
+
+### 提交后剩余 nice-to-have
+
+- Title page Cambridge crest 仍是 `\fbox{[Cambridge crest]}` 占位（Andrew 用了正经 logo，但 CUED 不强制）
+- Title page 日期 "June 2026"（Andrew 写 "May 2024" 也是月份，无所谓）
+- `report/figures/manual_gt_bars.pdf` 文件存在但没被 `\includegraphics`（删或留无所谓）
+
+---
+
 ## 2026-05-30 — IIB report: ch1/ch2/ch3 missing figures + duplication-artefact ROI crop + TinyTeX install
 
 ### 背景

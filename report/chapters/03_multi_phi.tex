@@ -12,33 +12,33 @@ distinct from the two failed approaches of
 \Cref{sec:first_attempts}, which were both abandoned. The two
 variants here are the final design and differ from one another
 only in the kind of input they accept: the multi-phi DRP variant
-takes a full directional reflectance stack acquired under many
-lighting directions, and the single-image MSI variant takes a
+takes the full directional reflectance stack acquired under many
+lighting directions, and the single image MSI variant takes a
 single greyscale image of the kind held in existing institutional
 archives. The two variants share preprocessing
 (\Cref{sec:multiphi:common}) and the evaluation metric bundle
 (\Cref{sec:multiphi:evaluation}), and differ only at the
-period-fitting step itself: the single-image variant is described
+period fitting step itself: the single image variant is described
 in \Cref{sec:multiphi:single} and the multi-phi variant in
 \Cref{sec:multiphi:multi}. The multi-phi variant is the original
 target of the project, where the multiple azimuthal views can be
 combined coherently into a more confident estimate; the
 single-image variant is the extension that lets the same
-framework run on legacy single-frame archives. Of the five
+framework run on legacy single frame archives. Of the five
 evaluation metrics, four apply to both variants; the fifth,
-split-half period stability, is only well defined when more than
+split-half period stability, is only defined when more than
 one image is available.
 
 \subsection{Common preprocessing and line-direction detection}
 \label{sec:multiphi:common}
 
-Both variants take, as input, one or more greyscale images that
-have already been background-subtracted. The subtraction is a
-straightforward Gaussian-blurred reference removed from the per-image
-mean so that the slowly varying illumination and the optical
+Both variants take one or more greyscale images that
+have already been background subtracted as the pipeline input. The subtraction is a
+straightforward Gaussian blurred version of the same image removed from the image
+mean, so that the slowly varying illumination and the optical
 vignetting of the acquisition are suppressed while the
-high-spatial-frequency modulation of the laid lines is preserved.
-From the moment the image enters the detector, three further
+high frequency features of the laid lines are preserved.
+After the image enters the detector, three further
 preprocessing steps are common to both variants.
 
 The first is rotation of the image so that the laid lines run
@@ -48,44 +48,42 @@ line direction supplied to the rotation is either set by the user
 or estimated automatically by the spectral-power scan described
 in \Cref{sec:first_attempts:simple}. In the automatic case the
 search is centred on the direction perpendicular to the long side
-of the cropped folio, with a half-range of twenty degrees, and the
-direction at which the one-dimensional projection of the rotated
-image has the strongest peak in the plausible period band is
-chosen.
+of the cropped folio, with a half range of 20 degrees, and the
+direction is chosen at which the one-dimensional projection of the rotated
+image has the strongest peak in the plausible period band.
 
 The second is a polarity flag that records whether the laid wires
-appear dark (reflective grazing images) or bright (transmitted-light
+appear dark (reflective grazing images, where laid line pits reflect less light) or bright (transmitted light
 images, where the wires sit over locally thinner paper). The flag
 controls the sign of the broadband signal so that the fitted grid
 lands on the wire positions rather than between them.
 
 The third is the period search band, supplied as a configurable
 range in physical units (centimetres) and converted to pixels using
-the per-folio field-of-view width. Restricting the search to a
-plausible range, typically eight to eighty pixels at the
-acquisition scale of this report, rejects spurious peaks from
-slow page curvature at the low-frequency end and from photographic
-noise at the high-frequency end. Configurations that report a
-narrower per-folio range, such as eight to fifty pixels for some
-of the zoomed-in datasets in \Cref{sec:benchmark:drp:zoomed}, also
+the field-of-view width calculated for each folio. The search band is restricted to a
+plausible range, typically 8 to 80 pixels, to reject spurious peaks from
+slow page curvature at the low frequency end and from photographic
+noise at the high frequency end. Configurations that report a
+narrower range, such as 8 to 50 pixels for some
+of the datasets that are zoomed in, in \Cref{sec:benchmark:drp:zoomed}, also
 help reject the sub-harmonic aliasing failure mode discussed in
 \Cref{sec:benchmark:msi:failures}.
 
 \subsection{Single-image MSI variant}
 \label{sec:multiphi:single}
 
-The single-image variant takes a single greyscale image as input
-and estimates the laid-line period from a one-dimensional power
+The single image variant takes a single greyscale image as input
+and estimates the laid line period from a one-dimensional power
 spectrum, as the simple track of \Cref{sec:first_attempts:simple}
-does. The variant has been retained here as a first-class branch
+does. The variant has been retained here as a first class branch
 of the pipeline rather than as an early attempt, because the
 existing MSI archives of major institutions consist of one image
 per folio rather than multi-angle stacks, and the project would
 not be of immediate practical use without it.
 
 The procedure is short. The rotated image $I(x,y)$ is
-mean-subtracted, a two-dimensional fast Fourier transform is
-taken, and the two-dimensional power spectrum is summed along the
+subtracted by background, then a two-dimensional fast Fourier transform is
+taken, and the power spectrum is summed along the
 vertical axis to give a one-dimensional radial profile on the
 horizontal frequency axis:
 \begin{equation}
@@ -96,26 +94,24 @@ horizontal frequency axis:
 \end{equation}
 The peak frequency $f_{\mathrm{peak}}$, restricted to the
 plausible period band of \Cref{sec:multiphi:common}, gives the
-laid-line period $T = 1/f_{\mathrm{peak}}$ directly. A single Gabor
-filter at the locked period, with the absolute-response option
-disabled to avoid the harmonic-doubling bias of the legacy
-detector in \Cref{sec:first_attempts:legacy}, is then applied to
+laid line period $T = 1/f_{\mathrm{peak}}$ directly. A single Gabor
+filter at the estimated period is then applied to
 the rotated image to produce a clean one-dimensional signal on
 which the phase is fitted. The grid positions follow from the
-fitted phase and the locked period, and the wire-width is
+fitted phase and the estimated period, and the wire width is
 estimated from the harmonic amplitudes of the broadband signal in
-the same way as for the multi-phi variant.
+the same way as for the multi-phi variant described later.
 
-The single-image variant has no analogue of the polarity
-correction or the half-period auto-correction described below in
+The single image variant has no analogue of the polarity
+correction or the half-period auto correction described below in
 \Cref{sec:multiphi:phase,sec:multiphi:final}, because both
 mechanisms rely on having more than one azimuthal view of the same
 folio. The polarity ambiguity is therefore resolved instead by the
-user-supplied \texttt{wire\_is\_darker} flag, which has to be set
-correctly per modality (reflective vs transmitted-light) but does
+user supplied \texttt{wire\_is\_darker} flag, which has to be set
+correctly per modality (reflective vs transmitted light) but does
 not need to be tuned per folio. On all the MSI folios used in
 \Cref{sec:benchmark:msi:perfolio} the flag is set to \texttt{false}
-because the imaging is transmitted-light TX940IR.
+because the imaging is transmitted light TX940IR.
 
 \subsection{Multi-phi DRP variant}
 \label{sec:multiphi:multi}
@@ -123,17 +119,17 @@ because the imaging is transmitted-light TX940IR.
 The multi-phi variant is the detector for which the project was
 originally designed and from which the bulk of the algorithmic
 contribution comes. It is built on a single observation about the
-structure of a DRP stack at fixed elevation: as the source
+structure of a DRP stack at fixed elevation: as the source illumination
 azimuth $\phi$ rotates around the folio, the laid lines remain in
-the same position, but the rest of the image -- paper texture,
-fibre clumps, ink edges -- changes with $\phi$. A frequency
+the same position, but the rest of the image, including paper texture,
+fibre clumps, and ink edges, changes with $\phi$. A frequency
 estimator that sums over several azimuthal views therefore
-accumulates the laid-line signal while averaging the
+accumulates the laid line signal while averaging the
 $\phi$-random noise down. Quantitatively, averaging $N$
 independent measurements of a constant signal improves the
 signal-to-noise ratio by a factor of $\sqrt{N}$, where $N$ is the
 number of azimuthal samples in the DRP stack, typically of order
-ten to twenty.
+10 to 20.
 
 \begin{figure}[!htbp]
   \centering
@@ -154,7 +150,7 @@ ten to twenty.
 
 For each azimuth $\phi$ in the DRP stack, the image at the steepest
 available elevation $\theta$ is selected. The steepest available
-elevation is used because the laid-line contrast is strongest under
+elevation is used because the laid line contrast is strongest under
 grazing illumination, as already noted in
 \Cref{sec:first_attempts:simple}. The result is a list of $N$
 greyscale images of identical size, one per $\phi$, that share
@@ -171,14 +167,14 @@ transform is taken. The two-dimensional power spectrum is summed
 along the vertical axis to give a one-dimensional radial profile
 $P_i(f)$ on the horizontal frequency axis. The profile is then
 cut to the plausible period band of 8 to 80 pixels. Doing so removes
-the low-frequency power from page curvature and multiple harmonics of
+the low frequency power from page curvature and multiple harmonics of
 the laid lines, and leave the laid line interval estimation to a reasonable range
 such that all ground truths of folios in the benchmark are included.
 
-Before the profiles are summed, each one is normalised by
-its total band power. This step is essential; the different
-azimuthal views of the same folio differ in absolute brightness,
-because the light source of the device is not perfectly homogenic across angles, and
+Before the profiles are summed, each profile is normalised by
+its total band power. This step is essential because the different
+azimuthal views of the same folio differ in absolute brightness:
+ the light source of the device is not perfectly uniform across angles, and
 because some azimuths catch more reflection from neighbouring
 surfaces than others. Without normalisation, the brightest image
 would dominate the sum and the advantage of combining multiple azimuthal views would be lost.
@@ -204,20 +200,18 @@ subsection fits the phase.
 \subsubsection{Per-image phase fit and polarity correction}
 \label{sec:multiphi:phase}
 
-Knowing the period is not enough to place the grid. The phase of the
-laid-line modulation has to be fitted too, and here the multi-phi
+Additional to knowing the laid line frequency, phase also needs to be
+estimated in order to confirm the exact locations of the laid lines. 
+Here, the multi-phi
 data introduces a subtle complication that does not appear in the
-single-image case. For each image the one-dimensional
+single image case: for each image, the one-dimensional
 signal $s_i(x)$ is fitted by the cosine and sine components at the
  angular frequency $\omega$, and the per-image phase $\phi_i$
 is recovered from the inverse tangent of the two
-inner products. This part is identical to the single-image phase
-fit of \Cref{sec:first_attempts:simple} except that it is repeated
-$N$ times.
-
-Concretely, for image $i$ with broadband signal $s_i(x)$ the
-phase is recovered from the cosine and sine inner products at the
-locked angular frequency $\omega = 2\pi/T$:
+inner products. This part is identical to the single image phase
+fit of \Cref{sec:first_attempts:simple}, except that it is repeated
+$N$ times. Doing so for image $i$ recovers the phase at the
+estimated angular frequency $\omega = 2\pi/T$:
 \begin{equation}
   c_i \;=\; \sum_x s_i(x) \cos(\omega x), \qquad
   d_i \;=\; \sum_x s_i(x) \sin(\omega x), \qquad
@@ -225,17 +219,17 @@ locked angular frequency $\omega = 2\pi/T$:
   \label{eq:per_image_phase}
 \end{equation}
 
-The subtle complication is the following. As the illumination
-azimuth rotates around the page, the wire shadow that is
-characteristic of grazing reflectance flips from one side of each
+Yet, this phase fitting cannot be simply done on a image mean basis. As the illumination
+azimuth rotates around the page, the wire shadow cast by the laid line crests
+ flips from one side of each
 laid line to the other. Two grazing images $180^{\circ}$ apart in
 $\phi$ will cast the shadow of the same wire on opposite sides,
 and the fitted per-image phases differ by approximately $\pi$ even
-though the underlying period is identical. Simply averaging the
+though the underlying period is identical. Estimating phase by naively averaging the
 $N$ raw phases would give a meaningless mean phase whose resultant
 length is close to zero.
 
-The pipeline solves this by anchoring on the image with the highest
+The pipeline solves this by picking on the image with the highest
 weight at the detected peak, that is, the image that contributes
 most to the aggregated spectrum, and then flipping by $\pi$ any
 image whose anchor-relative phase difference exceeds $\pi/2$. After
@@ -244,8 +238,8 @@ circular mean rises from a typical raw value below $0.3$ to a
 post-alignment value above $0.8$ for the folios in the benchmark.
 The post-alignment resultant length is reported alongside the
 final density as a diagnostic of how coherent the multi-phi
-evidence was, and a low value flags the case where the laid-line
-signal was so weak that the polarity-flip detection itself failed.
+evidence was, and a low value flags the case where the laid line
+signal was so weak that the polarity flip detection itself failed.
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=0.95\linewidth]{phase_correction}
@@ -256,35 +250,35 @@ signal was so weak that the polarity-flip detection itself failed.
 \subsubsection{Weighted mean phase and half-period auto-correction}
 \label{sec:multiphi:final}
 
-The aligned per-image phases are then combined into a single mean
-phase by the amplitude-weighted circular mean, with the weights
-taken from the per-image power at the detected peak. The mean
+The aligned single image phases are then combined into a single mean
+phase by the weighted circular mean, with the weights
+taken from the power of each image at the detected peak. The mean
 phase together with the locked period defines the grid positions in
 the rotated frame of the representative image. The representative
-image is taken to be the highest-weight image and is the one used
-later for the wire-width estimate and the overlay shown to the
+image is taken to be the highest weight image and is the one used
+later for the wire width estimate and the image overlay output shown to the
 reader.
 
-There remains a final ambiguity. The polarity correction of the
-previous subsection forces all per-image phases to agree, but it
+There remains a final ambiguity: the polarity correction of the
+previous subsection forces all phases to agree, but it
 does not by itself fix the absolute polarity of the resulting
 combined phase. The combined grid can therefore land either on the
 dark wire-shadow side or on the bright inter-wire side of the
 broadband signal. The pipeline resolves this by sampling the
-column-mean of the representative image at the grid positions and
+column mean of the representative image at the grid positions and
 at positions shifted by half a period. If the grid positions have
-higher intensity than the half-period-shifted positions, the grid
+higher intensity than the half-period shifted positions, the grid
 is sitting on the bright side and the phase is shifted by $\pi$ so
-that the final grid always lands on the wire shadows. The shift
-makes the overlay independent of which side the polarity-anchor
+that the final grid always lands on the wire shadows; the phase is otherwise inverted if the flag is inverted. The shift
+makes the overlay independent of which side the representative
 image happened to favour and gives a more physically meaningful
 output, since codicologists describe densities by reference to the
 wire positions.
 
 The output of the multi-phi detector therefore comprises the
 dominant period, the absolute phase, the line direction, and the
-resulting grid in the original-image coordinate frame, along with
-the diagnostic resultant lengths and per-image weights described
+resulting grid in the original image coordinate frame, along with
+the diagnostic resultant lengths and weights described
 above.
 
 \begin{figure}[!htbp]
@@ -303,11 +297,10 @@ above.
 \subsection{Evaluation metrics}
 \label{sec:multiphi:evaluation}
 
-A detector that returns only a density figure is hard to deploy at
-scale. The figure may be right or it may be wrong, and a downstream
-codicologist who is presented with a thousand folio-level numbers
+A detector that returns only a density figure is hard to deploy in real implementations. The figure may be right or it may be wrong, and a downstream
+codicologist who is presented with a thousand folio data bundles
 has no way to know which to trust. A single goodness-of-fit score
-is not enough either, because a laid-line detection can fail in
+is not enough either, because a laid line detection can fail in
 several qualitatively different ways: the spectral peak can be
 correct in location but not in shape; the spatial regularity of the
 wires can break down; the direction in which the signal is strongest
@@ -318,12 +311,12 @@ locally across the page. The pipeline therefore reports five
 quantities, each of which is sensitive to one of these failure
 modes and largely insensitive to the others. All five are derived
 from the detector output itself and require no external ground
-truth, so they can flag a low-confidence case before any manual
+truth, so they can provide sign of a low confidence case before any manual
 check is done.
 
 The harmonic fit quality $R^2$ asks whether the spectral peak is a
-real harmonic structure. A Fourier series with the locked
-fundamental $f_0$ and the first three harmonics is fitted to the
+real harmonic structure. A Fourier series with a
+fundamental and the first three harmonics is fitted to the
 broadband one-dimensional signal $s(x)$,
 \begin{equation}
   \hat{s}(x) \;=\; \sum_{k=1}^{3} \bigl[
@@ -336,26 +329,26 @@ broadband one-dimensional signal $s(x)$,
 \end{equation}
 and $R^2$ is reported as the harmonic fit quality. A value close to
 one means that almost all of the variance of the signal is explained
-by harmonics of the detected period, which is what a real
-laid-line pattern produces. A low value flags a peak that was the
+by harmonics of the detected period, which is what a 
+laid line pattern would produce. A low value flags a peak that was the
 largest in the spectrum but did not correspond to a clean periodic
 structure, for example a peak caused by paper curvature or by a
 single high-amplitude artefact.
 
 The empirical interval distribution asks the same question in the
 spatial domain. Peaks $\{x_i\}_{i=1}^{N}$ of the broadband signal are
-detected within a narrow tolerance of the locked period; the
+detected within a narrow tolerance of the estimated period; the
 inter-peak gaps $g_i = x_{i+1} - x_i$ are summarised by their median
-and a robust coefficient of variation
+and a coefficient of variation
 \begin{equation}
   \mathrm{CV} \;=\; \frac{\sigma_g}{\mathrm{median}(g_i)},
   \label{eq:interval_cv}
 \end{equation}
 where $\sigma_g$ is the sample standard deviation of $\{g_i\}$. The
-median gives the per-folio density once the optical scale is applied.
+median gives the laid line density once the optical scale is applied.
 The coefficient of variation is a robust measure of how regular the
-laid lines actually are; a value below about ten per cent indicates
-a well-formed mould signature, and a much larger value either
+laid lines actually are; a value below about 10\% indicates
+a well formed mould signature, and a much larger value either
 indicates physical damage to the folio or a detection that has
 attached to noise rather than to a real periodicity. An example for
 Kk.1.5 f5v is given by \Cref{fig:f5v_interval} in
@@ -366,10 +359,10 @@ detection.
 
 The self-consistency contrast asks whether the detected
 direction itself is special, by comparing the detector score $S(\theta)$
-along the inferred laid-line orientation $\theta^\star$ with its
-scores along $K$ randomly chosen non-laid-line directions
+along the inferred laid line orientation $\theta^\star$ with its
+scores along $K$ randomly chosen directions
 $\{\theta_k\}_{k=1}^{K}$ on the same image. The result is the
-$z$-score of the laid-line score against this empirical null
+$z$-score of the laid line score against this empirical null
 distribution,
 \begin{equation}
   z \;=\; \frac{S(\theta^\star) - \overline{S(\theta_k)}}
@@ -377,12 +370,12 @@ distribution,
   \label{eq:self_contrast_z}
 \end{equation}
 where the mean and sample standard deviation are taken over the $K$
-random directions. A value above about five indicates that the
+random directions. A value above about 5 indicates that the
 detected direction is uniquely periodic, which is the expected
-behaviour for a folio with real laid lines. A value near zero
+behaviour for a folio with real laid lines. A value near 0
 indicates that the detector would have reported a similar score for
 a random direction, which is the signature of a folio that does not
-contain any usable laid-line signal at all.
+contain any usable laid line signal at all.
 
 The split-half stability asks whether the detection depends on any
 one image. The $N$ grazing images of a DRP acquisition are
@@ -396,20 +389,20 @@ the half-detector periods is reported as
   \qquad m = 1, \dots, M,\; h \in \{1, 2\}.
   \label{eq:split_half}
 \end{equation}
-A small dispersion, of the order of one per cent of the locked
+A small dispersion, of the order of 1\% of the estimated
 period, indicates that the same period would have been recovered
 from a quite different subset of the data. A large dispersion
-indicates that the detection rests on one or two azimuthal views
-and would have changed substantially had those views been absent.
+indicates that the detection relies on on one or two azimuthal views
+and would have changed substantially without those views.
 The metric is only defined for the multi-phi DRP variant of
-\Cref{sec:multiphi:multi}, since the single-image variant has only
-one image to work with; on a single-image folio the metric bundle
+\Cref{sec:multiphi:multi}, since the single image variant has only
+one image to work with; on a single image folio the metric bundle
 therefore has four members rather than five.
 
-The per-segment wire-width distribution asks whether the laid wires
+The wire-width distribution per segment asks whether the laid wires
 behave consistently across the page. The folio is divided into $J$
-stripes along the laid-line direction; in each stripe $j$ a
-Gaussian-comb model is fitted to the broadband signal and the wire
+stripes along the laid line direction; in each stripe $j$, a
+Gaussian comb model is fitted to the broadband signal and the wire
 sigma $\sigma_j$ is converted to a full-width-at-half-maximum,
 $\mathrm{FWHM}_j = 2\sqrt{2\ln 2}\,\sigma_j$. The metric reports the
 interquartile range
@@ -418,18 +411,18 @@ interquartile range
   Q_3\bigl(\mathrm{FWHM}_j\bigr) - Q_1\bigl(\mathrm{FWHM}_j\bigr),
   \label{eq:wire_iqr}
 \end{equation}
-which captures spatial variation that the global wire-width figure
+which captures spatial variation that the global wire width figure
 smooths over. A large $\mathrm{IQR}_{\mathrm{FWHM}}$ flags either
 local damage, surface curvature, or a sheet that was not properly
 flattened during imaging.
 
 The five metrics overlap deliberately. A single failure mode
-typically degrades at least two of them at once, so a folio that is
+typically triggers the deprecation of at least two of metrics at once, so a folio that is
 healthy on all five is more trustworthy than one that is healthy on
 any single metric; a folio that is bad on one but healthy on the
 other four can usually be diagnosed by reading which metric is bad
 and locating the relevant feature in the corresponding plot.
-\Cref{sec:benchmark} reports the five for every folio in the
+\Cref{sec:benchmark} reports the five metrics for every folio in the
 benchmark, and the failure cases collected in
 \Cref{sec:benchmark:msi:failures} are organised around which metric or
 combination of metrics first identified each problem.

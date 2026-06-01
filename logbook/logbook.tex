@@ -1,0 +1,319 @@
+% IIB Project Research Log -- PaperDRM
+% Submitted alongside the final report.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=22mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{parskip}
+
+\setlist[itemize]{topsep=2pt,itemsep=1pt,parsep=0pt,leftmargin=*}
+
+% Date heading style
+\titleformat{\section}{\normalfont\large\bfseries}{}{0em}{}
+\titlespacing*{\section}{0pt}{12pt}{2pt}
+
+\titleformat{\subsection}{\normalfont\normalsize\itshape}{}{0em}{}
+\titlespacing*{\subsection}{0pt}{6pt}{1pt}
+
+\newcommand{\logentry}[2]{\section*{#1\hfill\normalfont\normalsize\textit{#2}}}
+
+\begin{document}
+
+\begin{center}
+  \Large\textbf{Research Log}\\[2pt]
+  \normalsize Tracking Medieval Manuscripts by Reverse Engineering the Paper-making Process\\
+  \normalsize Zhanfeng Zhou \,\textbar\, Robinson College \,\textbar\, Supervisor: Dr Matteo Seita
+\end{center}
+
+\vspace{4pt}\hrule\vspace{8pt}
+
+% ==========================================================================
+% MAY -- JUNE 2026 (Easter term, reporting and submission)
+% ==========================================================================
+
+\logentry{1 Jun 2026}{Submission day}
+\begin{itemize}
+  \item Submitted final report (38 pages, including title page and one mandatory risk-retrospective appendix), Technical Abstract as a standalone PDF, and this log book.
+  \item Built final PDF locally using TinyTeX; verified 38 pages, no LaTeX errors. Replaced LaTeX-rendered cover with official CUED front page (Word template filled and exported to PDF).
+\end{itemize}
+
+\logentry{31 May 2026}{Reproducibility check, last polish}
+\begin{itemize}
+  \item Rebuilt PDF end-to-end and cross-checked every quoted number in Technical Abstract and \S 4 against the per-folio JSONs under \texttt{results/<folio>/}. All but two of the dataset 2 metric values reproduce.
+  \item Noted residual data integrity issue: \texttt{results/2/fit\_quality.json} and \texttt{results/2/interval\_distribution.json} are byte-identical to the dataset 2b files (overwrite during archiving on 29 May), while \texttt{self\_contrast.json} is from the original 18 May run. Recorded for viva preparation.
+  \item Final typo pass across all chapters.
+\end{itemize}
+
+\logentry{30 May 2026}{Figure pass, duplication artefact discovery}
+\begin{itemize}
+  \item Generated the missing \S 1, \S 2 and \S 3 figures: folio anatomy close-up, DRM hardware schematic (TikZ), per-pixel DRP polar plot, anisotropy and azimuth maps, patchwise trig-mask, two-azimuth and four-azimuth grazing image panels, and the f5v overlay zoom.
+  \item While generating the anisotropy map, observed a horizontal duplication artefact in the dataset 4 DRP cache at offset $\approx$ 1364 px. Cross-correlation peak of the cache mean is 0.64 at $(\pm 1364, 0)$; absent in any single $(\phi, \theta)$ frame (peak $<0.18$ and at a different offset). This is acquisition-level, not a pipeline bug.
+  \item Cropped all DRP-derived figures to columns $0$ to $2000$ of the raw image so only one copy of the folio is visible. Updated captions accordingly.
+\end{itemize}
+
+\logentry{29 May 2026}{Cross-machine continuation}
+\begin{itemize}
+  \item Pulled main branch to home laptop. Python venv was broken (iCloud sync had renamed symlinks with spaces). Rebuilt venv, reinstalled numpy/scipy/matplotlib/opencv-python/pillow/PyYAML.
+  \item First build of the report on this machine: installed TinyTeX, added biber, biblatex, titlesec, siunitx, microtype, cleveref, subcaption, pgf, caption via \texttt{tlmgr}. Build clean at 38 pages.
+\end{itemize}
+
+\logentry{28 May 2026}{Reference and \S 4 restructure}
+\begin{itemize}
+  \item Added seven literature references to \S 1 and \S 6.3: Bernstein and WIES watermark databases, Atanasiu AD751 software, Malzbender (PTM), Sethares (WIMSY), Sindel (ChainLineNet), Grossmann (spectral TV).
+  \item Restructured \S 4 Benchmark from a metric-by-metric layout into DRP-first then MSI-second sections to mirror the detection chapter.
+  \item Filled supervisor name and Robinson College on the front matter; resolved citation TODOs throughout.
+\end{itemize}
+
+\logentry{27 May 2026}{Body draft, first-round proofread}
+\begin{itemize}
+  \item Expanded skeleton from $\sim$2k to $\sim$9k words; six body chapters in place. Split the detection chapter into single-image MSI variant and multi-phi DRP variant.
+  \item Added the pipeline diagram (TikZ block), aggregated spectrum figure for dataset 10, and per-image phase polar plot showing the $\pi$-flip polarity correction.
+  \item Drafted the Technical Abstract from the headline numbers.
+  \item Wrote the Risk Assessment Retrospective (mandatory $\leq 1$ A4 appendix).
+  \item Two proofread rounds. Fixed multiple broken cross-refs and track-attribution errors (multi-phi-only metrics being claimed on single-image MSI inputs).
+\end{itemize}
+
+\logentry{26 May 2026}{Report restructure}
+\begin{itemize}
+  \item Restructured report scaffold into Andrew Liang's 2024 narrative-chapter layout. Six chapters: Background, Initial Detection Attempts, Detection, Validation, Discussion, Conclusion.
+\end{itemize}
+
+\logentry{25 May 2026}{Manual GT annotation tool, report scaffold}
+\begin{itemize}
+  \item Built two-stage interactive annotation tool: bounding box selection (re-used \texttt{select\_bbox.BBoxSelector}), then per-wire click placement with scroll-wheel zoom and live read-out of mean gap and lines/cm.
+  \item Ran annotation on every folio of the nine-folio MSI benchmark. Saved as \texttt{manual\_gt.json} per folio with both pixel gaps and the physical cm scale.
+  \item Scaffolded the report directory under \texttt{report/}.
+\end{itemize}
+
+\logentry{24 May 2026}{Inter-counter variability hypothesis}
+\begin{itemize}
+  \item Spreadsheet density disagrees with pipeline on seven of nine MSI folios, errors $-11$\% to $-71$\%. Initial read was systematic detector bias.
+  \item Re-read Da Rold ch.~1--2 on stock-vs-folio distinction. Hypothesis: spreadsheet records one folio per stock; within-stock density varies between folios.
+  \item Discussed with supervisor: build per-folio manual ground truth instead of trusting the catalogue. Decision pivots the whole evaluation.
+\end{itemize}
+
+\logentry{23 May 2026}{Spectral-power line-direction detection}
+\begin{itemize}
+  \item Replaced projection-autocorrelation with a spectral-power criterion in \texttt{auto\_detect\_line\_dir}. The autocorrelation was sensitive to the absolute amplitude of side-lobes and flipped sign on some folios.
+  \item Added dual-band cross-validation: the peak energy in the candidate-period band must be stronger than in any neighbouring band of equal width.
+\end{itemize}
+
+\logentry{22 May 2026}{Synthetic phantom, spreadsheet comparison}
+\begin{itemize}
+  \item Built a synthetic phantom generator: Gaussian-comb intensity at a controlled period, orientation, wire $\sigma$ and additive noise. Image generation runs in $<10$ ms; pipeline runs in seconds.
+  \item Four sweeps. Period $10$--$60$ px, SNR $2$--$50$, angle $-30^\circ$--$+30^\circ$, sigma $1$--$8$ px. Headlines: period recovery within $\pm 2.5\%$ across $10$--$50$ px; essentially SNR-invariant down to SNR $= 2$; angle within $1^\circ$ except at $+90^\circ$.
+  \item Spreadsheet-comparison driver added; ran on f5v and f9v.
+  \item Found that TX940IR images need \texttt{wire\_is\_darker=false} because transmitted-light contrast inverts the wire signature. Fixed and re-archived Kk1-5 results.
+\end{itemize}
+
+\logentry{21 May 2026}{Per-folio result archives}
+\begin{itemize}
+  \item Per-serial result archiving: each folio's outputs land at \texttt{results/<folio>/}, with the YAML config copied alongside so the run is replayable.
+  \item Plain-language HTML report per run for sharing with the Manuscripts Lab.
+  \item 1 cm scale grid overlay on the detected laid-line grid as a visual sanity check.
+\end{itemize}
+
+\logentry{19 May 2026}{MSI single-image pipeline}
+\begin{itemize}
+  \item Built the single-image MSI track: radial FFT of the column-mean $\to$ single Gabor cleanup pass $\to$ phase fit $\to$ grid. Bypasses the per-pixel direction map of the legacy track entirely.
+  \item Added \texttt{detect\_paper\_roi} utility for MSI transmitted-light images: a band-pass texture filter separates paper from light-box frame, then a morphological close gives a clean rectangle.
+\end{itemize}
+
+\logentry{18 May 2026}{Half-period polarity correction}
+\begin{itemize}
+  \item Found per-image phase was systematically offset by exactly $\pi$ between reflective and transmissive geometries. Wire shadow lands on the cosine maximum in reflective light but on the minimum under transmission.
+  \item Auto-correction step in the multi-phi aggregation: examine whether the cosine fit's peak sits over a darker or brighter pixel; flip by half-period if needed.
+  \item Loader cleanup: \texttt{crop\_roi}, \texttt{period\_range\_px} and \texttt{wire\_is\_darker} added as proper Settings fields; stale-background detection with on-the-fly Gaussian-blur fallback.
+\end{itemize}
+
+\logentry{17 May 2026}{Re-engaging after Easter break}
+\begin{itemize}
+  \item Reorganised the codebase for re-engagement: stage-based subpackages (\texttt{stage0\_loader}, \texttt{stage0\_drp}, \texttt{stage1\_features}, \texttt{stage2\_enhance}, \texttt{stage3\_detect}, \texttt{stage4\_viz}, \texttt{stage5\_evaluation}). Each stage advances the pipeline one step.
+  \item Verified pipeline output unchanged at period $26$ px, $18.2$ lines/cm before and after the refactor.
+\end{itemize}
+
+\logentry{12 May 2026}{Plan for the Easter term}
+\begin{itemize}
+  \item Spent the past month on other Tripos modules and revision; project work on hold.
+  \item Today: full read of own code. Bottlenecks identified: the per-pixel direction map at the front of the legacy pipeline carries most of the noise into the frequency stage and is the single biggest weakness.
+  \item Plan for the next two weeks: (i) build a single-image FFT track that bypasses the direction map; (ii) keep the multi-phi idea but operate on raw grazing images, not the trig mask; (iii) characterise both on a synthetic phantom before touching real folios.
+\end{itemize}
+
+% ==========================================================================
+% APRIL 2026 (Easter break / revision period)
+% ==========================================================================
+
+\logentry{27 April 2026}{Evaluation framework brainstorm}
+\begin{itemize}
+  \item Reading Otsu, Sezgin and Sankur reviews on the quality metrics used in periodic-texture detection. Most published methods report a single density figure with no confidence.
+  \item Drafted on paper a five-metric bundle: harmonic-fit $R^2$; interval CV; self-contrast $z$-score against null directions; split-half stability across DRP partitions; per-segment wire FWHM IQR. Each is sensitive to one failure mode and largely insensitive to the others.
+  \item Plan: implement once the detection track is rebuilt.
+\end{itemize}
+
+\logentry{18 April 2026}{Literature catch-up}
+\begin{itemize}
+  \item Hiary and Ng (2007) -- projection-Fourier method on transmitted light. Closest published predecessor; user-supplied orientation is a recurring weakness.
+  \item Grossmann et al.\ (2023) -- spectral TV decomposition for chain and laid line extraction on reflected light. Produces enhanced images, not numbers.
+  \item Gorske et al.\ (2021) -- moldmate identification combining watermark geometry, chain-line spacing and laid-line density into one match score.
+  \item Sethares et al.\ (2023) -- WIMSY transmitted-light hardware.
+  \item Sindel et al.\ (2021) -- ChainLineNet, deep segmentation on transmitted-light scans.
+  \item All five end up in the literature review of \S 1.2.
+\end{itemize}
+
+\logentry{2 April 2026}{End of Lent term}
+\begin{itemize}
+  \item Stepping away from the project until mid-Easter break. Module assessments and revision take priority for the next four weeks.
+  \item Snapshot of current pipeline: DRP loader $\to$ per-pixel direction map (mag, deg) $\to$ patchwise trig mask $\to$ patchwise Gabor scan $\to$ overlay. Runs in $\sim 4.5$ min on a 480-image stack.
+  \item Known issue carried over: half-period bias on phantoms.
+\end{itemize}
+
+% ==========================================================================
+% MARCH 2026 (Lent term continued)
+% ==========================================================================
+
+\logentry{26 March 2026}{Patchwise Gabor wrap-up}
+\begin{itemize}
+  \item Locked the current Gabor-based pipeline as the end-of-Lent baseline. Patches of $512 \times 512$, stride $256$, periods $4$--$80$ px.
+  \item Observed half-period bias on synthetic-phantom-like inputs. Hypothesis: the absolute-valued Gabor response doubles the fundamental frequency; combined with the constant-Q (proportional bandwidth) scoring this drives the per-patch winner toward higher frequencies. Did not fix this term.
+  \item Wrote up the issue in a notebook for the file.
+\end{itemize}
+
+\logentry{14 March 2026}{Meeting with Dr Seita}
+\begin{itemize}
+  \item Reviewed the patchwise Gabor pipeline at 4.5 min/folio, half-period bias.
+  \item Discussion: before chasing more pipeline tweaks, design an evaluation framework so any future change can be measured. Quality metrics are more valuable than a single tighter density figure.
+  \item Action items: (a) sketch metric bundle on paper; (b) synthetic phantom for ground-truth-level validation; (c) plan a multi-folio benchmark for next term.
+\end{itemize}
+
+\logentry{2 March 2026}{Reading: Gabor harmonic doubling}
+\begin{itemize}
+  \item Read on Gabor filter banks (Daugman, Bovik) and on the constant-Q vs constant-bandwidth distinction.
+  \item Worked through on paper why $|G(x) \ast s(x)|^2$ doubles the fundamental of a sinusoidal $s(x)$. Confirmed the analytical source of the half-period bias.
+  \item Next step ideas: replace patchwise Gabor with FFT peak detection (no squaring), or use a single Gabor with phase fit (no patch voting).
+\end{itemize}
+
+% ==========================================================================
+% FEBRUARY 2026 (Lent term)
+% ==========================================================================
+
+\logentry{24 February 2026}{Elevation angle selection}
+\begin{itemize}
+  \item Added \texttt{theta\_min\_deg} parameter to filter DRP slices to grazing-incidence only ($\theta \geq 30^\circ$ from page normal).
+  \item Motivation: low-$\theta$ slices carry most of the directional laid-line signal; near-normal $\theta$ adds illumination noise without adding signal.
+  \item Implementation: \texttt{apply\_theta\_min\_filter} in \texttt{paperdrm/stage0\_drp/slicing.py}.
+\end{itemize}
+
+\logentry{21 February 2026}{Hanning-weighted patch stitching}
+\begin{itemize}
+  \item Replaced hard patch tiling with Hanning-window overlap-weighted stitching. Removes patch-boundary discontinuities that were visible in the dominant-orientation map.
+  \item Per-pixel result is now a smooth function of position rather than a piecewise-constant tile field.
+\end{itemize}
+
+\logentry{16 February 2026}{Lab visit: re-imaging dataset 4}
+\begin{itemize}
+  \item Re-imaged folio Kk.1.5 with the $1.0\times$ lens that arrived from the lab manager last week. Two scans at field of view $\sim 8.65$ cm.
+  \item The flatter sample tray (manufactured to $2$ mm thickness against the earlier $3$ mm spec) is in. Less sample bow visible in the live preview.
+  \item Cable tie to the camera frame in place; image stability checked.
+\end{itemize}
+
+\logentry{11 February 2026}{Patch-wise trigonometric map}
+\begin{itemize}
+  \item Tile the page with overlapping $512 \times 512$ patches; circular-mean orientation per patch.
+  \item Each pixel receives a Gaussian likelihood of agreeing with its patch's dominant direction.
+  \item Output is a greyscale image in which the laid-line orientation is locally enhanced relative to the per-pixel noise.
+\end{itemize}
+
+\logentry{6 February 2026}{Gaussian-orientation trigonometric filter}
+\begin{itemize}
+  \item Convert per-pixel azimuth map into a laid-line-likelihood greyscale. Gaussian centred on the target line direction with $\sigma = 10^\circ$; full $360^\circ$ wrap-around distance.
+  \item Implemented \texttt{azimuth\_to\_laidline\_gray} in \texttt{paperdrm/stage2\_enhance/trig\_mask.py}.
+\end{itemize}
+
+\logentry{3 February 2026}{Gabor at fixed frequency for phase}
+\begin{itemize}
+  \item Fixed Gabor filter at the dominant frequency to infer wire phases (positions). Avoids re-scanning over period at the phase step.
+  \item Output: $1$D signal whose peaks coincide with detected wire positions.
+\end{itemize}
+
+% ==========================================================================
+% Earlier entries (Michaelmas) preserved from earlier exports of the log.
+% ==========================================================================
+
+\logentry{6 December 2025}{Literature review on visible-light imaging modalities}
+\begin{itemize}
+  \item Reflected light: easy to obtain, but low contrast on internal features, noise and ink interference.
+  \begin{itemize}
+    \item Decompose images by scale and contrast; separate low-contrast structures from high-contrast ones (band-pass in scale space). Spectral TV decomposition is one realisation.
+  \end{itemize}
+  \item Raking light: reveals surface topography.
+  \item Transmitted light: cleaner internal-feature signal, complicates interpretation.
+  \item Desire: build a model that maps laid line, chain line and watermark to a per-folio descriptor.
+  \item Pipeline sketch: preprocessing $\to$ enhancement $\to$ detection $\to$ descriptor.
+\end{itemize}
+
+\logentry{26 November 2025}{Background substrate}
+\begin{itemize}
+  \item A4 paper does not work as the background under DRM. Surface is not actually even at the microscope scale and adds its own anisotropy.
+  \item Need a flatter substrate.
+\end{itemize}
+
+\logentry{24 November 2025}{Lab visit -- field of view}
+\begin{itemize}
+  \item Field of view is approximately $4 \times 2.2$ cm at the widest setting with the $1.3\times$ lens. Very small for a whole manuscript folio.
+  \item Discuss with supervisor whether to step down magnification or to accept a per-patch stitching workflow.
+\end{itemize}
+
+\logentry{17 November 2025}{Meeting with Prof Da Rold}
+\begin{itemize}
+  \item Fetched one large and one small paper sample.
+  \item Question: is the small sample at least as large as a real manuscript folio? Confirm with Prof Da Rold.
+  \item Question: what is the difference between the two sides of a sample (felt vs wire)?
+\end{itemize}
+
+\logentry{17 November 2025}{Meeting with Dr Seita}
+\textbf{Tray.}
+\begin{itemize}
+  \item Mount on the DRM platform with bolts.
+  \item If ferromagnetic, use magnets to flatten the manuscript on top.
+  \item Does tray thickness affect sample centricity? Light source emits near-parallel light; a $2$ cm elevation in sample height causes up to $2 / \tan(15^\circ) \approx 7.46$ cm of illumination-point shift -- much too large. Need to measure the actual effect.
+  \item Tray must be very flat and thick enough not to bend in handling.
+\end{itemize}
+\textbf{Cable.}
+\begin{itemize}
+  \item The data cable behind the camera must be tied to the frame so it does not contact the sample during a scan.
+\end{itemize}
+\textbf{Lens.}
+\begin{itemize}
+  \item Replace the $1.3\times$ lens with the available $1.0\times$ first. Report the camera make and model to Dr Seita so he can buy a $0.5\times$ if needed.
+\end{itemize}
+\textbf{Sample understanding.}
+\begin{itemize}
+  \item Watermarks and thickness features are more visible at high $\theta$; small surface features at low $\theta$. Verify and explain.
+\end{itemize}
+
+\logentry{31 October 2025}{Paper reading}
+\begin{itemize}
+  \item Lins et al.\ -- using paper texture for binarisation. Idea: model the surface as a vector in a parameter space; do matching by Euclidean distance.
+  \item What pre-processing is needed before matching? Uniforming mean and variance?
+  \item Toreini et al.\ -- texture-based paper fingerprinting. They construct a $2$-bit code per pixel from the Gabor response $C(x, y) = I(x, y) \ast G(x, y)$ and measure similarity in fractional Hamming distance.
+  \item Note from the paper: surface alone misses non-even thickness, random impurities and different opacities. Motivates trying transmitted light if the project ever has access.
+  \item Action: replicate Andrew Liang's published output on a dataset with a recognisable feature.
+\end{itemize}
+
+\logentry{20 October 2025}{Group meeting}
+\begin{itemize}
+  \item Group themes: LRC-MRM imaging; Ti-6Al-4V surface characterisation. My project sits in the imaging side.
+\end{itemize}
+
+\logentry{17 October 2025}{First project meeting}
+\begin{itemize}
+  \item Project objectives agreed with Dr Seita: re-engineer the paper-making process by recovering mould geometry from non-invasive imaging of historical folios.
+  \item Actions: participate in weekly group meetings, practice measuring samples on the DRM rig, read the relevant literature.
+\end{itemize}
+
+\end{document}

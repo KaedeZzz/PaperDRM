@@ -9,20 +9,20 @@
 \subsection{Motivation}
 \label{sec:bg:motivation}
 
-The process of making handmade paper of the kind used in late medieval
-and early modern Europe is as follows: a vatman dips a wooden frame
-with metal wires in between, called a mould, into a vat of macerated
+The process of making handmade paper in late medieval
+and early modern Europe is as follows: a vatman dips a mould made of a wooden frame
+with metal wires in between into a vat of 
 fibre solution, lifts it out, and lets the water drain through the
 frame's mesh~\cite[ch.~1]{darold2020paper}. The mould carries two sets
 of perpendicular wires. A small number of stout chain wires, typically
-spaced two to three centimetres apart, run from one short edge to the
-other and provide structural support. On top of them, a much denser
-bed of fine laid wires, of the order of eight to fifteen per
-centimetre, runs perpendicular to the chain wires. As the wet pulp
-settles, it deposits more material in the spaces between wires than
-directly over the wires themselves, so that the dried sheet ends up
-with a periodic thickness pattern that mirrors the wire
-layout~\cite{enomae2010laidlines}. Held up to a strong light, this
+spaced 2 to 3 centimetres apart, run from one short edge to the
+other and provide structural support for other wires. On top of them, a much denser
+layer of fine laid wires, of the order of 8 to 15 per
+centimetre, runs perpendicular to the chain wires. As the wet fibre pulp
+settles, it deposits more paper material in the spaces between wires than
+above the wires, so that the dried paper sheet ends up
+with a periodic thickness pattern that corresponds to the wire
+layout~\cite{enomae2010laidlines}. Under intensive illumination, this
 pattern appears as a series of pale and dark lines that is visible
 to human eyes.
 
@@ -42,44 +42,46 @@ to human eyes.
 Each mould was made by hand, with wires drawn and tied by an individual
 artisan, so no two moulds are exactly identical. Moreover, paper was
 almost always made in pairs: two near-identical moulds were used in
-alternation by the same vatman to keep production continuous while
-each sheet was being couched. The result is that every batch of paper
-from a given workshop carries a recognisable, two-state signature in
-the geometry of its laid and chain lines~\cite[ch.~2]{darold2020paper}.
-Codicologists study this signature to group folios that come from the
+alternation by the same artisan to keep production continuous while
+each sheet was being dried. The result is that, every batch of paper
+from a given workshop carries a recognisable signature in
+the geometry of its laid and chain lines~\cite[ch.~2]{darold2020paper},
+aside from the watermark that today mainly contributes to the recognition and 
+sourcing of medieval papers.
+Codicologists utilise this signature together with watermarks to group folios that come from the
 same mould or mould pair, and from there to assign manuscripts to a
 region, a workshop, or even a specific year.
 
-To this day, the analysis of laid-line features is still largely
+To this day, the analysis of laid line features is still largely
 manual. A researcher inspects each folio under raking or transmitted
-light, counts wires along a short ruler, and records a single density
+light, counts wires with assistance of a short ruler, and records a single density
 figure in lines per centimetre. The procedure is slow,
-observer-dependent, and exposes fragile paper manuscripts to repeated
+observer dependent, and exposes fragile paper manuscripts to repeated
 handling. It also discards almost all of the information present in
-the original image: the variation of density across the page, the
+the original image, including the variation of density across the page, the
 local orientation of the laid lines, and the distribution of wire
-diameters are all collapsed to a single scalar. At the same time,
-major research libraries -- including Cambridge University Library,
-the Bodleian, and the Bibliothèque nationale de France -- now
-routinely capture multispectral image stacks of their
-holdings~\cite{miniare}. These stacks contain far more
+diameters; instead, all information is collapsed to a single scalar. At the same time,
+major research libraries including Cambridge University Library,
+the Bodleian, and the Bibliothèque nationale de France, now
+ capture multispectral image stacks of their
+holdings~\cite{miniare} as a basis. These stacks contain far more
 information than a single density estimate, but no robust automated
-pipeline yet exists to turn them into the quantitative
-mould-fingerprint data that codicology actually requires. Closing
+pipeline yet exists to turn them into quantitative
+ data as a mould fingerprint that codicology actually requires. Closing
 that gap is the central aim of this project.
 
 \subsection{Current Feature Extraction Techniques}
 \label{sec:bg:prior_extraction}
 
-Automated extraction of laid and chain lines from digital images of
+The idea of automated extraction of laid and chain lines from digital images of
 historical paper has a small but established literature. Most existing
-techniques operate on transmitted-light or radiographic images,
+techniques operate on transmitted light or radiographic images,
 treating the folio as a two-dimensional signal with a dominant spatial
 frequency. The earliest systematic study, by Hiary and
 Ng~\cite{hiary2007paper}, applied projection-based Fourier methods to
-thresholded transmitted-light scans, extracting the laid-line density
+ transmitted light scans, extracting the laid line density
 from the dominant peak in a one-dimensional power spectrum of the
-column sum. Subsequent variants substituted Gabor filter banks,
+column sum. Subsequent variants included Gabor filter banks,
 autocorrelation, or wavelet decompositions, of which the AD751
 software of Atanasiu~\cite{atanasiu_ad751} is a widely used
 implementation. These methods are simple to implement and reasonably
@@ -90,42 +92,41 @@ image and therefore averages out local variations from curvature or
 ink coverage, and no uncertainty figure accompanies the extracted
 density.
 
-A second strand of work has grown out of large-scale bibliographic
+A second branch of work has grown out of large scale bibliographic
 projects such as the Bernstein and WIES
 initiatives~\cite{wenger2010bernstein,wies}, which catalogue watermarks
-across European collections. The emphasis there has been on capturing
-high-quality transmitted-light images and on building searchable
-databases of watermark designs, with comparatively little attention to
-the periodic chain-and-laid background that surrounds the watermark.
-Pipelines in this strand tend to be tuned per-image by a human
+across European collections. The emphasis there was to capture
+high quality transmitted light images and to build searchable
+databases of watermark designs, with relatively little attention to
+the chain line and laid line features that surround the watermark.
+Pipelines in this branch tend to be tuned per image by a human
 operator rather than run as a single automated process. Radiographic
-methods such as the chain-line detection of Van der
+methods such as the chain line detection of Van der
 Lubbe~\cite{vanderlubbe2001rembrandt}, which combines morphological filters
-with vertical projections, give cleaner signals but require expensive
-imaging that is out of reach for most institutions.
+with vertical projections, give cleaner signals but require imaging techniques
+that are too expensive to implement for most institutions.
 
 More recent work has approached the problem from two further
-directions. Dedicated transmitted-light imaging hardware such as
+directions. Dedicated transmitted light imaging hardware such as
 the Watermark Imaging System of Sethares et
-al.~\cite{sethares2023wimsy} produces aligned surface, raking-light
-and transmitted-light captures that make laid and chain features
-easier to read, and deep-learning segmentation models such as
+al.~\cite{sethares2023wimsy} produces aligned surface, raking light
+and transmitted light captures that make laid and chain features
+easier to read, and deep learning segmentation models such as
 ChainLineNet~\cite{sindel2021chainlinenet} can localise chain lines
-in transmitted-light scans with very little hand annotation.
-Closest in spirit to the present project is the moldmate-
+in transmitted light scans with very little hand annotation.
+A work closest to the present project is the moldmate-
 identification system of Gorske et al.~\cite{gorske2021moldmate},
-which combines watermark geometry, chain-line spacing and laid-line
+which combines watermark geometry, chain line spacing and laid line
 density into a single quantitative match score; the present
-pipeline addresses only the laid-line component of that
+pipeline addresses only the laid line component of that
 combination, but as an automated detector with a per-folio
 confidence figure.
 
-The transmitted-light and radiographic modalities used by these prior
+The transmitted light and radiographic modalities used by these prior
 methods share a more fundamental limitation: they collapse the
-three-dimensional micro-relief of the folio surface onto a single
-two-dimensional intensity image. The micro-relief itself, in which the
-laid wires leave subtle ridges and valleys on each side of the page,
-carries information that is invisible to flat-lit imaging. The
+three-dimensional shape feature of the folio surface onto a single
+two-dimensional intensity image. Such features could include subtle ridges and valleys on each side of the page left by the laid lines, and they
+carry information that is invisible to flat imaging. The
 following section describes the alternative imaging modality on which
 this project is built.
 
@@ -146,7 +147,7 @@ recent. Conceptually the DRM sits in the broader family of
 reflectance transformation imaging (RTI) techniques introduced by
 Malzbender et al.~\cite{malzbender2001ptm}, which record the
 per-pixel reflectance as a function of illumination direction
-rather than as a single flat-lit value; the DRM differs from a
+rather than as a single value; the DRM differs from a
 typical RTI capture in the density of the angular sampling lattice
 and in the microscope-scale optical resolution.
 
@@ -210,12 +211,11 @@ For each spatial pixel $(x, y)$ on the folio, the DRM produces a
 sampled reflectance function $I(x, y; \theta, \phi)$ where $\theta$
 is the elevation angle of the source measured from the page normal
 and $\phi$ is its azimuth in the plane of the page. The full
-collection of these per-pixel functions across the image is called
-the directional reflectance profile (DRP) stack. Visualised at a
-single pixel, a DRP appears as an annular heat map: the outer
+collection of these pixel-wise functions across the image is called
+the directional reflectance profile (DRP) stack. A DRP is visualised on a single pixel as an annular heat map: the outer
 ring corresponds to grazing illumination, the inner ring to
 near-normal illumination, and the angular coordinate around the
-annulus encodes the source azimuth.
+annulus maps to the source azimuth.
 
 \begin{figure}[!htbp]
   \centering
@@ -233,19 +233,19 @@ annulus encodes the source azimuth.
   \label{fig:bg:drp_polar}
 \end{figure}
 
-% --- Why DRP suits laid-line detection paragraph --
-The DRP is well suited to laid-line analysis because the laid-line
-modulation of the paper surface is too subtle to read off a flat-lit
-image but produces a clear directional signature in reflected light.
+% --- Why DRP suits laid line detection paragraph --
+The DRP is well suited to laid line analysis because the laid line
+features of the paper surface are too subtle and shallow to read from a flat
+image, but produce a clear directional signature in reflected light.
 Under uniform illumination, the thickness variation
 caused by the laid wires gives only weak greyscale contrast. Viewed
 from a grazing angle aligned with the line normal, however, the same
 modulation casts a strong, directional shadow that is easy to see.
 A DRP records the full $(\theta, \phi)$ dependence of that shadow in
-a single acquisition, so a detector built on top of a DRP can find,
-rather than be told, the orientation and period at which the
-laid-line signal is strongest. This property is what makes the
-present pipeline simpler to operate than the projection-based
+a single imaging, so a detector built on top of a DRP can find
+the orientation and period at which the
+laid line signal is strongest, without the extra need to supply these information externally. This property is what makes the
+present pipeline simpler to operate than the projection based
 methods of the previous section, where orientation has to be
 supplied as an external parameter.
 
@@ -261,10 +261,10 @@ paper~\cite{mappingpaper}; from these, nine folios
 spanning four manuscript stocks were selected for the present
 benchmark. The shelfmarks used in the report follow the Cambridge
 University Library convention and are listed alongside the
-spreadsheet ground-truth density and the per-folio metric bundle
+spreadsheet ground truth density and the folio metric bundle
 in \Cref{sec:benchmark:msi:perfolio}. Every folio in the benchmark
 was additionally counted by hand using a custom annotation tool,
-giving a per-folio manual ground truth that is set against both
+giving a ground truth that is set against both
 the pipeline output and the catalogue spreadsheet in
 \Cref{sec:benchmark:msi:manual_gt}.
 
@@ -274,28 +274,28 @@ the pipeline output and the catalogue spreadsheet in
 The work reported here treats the following inverse problem. Given
 a DRP stack $I(x, y, \theta, \phi)$ together with the imaged
 field-of-view width in centimetres, the pipeline must return three
-quantities: the laid-line density $\rho$ in lines per centimetre,
+quantities: the laid line density $\rho$ in lines per centimetre,
 the local wire diameter $w$ expressed as a full-width-at-half-maximum
-in millimetres, and the local laid-line orientation $\alpha(x, y)$
+in millimetres, and the local laid line orientation $\alpha(x, y)$
 in degrees, along with an associated uncertainty for each. The
-pipeline must operate with no per-folio parameter tuning beyond the
-optical scale, and must report enough internal evidence for a codicologist
+pipeline must operate with no folio-specific parameter tuning beyond the
+optical scale, and must report enough evidence for a codicologist
  to judge whether to trust each estimate.
 
-The developed pipeline supports two distinct kinds of input
+The developed pipeline supports two different kinds of input
 through a single common framework. The multi-phi DRP variant is
-the original target of the project and operates on the full
-directional reflectance stack produced by the DRM instrument: it
+the original imaging methodology of the project and operates on the full
+directional reflectance stack produced by the DRM instrument. It
 aggregates normalised power spectra across all available
-azimuthal views, recovers a single dominant period, and combines
-per-view phases into a weighted circular mean with polarity and
-half-period auto-corrections. The single-image MSI variant is the
+azimuthal views, recovers a single dominant period, and combines phases
+of each view into a weighted circular mean with polarity and
+half period autocorrections. The single image MSI variant is the
 extension that lets the same pipeline run on the single-frame
-transmitted-light scans already held in major MSI archives: it
-applies a radial fast-Fourier transform followed by a single
+transmitted light scans already held in major MSI archives: it
+applies a radial fast Fourier transform followed by a single
 Gabor cleanup pass at the locked period. Both variants share a
 common preprocessing step (background subtraction, automatic
-line-direction detection by spectral-power scan, polarity flag,
+line direction detection by spectral power scan, polarity flag,
 configurable period search band), and feed the same evaluation
 bundle of quality metrics described in
 \Cref{sec:multiphi:evaluation}. \Cref{fig:pipeline_diagram}
@@ -337,33 +337,33 @@ summarises the overall flow.
 \label{fig:pipeline_diagram}
 \end{figure}
 
-Three contributions of this project deserve highlighting. The first
+There are three contributions of this project that deserve highlighting. The first
 is the staged DRP-based pipeline itself, which to the author's
-knowledge is the first automated pipeline to recover laid-line
+knowledge is the first automated pipeline to recover laid line
 density, orientation and wire diameter from a DRP stack
-without per-folio parameter tuning. The second is a synthetic
+without folio specific parameter tuning. The second is a synthetic
 phantom characterisation framework that supports four orthogonal
 sweeps (period, signal-to-noise ratio, orientation, and wire width)
-over a controllable line-pattern generator, and that is used in
+over a controllable line pattern generator; this generator is used in
 \Cref{sec:benchmark:msi:phantom} to map the failure modes of the
 detector one variable at a time before applying it to real data.
-The third is the nine-folio benchmark introduced in
+The third is the nine folio benchmark introduced in
 \Cref{sec:bg:dataset}, which together with the manual ground truth
-on two folios provides strong quantitative accuracy figures
-yet reported for an automated laid-line pipeline on real manuscript
+on those folios provides strong quantitative accuracy figures
+yet reported for an automated laid line pipeline on real manuscript
 material.
 
 Subsequent to this section, \Cref{sec:first_attempts} describes
-two earlier detection attempts that did not work or did not work
+two earlier detection attempts that did not work
 well, both because they shaped the design of the final pipeline
-and because the comparison with that pipeline is the natural
+and because the comparison with those pipelines form the natural
 ablation baseline. \Cref{sec:multiphi} describes the detection
 chapter itself, including the common preprocessing framework, the
-single-image MSI variant, the multi-phi DRP variant, and the
+single image MSI variant, the multi-phi DRP variant, and the
 shared evaluation metric bundle. \Cref{sec:benchmark} presents
-the synthetic phantom characterisation, the nine-folio MSI
-benchmark, the manual-ground-truth comparison, the four
-zoomed-in DRP datasets including the Da Rold controlled
+the synthetic phantom characterisation, the nine folio MSI
+benchmark, the manual ground truth comparison, the four
+ DRP datasets including both real manuscripts and controlled reproduction paper
 reproduction, and a catalogue of failure modes. \Cref{sec:discussion}
 interprets these results and addresses the limitations of the present
 pipeline. \Cref{sec:conclusion} summarises the findings,

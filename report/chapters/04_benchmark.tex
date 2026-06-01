@@ -2,16 +2,16 @@
 \label{sec:benchmark}
 
 The pipeline is evaluated on two parallel benchmarks that reflect
-the two input modalities it supports.
+the two input sources it supports.
 \Cref{sec:benchmark:drp} reports the DRP benchmark: four small
 field-of-view datasets acquired with the AddME Lab directional
 reflectance microscope and processed by the multi-phi DRP variant
 of \Cref{sec:multiphi:multi}. \Cref{sec:benchmark:msi} reports
 the MSI benchmark: a synthetic phantom characterisation and nine
 real folios from the Mapping Paper in Medieval England corpus,
-all processed by the single-image MSI variant of
+all processed by the single image MSI variant of
 \Cref{sec:multiphi:single}. \Cref{sec:benchmark:ablation} closes
-with a short ablation on the line-direction detector that the
+with a short ablation on the line direction detector that the
 two variants share.
 
 
@@ -21,20 +21,17 @@ two variants share.
 
 The DRP benchmark consists of four datasets acquired at a field
 of view of approximately 8.65 cm: one controlled hand-made
-reproduction made by Professor Da Rold, used here as a known-mould
+reproduction made by the Manuscript Lab, used here as a known mould
 reference, and three zoomed-in scans of two folios drawn from the
 Mapping Paper corpus. All four were processed by the multi-phi DRP
-variant of \Cref{sec:multiphi:multi}; the per-image phase fit and
-the split-half stability metric of \Cref{sec:multiphi:evaluation},
-which are only well defined on multi-image input, are available
-here and are reported alongside the other four members of the
-metric bundle.
+variant of \Cref{sec:multiphi:multi}, and all 5 metrics here are reported
+in the metrics bundle.
 
 
 \subsubsection{Controlled reproduction: dataset 10}
 \label{sec:benchmark:drp:darold}
 
-Dataset 10 is a sheet of paper hand-made by Professor Da Rold
+Dataset 10 is a sheet of paper made by the Manuscript Lab
 using a reproduction of a fifteenth-century European mould.
 Because the paper was formed on a mould of known geometry, it is
 the closest the benchmark comes to a true ground truth at the
@@ -78,8 +75,8 @@ of $0.38$ mm.
 \end{figure}
 
 The density and the wire diameter that the pipeline reports for
-dataset 10 are the most defensible per-folio numbers in the
-report. They are within the ranges seen on the strongest folios
+dataset 10 are the most defensible numbers across all datasets.
+They are within the ranges seen on the strongest folios
 of the MSI benchmark in \Cref{sec:benchmark:msi:manual_gt}, so
 the pipeline behaves consistently across the change of optical
 scale. Dataset 10 is therefore the natural primary reference
@@ -91,8 +88,12 @@ against which the rest of the benchmark should be read.
 
 Datasets 2, 2b and 4 are zoomed-in DRP acquisitions of two real
 folios from the Mapping Paper corpus, acquired at the same
-field-of-view as dataset 10 but on aged manuscript material with
-varying degrees of ink coverage and surface unevenness. They
+field-of-view as dataset 10 but on real, aged manuscript material with
+varying degrees of ink coverage and surface unevenness. 
+Notably, those datasets are collected by directly imaging a book opened
+under the directional reflectance setup, instead of imaging isolated sheets,
+so the quality of images are generally poorer, and the inference ability of pipeline
+to these data in worse conditions is more convincing. They
 illustrate two practical points about deploying the multi-phi
 variant on imperfect inputs.
 
@@ -101,7 +102,7 @@ acquisition. The unrestricted full-frame run (dataset 2) reports
 a period of $74.5$ pixels with a self-contrast $z$-score of only
 $+0.36$ and a harmonic-fit $R^{2}$ of $0.002$. Both metrics are
 characteristic of a detection that has locked onto noise rather
-than the real laid-line signal. Re-running the same acquisition
+than the real laid line signal. Re-running the same acquisition
 with a crop restricted to a quadrant of the image with light ink
 coverage (dataset 2b) leaves the recovered period essentially
 unchanged but raises the self-contrast $z$-score to $+3.35$ and
@@ -112,7 +113,7 @@ before running the pipeline -- generalises to any acquisition
 whose full-frame self-$z$ is low.
 
 Dataset 4 is a separate zoomed-in folio acquired in the same
-session. Here the configuration specifies a period search range
+session. Here, the configuration specifies a period search range
 of $0.017$ to $0.106$ cm, equivalent to 8 to 50 pixels at the
 acquisition scale, in order to exclude the long-period band where
 the dataset 2 failure occurred. With that constraint the pipeline
@@ -121,9 +122,9 @@ centimetre, a self-contrast $z$-score of $+2.08$ and a
 harmonic-fit $R^{2}$ of $0.095$. The metric bundle is weaker than
 on dataset 10 but uniformly stronger than on dataset 2, and the
 recovered density is consistent with the densities of the
-high-quality folios in the MSI benchmark of
+high quality folios in the MSI benchmark of
 \Cref{sec:benchmark:msi:manual_gt}. The dataset 4 result is the
-clearest demonstration that the per-folio period range, in
+clearest demonstration that the period range, in
 combination with a sensible crop, is sufficient to recover a
 trustworthy density from a real folio at the zoomed-in scale.
 
@@ -133,17 +134,16 @@ trustworthy density from a real folio at the zoomed-in scale.
 \label{sec:benchmark:msi}
 
 The MSI benchmark consists of a synthetic phantom characterisation
-followed by a nine-folio real-folio benchmark, both processed by
+followed by a nine folio benchmark, both processed by
 the single-image MSI variant of \Cref{sec:multiphi:single}. The
 phantom characterises the underlying frequency estimator under
 controlled conditions; the nine folios are drawn from the Mapping
 Paper in Medieval England corpus and have been independently
-hand-counted as part of this project to provide a per-folio
+hand counted as part of this project to provide a
 manual ground truth alongside the catalogue spreadsheet. The
 split-half stability metric of \Cref{sec:multiphi:evaluation}
 is not used in this subsection because it requires multiple
-azimuthal views and trivially returns zero variance on
-single-image input.
+azimuthal views.
 
 
 \subsubsection{Synthetic phantom characterisation}
@@ -154,12 +154,12 @@ folios offer no ground truth at the level of the individual
 detector parameter. On a real folio the period, the orientation,
 the wire width and the signal-to-noise ratio are all unknown and
 they all vary together, so a single density figure that disagrees
-with a hand-count tells the reader nothing about which of the four
+with a hand counted value tells the reader nothing about which of the four
 contributed to the disagreement. A phantom inverts the
 relationship. The image is generated by a routine that places a
 periodic train of Gaussian wire shadows at a controlled period,
-orientation, wire full-width and additive noise level, and then
-runs the single-image variant of the pipeline on the result. Each
+orientation, wire width and additive noise level, and then
+runs the single image variant of the pipeline on the result. Each
 of the four parameters can therefore be swept independently while
 the others are held fixed, and the recovered value can be compared
 against the value that was actually drawn.
@@ -169,7 +169,7 @@ from 10 to 60 pixels at five random seeds per period. The
 signal-to-noise sweep covers SNR values from 2 to 50 at a fixed
 period of 24 pixels. The orientation sweep covers true line angles
 from $-85^{\circ}$ to $+90^{\circ}$ in steps of five degrees. The
-wire-width sweep covers Gaussian wire sigmas from one to eight
+wire width sweep covers Gaussian wire sigmas from 1 to 8
 pixels at a fixed period of 24 pixels. The headline number for each
 sweep is the mean absolute error of the recovered quantity,
 expressed as a percentage of the true value, averaged over the
@@ -213,35 +213,35 @@ sub-harmonic alias failure documented in
 essentially flat at $+1.6\,\%$ period error from SNR 50 down to
 SNR 2, reflecting the fact that the radial FFT peak of a periodic
 signal stays well above the broadband noise floor across a wide
-noise range. The orientation sweep recovers the laid-line angle
-to within one degree across almost the entire range, with a
+noise range. The orientation sweep recovers the laid line angle
+to within 1 degree across almost the entire range, with a
 three-degree wrap-around artefact at $+90^{\circ}$ that does not
-affect the period or wire-width estimates. The wire-width sweep
+affect the period or wire width estimates. The wire width sweep
 recovers the full-width-at-half-maximum to within ten per cent
-for sigmas between two and five pixels, which covers the wire
+for sigmas between 2 and 5 pixels, which covers the wire
 diameters of every real folio in the benchmark; outside that
-range the Gaussian-comb model under-resolves or drifts and the
-reported FWHM should be read with caution.
+range the Gaussian comb model underfits or drifts and the
+reported full-width-at-half-maximum should be read with caution.
 
-The four sweeps together establish that the single-image variant
-of the pipeline is, on controlled inputs, accurate to two or
-three per cent in period, robust to noise at any plausible level,
-accurate to within one degree in orientation, and accurate to
-within ten per cent in wire width across the relevant range.
-These are the figures against which the real-folio results of the
+The four sweeps together establish that the single image variant
+of the pipeline is, on controlled inputs, accurate to 2 or
+3\% in period, robust to noise at any plausible level,
+accurate to within 1 degree in orientation, and accurate to
+within 10 per cent in wire width across the relevant range.
+These are the figures against which the real folio results of the
 following subsections should be read.
 
 
 \subsubsection{Per-folio walkthrough: Kk.1.5 f5v}
 \label{sec:benchmark:msi:perfolio}
 
-The MSI real-folio benchmark consists of nine folios drawn from
+The MSI real folio benchmark consists of nine folios drawn from
 four manuscript stocks at Cambridge University Library and
 catalogued by the Manuscripts Lab as part of the Mapping Paper
 project. Each folio was imaged at a field of view of approximately
 25 cm wide, large enough to cover the central column of writing on
-a typical late medieval folio, as a single transmitted-light
-TX940IR frame. No per-folio tuning beyond the optical scale and
+a typical late medieval folio, as a single transmitted light
+TX940IR frame. No folio specific tuning beyond the optical scale and
 the polarity flag was applied.
 
 The shelfmark Kk.1.5 f5v is used as the reference case for the
@@ -282,29 +282,26 @@ this folio and is discussed below.
   \label{fig:perfolio_f5v}
 \end{figure}
 
-The interval-distribution panel is the clearest visual indicator
-that the detection has attached to the real laid-line signal. The
+The interval distribution panel is the clearest visual indicator
+that the detection has attached to the real laid line signal. The
 empirical inter-peak distances are concentrated tightly around the
-locked period, with a coefficient of variation just below ten per
-cent and no secondary mode at any harmonic of the locked period.
-The wire-width segment plot shows that the segment-by-segment FWHM
-is uniform across the page to within twenty per cent of the
+locked period, with a coefficient of variation just below 10\%,
+ and no secondary mode at any harmonic of the locked period.
+The wire width segment plot shows that the segment-by-segment FWHM
+is uniform across the page to within 20\% of the
 median, which is consistent with a folio that has neither local
-damage nor a strong curvature gradient. The split-half panel is
-trivial on single-image input.
+damage nor a strong curvature gradient.
 
 The self-contrast figure of $z = 0.72$ for Kk.1.5 f5v needs
-unpacking. The metric measures how much more periodic the detected
-direction is than a random direction on the same folio, and a
-value near zero usually flags a folio on which the detector found
-no real signal. In this case the low $z$ reflects not the absence
+unpacking. A value near zero usually flags a folio on which the detector found
+no real signal; in this case, the low $z$ reflects not the absence
 of laid lines but the very smooth surface of the parchment-like
 paper on which Kk.1.5 f5v was written: random directions on this
 folio also score relatively high because the paper texture itself
 has modest periodicity at the wire scale. The companion folio
 Kk.1.5 f9v, made from the same stock, reports $z = 11.96$, in
 line with the median $z$ across the rest of the benchmark. This
-case illustrates a point that recurs later: no single metric is
+case illustrates that, no single metric is
 decisive on its own, and a folio should be judged by the
 combination of all available metrics.
 
@@ -319,7 +316,7 @@ in lines per centimetre, measured by a researcher under raking
 light on one folio of the stock. This is the natural external
 reference for the present pipeline, because the same spreadsheet
 is what a codicologist would consult to identify the stock of a
-previously unstudied folio. Eight of the nine folios in the
+previously unstudied folio. All nine folios in the
 benchmark have a spreadsheet density recorded for their stock,
 and the comparison between the pipeline output and the spreadsheet
 value is summarised in \Cref{fig:vs_spreadsheet}.
@@ -337,36 +334,36 @@ $-71\,\%$ on Ff.4.15 f24r. Read at face value this would suggest
 a systematic detector bias.
 
 The next subsection rules this reading out by introducing a
-second, per-folio ground truth -- an independent manual count of
-every folio in the benchmark -- against which both the pipeline
-output and the spreadsheet figure can be compared. The comparison
+second, per-folio ground truth: an independent manual count of
+every folio in the benchmark, using more accurate imaging tools.Both the pipeline
+output and the spreadsheet figure are compared to this new ground truth, which 
 turns the nominal pipeline-vs-spreadsheet errors of
 \Cref{fig:vs_spreadsheet} into a much more informative picture:
-the pipeline tracks the per-folio manual count more closely than
+the pipeline tracks the manual count more closely than
 the spreadsheet does, which says less about the pipeline being
 right and more about manual counting being intrinsically hard.
 
 
-\subsubsection{Per-folio manual ground truth and the difficulty of hand-counting}
+\subsubsection{Manual ground truth and the difficulty of hand counting}
 \label{sec:benchmark:msi:manual_gt}
 
-A second per-folio reference was assembled by marking, by hand,
+A second reference was assembled by marking by hand
 every laid wire visible inside a small window on every one of the
-nine MSI folios. The annotation used a custom-built tool that
+nine MSI folios. The annotation used a custom built tool that
 loads the folio image, lets the operator click each wire in turn
 along a chosen axis, and reports the mean and median inter-wire
 spacing together with the corresponding density in lines per
 centimetre. Between ten and sixteen wires were marked per folio.
-The result, used as ground truth in the remainder of this
-subsection, is summarised alongside the spreadsheet figure and
+The result which is used as ground truth in the remainder of this
+subsection is summarised alongside the spreadsheet figure and
 the pipeline output in \Cref{fig:three_way} below.
 
 The annotation exercise made one observation forcefully which the
-report wants to record before the numbers are discussed. Hand
-counting laid lines on a calibrated digital image is
+report wants to address before the numbers are discussed. Hand
+counting laid lines on a real folio is
 substantially harder than the workflow assumed by the catalogue
-convention. Each wire must be picked out in a low-contrast
-greyscale field; the operator's eye fatigues quickly; the choice
+convention. Each wire must be picked out from a small, fragile paper with
+very small scale of features; the operator's eye fatigues quickly; the choice
 of where to start and where to stop a counting window introduces
 a one- or two-wire ambiguity per window; and on folios with heavy
 ink coverage or surface damage the eye can lose the periodic
@@ -374,23 +371,23 @@ structure entirely for a stretch of wires. The annotation
 performed for the present benchmark took the form of a careful
 single-pass count over a clear region of each folio; the
 catalogue spreadsheet maintained by the Manuscripts Lab was
-compiled over months by expert codicologists with on-folio access
+compiled over months by expert codicologists with access of folios
 under raking light. Both are competent hand-counts. They still
-disagree with each other by between $4$ and $32$ per cent on
+disagree with each other by between $4$\% and $32$\% on
 seven of the nine folios, with a median absolute disagreement of
-roughly twelve per cent. The reading the report takes from this
-is that two careful hand-counts on the same paper can be expected
-to differ by ten per cent or so, and that any single hand-counted
-density figure should be treated as carrying an intrinsic
-inter-counter uncertainty of that order. This is the difficulty
-of the underlying task speaking, not the carelessness of either
-count.
+roughly $12$\%. The reading the report takes from this
+is that two careful hand counts on the same paper can be expected
+to differ by ten per cent or so, and that any single hand counted
+density figure, especially count made with raw eyes and without assistance of imaging tools,
+ should be treated as carrying an intrinsic
+inter-counter uncertainty of that order. This addresses the difficulty
+of the underlying task.
 
 Against that background, the pipeline-vs-manual comparison is the
 most defensible accuracy figure the report can offer. On eight of
-the nine folios the pipeline density agrees with the per-folio
-manual count to within ten per cent, and on six of the nine the
-agreement is within five per cent. The median signed error is
+the nine folios the pipeline density agrees with the
+manual count to within 10\%, and on six of the nine the
+agreement is within 5\%. The median signed error is
 about $-5\,\%$, indicating a small consistent under-count that
 the project would like to characterise more tightly with a larger
 sample. The ninth folio, Ff.4.15 f24r, is the sub-harmonic alias
@@ -399,26 +396,26 @@ pipeline reports $3.92$ lines per centimetre against a manual
 count of $12.08$, an error of $-68\,\%$, and the metric bundle
 flags this folio as low-confidence so the failure is not silent.
 
-The pipeline tracks the per-folio manual count more closely than
+The pipeline tracks the manual count more closely than
 the catalogue spreadsheet does. On six of the nine folios the
 pipeline density is closer to the manual count than the
 spreadsheet density is, and on Hh.2.12 f190 the pipeline and the
 manual count agree exactly to two decimal places. Across the
 benchmark, the pipeline's median absolute error against the
-manual count is about five per cent while the spreadsheet's
+manual count is about $5$\% while the spreadsheet's
 median absolute error against the same manual count is roughly
-twelve per cent: the automated detector reproduces a per-folio
-expert hand-count to within roughly half the variability between
-two independent expert hand-counts of the same folio.
+$12$\%: the automated detector reproduces a 
+expert hand count to within roughly half the variability between
+two independent expert hand counts of the same folio.
 \begin{figure}[!htbp]
   \centering
   \includegraphics[width=0.85\linewidth]{three_way_comparison}
   \caption{Pipeline, spreadsheet and manual densities per folio on
-    the nine-folio benchmark.}
+    the nine folio benchmark.}
   \label{fig:three_way}
 \end{figure}
 
-The full per-folio numbers behind \Cref{fig:three_way} are listed in
+The full numbers behind \Cref{fig:three_way} are listed in
 \Cref{tab:msi_benchmark}.
 \begin{table}[!htbp]
   \centering
@@ -440,10 +437,10 @@ The full per-folio numbers behind \Cref{fig:three_way} are listed in
     Ii.3.8 f135v  &  9.0 &  7.40 &  6.75 & $-8.8\,\%$  & 0.49 & $+0.92$ \\
     \bottomrule
   \end{tabular}
-  \caption{Per-folio densities, spreadsheet ground truth, per-folio
+  \caption{Laid line densities, spreadsheet ground truth, per-folio
   manual ground truth, pipeline output, and the two quality metrics
   used in the bundle of \Cref{sec:multiphi:evaluation} on the
-  nine-folio MSI benchmark. Across all nine folios the pipeline's
+  nine folio MSI benchmark. Across all nine folios the pipeline's
   median absolute error against the manual count is $5.1\,\%$ (or
   $4.6\,\%$ excluding the sub-harmonic alias case Ff.4.15 f24r);
   the spreadsheet's median absolute error against the same manual
@@ -451,32 +448,25 @@ The full per-folio numbers behind \Cref{fig:three_way} are listed in
   \label{tab:msi_benchmark}
 \end{table}
 
-The reading the report takes from this comparison is the one
-that the meeting with Prof Da Rold settled. The spreadsheet
+It is worth emphasizing that the spreadsheet
 discrepancy of \Cref{sec:benchmark:msi:spreadsheet} is not
-evidence of detector bias. It is evidence of how hard hand-counting
-on this material is. The pipeline, given the same folio that an
-expert would count by hand, produces a number closer to a second
-expert hand-count than the first expert hand-count is. The
-pipeline is therefore at least as accurate as careful manual
+evidence of detector bias. Instead, it proves that the
+pipeline is at least as accurate as careful manual
 counting on this material, and brings additional properties
 that the manual workflow cannot: it is reproducible to a
-deterministic numerical figure across runs, it scales to a full
+deterministic numerical figure across runs, scales to a full
 codex in compute time that is small compared with the manual
 session that produced any single line of the catalogue
 spreadsheet, and it produces the metric bundle of
 \Cref{sec:multiphi:evaluation} alongside each density so that a
-downstream user can read whether the number should be trusted.
+codicologist can read whether the number should be trusted.
 
 
 \subsubsection{Failure modes}
 \label{sec:benchmark:msi:failures}
 
-Two failure modes were encountered on the MSI benchmark. Neither
-is silent: both degrade at least two metrics in the bundle, so a
-downstream user looking at the bundle can recognise the failure
-and treat the corresponding density estimate with the appropriate
-caution.
+Two failure modes were encountered on the MSI benchmark, neither of which is silent;
+ both are reported explicitly to the user, and the failure causes were further examined.
 
 The first and most dramatic mode is sub-harmonic aliasing. The
 folio Ff.4.15 f24r is the clearest example: its manual count is
@@ -518,10 +508,12 @@ count of $5.90$, a $-11\,\%$ error that is within the
 inter-counter spread of \Cref{sec:benchmark:msi:manual_gt} but is
 accompanied by a self-contrast $z$-score of $-1.1$, indicating
 that the detected direction is no more periodic than a random
-direction. In a deployment setting, the negative self-$z$ would
+direction. The low signal issue also very much contributed to the 
+detection failure for the previously mentioned folio Ff.4.15 f24r. 
+In a deployment setting, the negative self-$z$ would
 be the signal to flag the folio for manual review rather than to
-trust the density figure. The lesson is that the pipeline does
-not silently return a wrong number on low-signal inputs; it
+trust the density figure. Yet, it is shown that the pipeline does
+not silently return a wrong number on low signal inputs; it
 returns a number accompanied by a metric bundle that says the
 number should not be trusted, and a deployment pipeline can be
 configured to suppress density outputs whenever the self-contrast
@@ -532,24 +524,24 @@ $z$-score falls below a chosen threshold.
 \subsection{Ablation: spectral power versus autocorrelation}
 \label{sec:benchmark:ablation}
 
-The automatic line-direction detector of
+The automatic line direction detector of
 \Cref{sec:first_attempts:simple}, used by both pipeline variants,
 originally scored each candidate angle by the autocorrelation of
 the corresponding one-dimensional projection rather than by its
 peak spectral power. The change to spectral power was made
-part-way through the project after the autocorrelation criterion
+part way through the project after the autocorrelation criterion
 was found to favour the broad correlation peak associated with
-image-wide low-frequency texture over the narrow peak at the true
-laid-line period, and so to bias the recovered orientation on
+image-wide low frequency texture over the narrow peak at the true
+laid line period, and so to bias the recovered orientation on
 folios with heavy ink coverage. A full re-run with both criteria
-across all real-folio datasets was out of scope for the present
-report; what is offered instead, on a single representative
-folio, is the observation that the spectral-power criterion gives
+across all real folio datasets was out of scope for the present
+report; instead, a single representative folio is observed to conclude
+ that the spectral power criterion gives
 a self-contrast $z$-score for the recovered direction that
 exceeds the autocorrelation criterion's score by more than a
-factor of two, and that on at least one benchmark folio the
+factor of 2, and that on at least one benchmark folio the
 autocorrelation criterion locked onto an orientation offset from
-the spectral-power result by enough to change the recovered
+the spectral power result by enough to change the recovered
 density at the first significant figure. A fuller ablation across
 the whole benchmark is identified in \Cref{sec:conclusion:future}
 as a candidate for follow-up work.

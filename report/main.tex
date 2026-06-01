@@ -22,6 +22,7 @@
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, shapes.geometric, fit, calc}
 \usepackage{titlesec}
+\usepackage{pdfpages}
 
 % Section / subsection / subsubsection: larger but NOT bold.
 \titleformat{\section}{\normalfont\LARGE}{\thesection}{1em}{}
@@ -40,7 +41,7 @@
 % ==========================================================================
 \pagenumbering{roman}
 
-\input{chapters/00_titlepage}     % thispagestyle empty, no page number
+\includepdf[pages=-,pagecommand={\thispagestyle{empty}}]{figures/cued_titlepage.pdf}
 \input{chapters/00b_acknowledgements}
 \input{chapters/00c_technical_abstract}
 
@@ -68,6 +69,5 @@
 \appendix
 \appendixfont
 \input{chapters/A_risk_retrospective}   % MANDATORY, <=1 A4
-\input{chapters/B_reproducibility}
 
 \end{document}

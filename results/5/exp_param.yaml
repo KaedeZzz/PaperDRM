@@ -1,0 +1,8 @@
+data_serial: 5
+folder: "E:/Downloads/zz477/manuscript 5/samples"
+square_crop: False
+subtract_background: True
+theta_min_deg: 30
+fov_width_cm: 8.65
+period_range_cm: [0.017, 0.106]
+angle_slice: [2, 1]   # 72 phi x 9 theta: theta=9 not divisible by 2

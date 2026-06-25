@@ -165,7 +165,11 @@ def archive_results(pack: "ImagePack | None", config_path: str, *, serial: str |
 # ---------------------------------------------------------------------------
 def stage_load(yaml_path: str) -> ImagePack:
     print("[Stage 0] Loading settings + DRP stack")
-    settings = Settings.from_yaml(yaml_path).with_overrides(angle_slice=(2, 2), verbose=True)
+    settings = Settings.from_yaml(yaml_path)
+    # Default angle_slice to (2, 2) unless the yaml supplied one explicitly.
+    if settings.angle_slice == (1, 1):
+        settings = settings.with_overrides(angle_slice=(2, 2))
+    settings = settings.with_overrides(verbose=True)
     return ImagePack(settings=settings)
 
 

@@ -1,0 +1,7 @@
+data_serial: 3
+folder: "E:/Downloads/zz477/manuscript 3/samples"
+square_crop: False
+subtract_background: True
+theta_min_deg: 30
+fov_width_cm: 8.65
+period_range_cm: [0.017, 0.106]   # 8-50 px equivalent at fov=4.325cm/2048px; avoids 2nd-harmonic alias at ~73px

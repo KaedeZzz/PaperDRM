@@ -35,5 +35,8 @@ dist/
 # Editor/tool backups
 *.bak
 
+# Private meeting prep notes
+meeting_prep/
+
 # Local diagnostic outputs from scripts/
 scripts/_bg_blur_freq_out/

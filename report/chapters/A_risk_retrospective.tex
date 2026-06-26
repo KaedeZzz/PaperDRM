@@ -1,0 +1,42 @@
+\section{Risk Assessment Retrospective}
+\label{app:risk}
+
+% MANDATORY APPENDIX (CUED): at most one side of A4. Day 6 (5/30).
+% DRAFT prose; please cross-check against the actual Michaelmas-term
+% form submitted to the Safety Office and rewrite where the
+% recollection here is wrong.
+
+The risk assessment submitted to the Safety Office at the start of
+the Michaelmas term identified the project as a computational
+study without any physical experimentation. The principal hazards
+recorded were the standard ones for laptop based work: prolonged
+use of a display screen, posture and repetitive strain risks
+associated with long typing sessions, and the wellbeing risks
+associated with working alone for extended periods. No hazards
+related to physical specimens were recorded, because the project
+was set up from the outset to use existing image data shared by
+the AddME Lab and the Manuscripts Lab, and all imaging of new manuscripts is done
+with strict supervision from the Manuscripts Lab staff, and all procedures related
+to handling manuscripts were executed properly.
+
+A second item that the original form did not anticipate is
+software and data-management risk. The pipeline is meaningful only
+to the extent that its output is reproducible, and a corrupted
+DRP cache or an accidentally overwritten archive of results would
+have a real impact on the project's deliverables. The project
+mitigated this in practice with version control on the source
+code, a cache-invalidation serial that prevents stale outputs
+from being silently reused, and per-folio result archives kept
+under a deterministic directory structure. None of these
+mitigations was named in the original assessment, and a future
+version of the form would be better for including them
+explicitly.
+
+Two changes follow if the project were to be restarted. First,
+the form should include a project management hazard category
+distinct from the personal hazard categories, covering scope
+creep, milestone slippage, and the corresponding pressure on the
+working schedule. Second, the form should include a
+software-and-data hazard category covering data loss, cache
+corruption and reproducibility, with the mitigations named
+alongside.

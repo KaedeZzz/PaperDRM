@@ -1,0 +1,111 @@
+% Technical Abstract. <=2 pages, self-contained.
+% CUED REQUIREMENT: must include name, College, project title -- this exact
+% copy is also archived separately by the Department.
+% Write LAST (5/30) once all numbers are settled.
+
+\section*{Technical Abstract}
+
+\noindent Project title: Tracking Medieval Manuscripts by Reverse
+Engineering the Paper-making Process\\
+Author: Zhanfeng Zhou\\
+College: Robinson College\\
+Supervisor: Dr Matteo Seita\\[1em]
+
+Handmade European paper carries a
+fingerprint of the mould on which it was formed. The closely
+spaced laid wires and the more widely spaced chain wires of the
+mould produce a small but reproducible periodic thickness
+pattern on the dried paper sheet, with a density and a wire diameter
+that vary from one mould pair to another and can therefore be
+used by codicologists to date, localise and group otherwise
+undated manuscripts. The standard workflow for measuring these
+features is manual counting under raking light, which is slow,
+observer dependent, and exposes fragile material to repeated
+handling. Multispectral image (MSI) archives and directional
+reflectance microscopy (DRM) acquisitions now exist at scale at
+major holding institutions including Cambridge University
+Library, but no robust automated pipeline turns these into the
+quantitative mould fingerprint data that codicology actually
+requires.
+
+This project closes that gap with a single detection pipeline
+that supports two distinct kinds of input. The multi-phi DRP
+variant is the original target and operates on the full
+directional reflectance stack produced by the AddME Lab DRM
+instrument in the Department of Engineering: it aggregates
+normalised power spectra across all available azimuthal views,
+recovers a single dominant period from the aggregated spectrum,
+fits the phase with a polarity aware correction, and
+combines the phases into a weighted circular mean with a
+half-period auto correction step. The single image MSI variant is
+the extension that lets the same pipeline run on the legacy
+single frame archives held by libraries: it applies a radial
+fast Fourier transform followed by a single Gabor cleanup pass to
+the same effect. The two variants share a common preprocessing
+and evaluation framework: background subtraction, automatic
+line direction detection by spectral power scan, a polarity flag
+and a configurable period search band; together with an
+evaluation bundle that reports for every folio the harmonic fit
+$R^2$, the empirical interval distribution, a self contrast
+$z$-score against rotated null directions, the wire
+full-width-at-half-maximum per segment, and for multi-phi input additionally
+a split-half period stability across random partitions of the
+azimuthal views.
+
+Detector accuracy is first characterised on a synthetic phantom
+that places periodic Gaussian wire shadows at a controlled
+period, orientation, wire width and additive noise level. Period
+recovery is within $\pm 2.5\,\%$ across the full range of
+laid densities encountered in practice (10 to 50 pixels per
+period), essentially invariant to noise down to a signal-to-noise
+ratio of 2, and accompanied by a single failure point at the
+top of the period search band that is identified later as the
+sub-harmonic alias mode. Orientation recovery is within one
+degree across the full range of laid line angles, and wire width
+recovery is within ten per cent for wire sigmas between two and
+five pixels.
+
+The pipeline is then applied to two real folio benchmarks. The
+first is a set of nine MSI folios drawn from four manuscript
+stocks in the Cambridge University Library collection,
+catalogued by the Manuscripts Lab in the Faculty of English
+under the Mapping Paper in Medieval England project. Every folio
+of the benchmark was annotated independently by hand using a
+custom annotation tool, giving a manual count to set
+against the pipeline output and against the existing catalogue
+spreadsheet. Three observations follow from the comparison.
+The catalogue spreadsheet and the new manual count,
+both careful hand counts, disagree with each other by a median
+of roughly twelve per cent, which sets the realistic
+inter-counter variability of hand counting on this material. The
+pipeline agrees with the manual count to within 10\% on eight of the nine folios, which is closer than the spreadsheet
+manages on six of the same nine folios. The ninth folio,
+Ff.4.15 f24r, is a sub-harmonic alias failure flagged
+unambiguously by the metric bundle. The second benchmark
+is a group of four DRP datasets at higher magnification:
+dataset 10 is a sheet of paper hand made by the Manuscripts Lab
+using a reproduction of a fifteenth century European mould, and
+the pipeline reports 8.31 lines per centimetre on it with a
+strong metric bundle (self-contrast $z = +4.05$); the remaining
+three datasets are zoomed-in real folios that illustrate the
+crop and period range recipes that recover trustworthy density
+estimates from low signal acquisitions.
+
+The pipeline reproduces a manual count to roughly half
+the variability between two independent hand counts of the same
+folio. That places its accuracy within the inter-counter spread
+that codicology already accepts for density based mould-pair
+identification, with the additional properties that a manual
+count cannot provide: a deterministic numerical output, a
+ confidence bundle, and a runtime of minutes per folio
+on commodity hardware. The metric bundle accompanying
+every density estimate makes the confidence in the estimate
+inspectable rather than tacit, so that low signal folios can be
+flagged automatically rather than silently misreported.
+Identified directions for further work include automatic
+detection of the sub-harmonic alias mode, automatic detection of
+the polarity flag, joint chain line analysis to expose a richer
+mould fingerprint, and confidence aware aggregation across the
+folios of a complete codex.
+
+\newpage

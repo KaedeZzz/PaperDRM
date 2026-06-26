@@ -1,4 +1,5 @@
 data_serial: 2b
+folder: "E:/Downloads/zz477/manuscript 2/samples"
 square_crop: False
 subtract_background: True
 theta_min_deg: 30

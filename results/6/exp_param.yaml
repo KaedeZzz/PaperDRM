@@ -1,0 +1,8 @@
+data_serial: 6
+folder: "E:/Downloads/zz477/manuscript 6/samples"
+square_crop: False
+subtract_background: True
+theta_min_deg: 30
+fov_width_cm: 8.65
+period_range_cm: [0.017, 0.106]
+angle_slice: [2, 1]

@@ -1,0 +1,73 @@
+% IIB Project Report -- PaperDRM
+% CUED 2026: <=53 pages total = 1 title + <=2 technical abstract + <=50 main.
+% 12pt body, 25mm margins.
+% Narrative chapter structure modelled on Andrew Liang's 2024 report.
+
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\graphicspath{{figures/}{../results/}}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\sisetup{detect-all}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cleveref}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, fit, calc}
+\usepackage{titlesec}
+\usepackage{pdfpages}
+
+% Section / subsection / subsubsection: larger but NOT bold.
+\titleformat{\section}{\normalfont\LARGE}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\Large}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalfont\large}{\thesubsubsection}{1em}{}
+
+\usepackage[backend=biber,style=numeric,sorting=none]{biblatex}
+\addbibresource{refs.bib}
+
+\newcommand{\appendixfont}{\small}
+
+\begin{document}
+
+% ==========================================================================
+% FRONT MATTER (roman page numbers)
+% ==========================================================================
+\pagenumbering{roman}
+
+\includepdf[pages=-,pagecommand={\thispagestyle{empty}}]{figures/cued_titlepage.pdf}
+\input{chapters/00b_acknowledgements}
+\input{chapters/00c_technical_abstract}
+
+\tableofcontents
+\newpage
+
+% ==========================================================================
+% MAIN BODY (arabic page numbers, restart at 1)
+% ==========================================================================
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{chapters/01_background}
+\input{chapters/02_first_attempts}
+\input{chapters/03_multi_phi}
+\input{chapters/04_benchmark}
+\input{chapters/05_discussion}
+\input{chapters/06_conclusion}
+
+\printbibliography
+
+% ==========================================================================
+% APPENDICES
+% ==========================================================================
+\appendix
+\appendixfont
+\input{chapters/A_risk_retrospective}   % MANDATORY, <=1 A4
+
+\end{document}

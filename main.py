@@ -38,7 +38,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).parent / "scripts"))
+sys.path.insert(0, str(Path(__file__).parent / "scripts" / "dataset"))
 from detect_paper_roi import detect_paper_roi_texture
 
 from paperdrm import ImagePack, Settings
@@ -115,24 +115,26 @@ DETECTOR_TRACK = "multi_phi"
 # ---------------------------------------------------------------------------
 # Result archiving
 # ---------------------------------------------------------------------------
-def archive_results(pack: "ImagePack | None", config_path: str, *, serial: str | None = None) -> Path:
+def make_archive_dir(pack: "ImagePack | None", *, serial: str | None = None) -> tuple[Path, str]:
     """
-    Copy all pipeline output files (JSON + PNG) from the repo root into
-    results/<serial>/ and save a snapshot of the config yaml.
-    Returns the archive directory.
+    Resolve the per-serial results directory, creating it if needed.
+    Returns (archive_dir, serial). Stage 5 writers should target this
+    directory directly so the repo root stays clean.
     """
     if serial is None:
         serial = str(pack.data_serial) if pack is not None and pack.data_serial is not None else "unknown"
-    root = Path(__file__).parent
-    archive_dir = root / "results" / serial
+    archive_dir = Path(__file__).parent / "results" / serial
     archive_dir.mkdir(parents=True, exist_ok=True)
+    return archive_dir, serial
 
-    copied = []
-    for src in sorted(root.glob("*.json")) + sorted(root.glob("*.png")):
-        dst = archive_dir / src.name
-        shutil.copy2(src, dst)
-        copied.append(src.name)
 
+def archive_results(archive_dir: Path, config_path: str, *, serial: str) -> Path:
+    """
+    Snapshot the config yaml into the per-serial results directory and
+    invoke the plain-language report generator. The pipeline outputs are
+    written into archive_dir directly by the stage_* functions, so no
+    file copying is needed here.
+    """
     # Config snapshot. Skip if --config already points inside archive_dir
     # (e.g. results/<serial>/exp_param.yaml): copying a file onto itself
     # raises PermissionError on Windows.
@@ -141,17 +143,14 @@ def archive_results(pack: "ImagePack | None", config_path: str, *, serial: str |
         cfg_dst = archive_dir / cfg_src.name
         if cfg_src.resolve() != cfg_dst.resolve():
             shutil.copy2(cfg_src, cfg_dst)
-            copied.append(cfg_src.name)
-
-    print(f"[Archive] {len(copied)} files -> results/{serial}/  ({', '.join(copied)})")
 
     # Generate plain-language reports
     try:
         import subprocess, sys
-        report_script = root / "scripts" / "generate_report.py"
+        report_script = Path(__file__).parent / "scripts" / "report" / "generate_report.py"
         subprocess.run(
             [sys.executable, str(report_script), "--serial", serial,
-             "--results-dir", str(root / "results")],
+             "--results-dir", str(archive_dir.parent)],
             check=True,
         )
     except Exception as exc:
@@ -300,8 +299,11 @@ def stage_detect_legacy(gabor_input_gray, *, patch_size, stride, fov_width_cm=No
     return out
 
 
-def stage_overlay_legacy(gabor_input_gray, detect_out, *, out_path="laid_lines_overlay_legacy.png"):
-    print(f"[Stage 4 LEGACY] Overlay -> {out_path}")
+def stage_overlay_legacy(gabor_input_gray, detect_out, *,
+                         out_dir: Path = Path("."),
+                         out_path: str = "laid_lines_overlay_legacy.png"):
+    target = str(out_dir / out_path)
+    print(f"[Stage 4 LEGACY] Overlay -> {target}")
     overlay, _ = overlay_laid_lines(
         gabor_input_gray,
         line_dir_deg=detect_out["line_dir_deg"],
@@ -309,7 +311,7 @@ def stage_overlay_legacy(gabor_input_gray, detect_out, *, out_path="laid_lines_o
         best_period_px=detect_out["dominant_period_px"],
         color=(0, 0, 255), thickness=1, alpha=0.65, mode="grid",
     )
-    cv2.imwrite(out_path, overlay)
+    cv2.imwrite(target, overlay)
 
 
 # ---------------------------------------------------------------------------
@@ -345,20 +347,25 @@ def stage_detect_simple(image, *, line_dir_deg=90.0, fov_width_cm=None,
     return result
 
 
-def stage_overlay_simple(image, detect_out, *, out_path="laid_lines_overlay.png"):
-    print(f"[Stage 4 SIMPLE] Overlay -> {out_path}")
+def stage_overlay_simple(image, detect_out, *,
+                         out_dir: Path = Path("."),
+                         out_path: str = "laid_lines_overlay.png"):
+    target = str(out_dir / out_path)
+    print(f"[Stage 4 SIMPLE] Overlay -> {target}")
     overlay = overlay_grid(
         image,
         detect_out["grid_positions_x"],
         line_dir_deg=detect_out["line_dir_deg"],
         color=(0, 0, 255), thickness=1, alpha=0.55,
     )
-    cv2.imwrite(out_path, overlay)
+    cv2.imwrite(target, overlay)
 
 
 def stage_overlay_simple_bands(
     image, detect_out, ww_stats=None,
-    *, out_path="laid_lines_overlay_bands.png", alpha=0.4,
+    *,
+    out_dir: Path = Path("."),
+    out_path: str = "laid_lines_overlay_bands.png", alpha=0.4,
 ):
     """Filled band overlay; band width = FWHM (segment-median if available)."""
     if ww_stats and ww_stats["aggregate"]["fwhm_px"]["n_valid"] >= 1:
@@ -367,7 +374,8 @@ def stage_overlay_simple_bands(
     else:
         fwhm = detect_out["wire_fwhm_px"]
         source = "global"
-    print(f"[Stage 4 SIMPLE] Band overlay (FWHM={fwhm:.2f} px from {source}) -> {out_path}")
+    target = str(out_dir / out_path)
+    print(f"[Stage 4 SIMPLE] Band overlay (FWHM={fwhm:.2f} px from {source}) -> {target}")
     overlay = overlay_grid_bands(
         image,
         detect_out["grid_positions_x"],
@@ -376,7 +384,7 @@ def stage_overlay_simple_bands(
         color=(0, 0, 255),
         alpha=alpha,
     )
-    cv2.imwrite(out_path, overlay)
+    cv2.imwrite(target, overlay)
 
 
 # ---------------------------------------------------------------------------
@@ -389,10 +397,12 @@ def stage_evaluate(
     score_threshold=0.02,
     fov_width_cm=None,
     image_width_px=None,
-    consistency_path="evaluation_report.json",
-    intervals_path="interval_distribution.json",
-    fit_quality_path="fit_quality.json",
-    wire_width_path="wire_width_stats.json",
+    out_dir: Path = Path("."),
+    consistency_path: str = "evaluation_report.json",
+    intervals_path: str = "interval_distribution.json",
+    fit_quality_path: str = "fit_quality.json",
+    wire_width_path: str = "wire_width_stats.json",
+    wire_width_plot_path: str = "wire_width_segments.png",
     n_segments=16,
 ):
     has_patches = bool(detect_out.get("patch_results"))
@@ -400,7 +410,7 @@ def stage_evaluate(
         print("[Stage 5] Evaluating patch consistency")
         report = patch_consistency_report(detect_out, score_threshold=score_threshold)
         print_consistency_report(report)
-        save_consistency_report(report, consistency_path)
+        save_consistency_report(report, str(out_dir / consistency_path))
         plot_patch_consistency(detect_out, report, score_threshold=score_threshold)
     else:
         print("[Stage 5] No patch_results -> skipping patch consistency")
@@ -414,13 +424,13 @@ def stage_evaluate(
         image_width_px=image_width_px,
     )
     print_gap_distribution(gap_stats)
-    save_gap_distribution(gap_stats, intervals_path)
+    save_gap_distribution(gap_stats, str(out_dir / intervals_path))
     plot_gap_distribution(gap_stats)
 
     print("[Stage 5] Computing fit-quality (R^2 / loss)")
     fq = fit_quality_report(detect_out)
     print_fit_quality(fq)
-    save_fit_quality(fq, fit_quality_path)
+    save_fit_quality(fq, str(out_dir / fit_quality_path))
     plot_fit_quality_curve(fq)
 
     ww = None
@@ -434,8 +444,8 @@ def stage_evaluate(
             fov_width_cm=fov_width_cm,
         )
         print_wire_width_statistics(ww)
-        save_wire_width_statistics(ww, wire_width_path)
-        plot_wire_width_statistics(ww, save_path="wire_width_segments.png")
+        save_wire_width_statistics(ww, str(out_dir / wire_width_path))
+        plot_wire_width_statistics(ww, save_path=str(out_dir / wire_width_plot_path))
     return report, gap_stats, fq, ww
 
 
@@ -497,6 +507,7 @@ def stage_split_half(
     fov_width_cm: float | None = None,
     n_splits: int = 100,
     seed: int = 0,
+    out_dir: Path = Path("."),
     out_path: str = "split_half_stability.json",
     plot_path: str | None = "split_half_stability.png",
 ):
@@ -510,8 +521,8 @@ def stage_split_half(
         fov_width_cm=fov_width_cm,
     )
     print_split_half(stats)
-    save_split_half(stats, out_path)
-    plot_split_half(stats, save_path=plot_path)
+    save_split_half(stats, str(out_dir / out_path))
+    plot_split_half(stats, save_path=(str(out_dir / plot_path) if plot_path else None))
     return stats
 
 
@@ -520,6 +531,7 @@ def stage_self_contrast(
     detect_out,
     *,
     band_half_width_px: int = 1,
+    out_dir: Path = Path("."),
     out_path: str = "self_contrast.json",
     plot_path: str | None = "self_contrast.png",
 ):
@@ -533,8 +545,8 @@ def stage_self_contrast(
         wire_is_darker=detect_out["wire_is_darker"],
     )
     print_self_contrast(stats)
-    save_self_contrast(stats, out_path)
-    plot_self_contrast(stats, save_path=plot_path)
+    save_self_contrast(stats, str(out_dir / out_path))
+    plot_self_contrast(stats, save_path=(str(out_dir / plot_path) if plot_path else None))
     return stats
 
 
@@ -610,6 +622,7 @@ if __name__ == "__main__":
             print(f"[Main] auto_line_dir (center={_center_deg:.0f}°±20°) -> {_line_dir:.1f} deg")
             _cfg = _cfg.with_overrides(line_dir_deg=_line_dir)
 
+        _archive_dir, _serial = make_archive_dir(None, serial=_serial)
         _detect_out = stage_detect_simple(
             _image,
             line_dir_deg=_cfg.line_dir_deg,
@@ -622,11 +635,12 @@ if __name__ == "__main__":
             image=_image,
             fov_width_cm=_eff_fov,
             image_width_px=_w_px,
+            out_dir=_archive_dir,
         )
-        stage_self_contrast(_image, _detect_out)
-        stage_overlay_simple(_raw_image, _detect_out)
-        stage_overlay_simple_bands(_raw_image, _detect_out, _ww)
-        archive_results(None, _args.config, serial=_serial)
+        stage_self_contrast(_image, _detect_out, out_dir=_archive_dir)
+        stage_overlay_simple(_raw_image, _detect_out, out_dir=_archive_dir)
+        stage_overlay_simple_bands(_raw_image, _detect_out, _ww, out_dir=_archive_dir)
+        archive_results(_archive_dir, _args.config, serial=_serial)
         raise SystemExit(0)
 
     pack = stage_load(_args.config)
@@ -646,6 +660,8 @@ if __name__ == "__main__":
     else:
         _period_range_px = (8.0, 80.0)
 
+    archive_dir, serial = make_archive_dir(pack)
+
     if DETECTOR_TRACK == "multi_phi":
         images, phi_deg = collect_grazing_per_phi(pack)
         rep_overlay_idx = 0  # raw image used for the visual overlay
@@ -664,17 +680,19 @@ if __name__ == "__main__":
             image=ref_image,
             fov_width_cm=pack.settings.fov_width_cm,
             image_width_px=ref_image.shape[1],
+            out_dir=archive_dir,
         )
         stage_split_half(
             images,
             period_range_px=_period_range_px,
             fov_width_cm=pack.settings.fov_width_cm,
             n_splits=200,
+            out_dir=archive_dir,
         )
-        stage_self_contrast(ref_image, detect_out)
-        stage_overlay_simple(raw_image, detect_out)
-        stage_overlay_simple_bands(raw_image, detect_out, ww)
-        archive_results(pack, _args.config)
+        stage_self_contrast(ref_image, detect_out, out_dir=archive_dir)
+        stage_overlay_simple(raw_image, detect_out, out_dir=archive_dir)
+        stage_overlay_simple_bands(raw_image, detect_out, ww, out_dir=archive_dir)
+        archive_results(archive_dir, _args.config, serial=serial)
     elif DETECTOR_TRACK == "simple":
         image, idx = pick_grazing_image(pack, phi_index=0)
         raw_image, _ = pick_grazing_image_raw(pack, phi_index=0)
@@ -689,15 +707,17 @@ if __name__ == "__main__":
             image=image,
             fov_width_cm=pack.settings.fov_width_cm,
             image_width_px=image.shape[1],
+            out_dir=archive_dir,
         )
         stage_self_contrast(
             image, detect_out,
+            out_dir=archive_dir,
             out_path="self_contrast.simple.json",
             plot_path="self_contrast.simple.png",
         )
-        stage_overlay_simple(raw_image, detect_out)
-        stage_overlay_simple_bands(raw_image, detect_out, ww)
-        archive_results(pack, _args.config)
+        stage_overlay_simple(raw_image, detect_out, out_dir=archive_dir)
+        stage_overlay_simple_bands(raw_image, detect_out, ww, out_dir=archive_dir)
+        archive_results(archive_dir, _args.config, serial=serial)
     elif DETECTOR_TRACK == "legacy":
         _mag, deg_map = stage_direction(pack)
         patch_size, stride = (512, 512), (256, 256)
@@ -710,9 +730,10 @@ if __name__ == "__main__":
             detect_out,
             fov_width_cm=pack.settings.fov_width_cm,
             image_width_px=gabor_input.shape[1],
+            out_dir=archive_dir,
         )
-        stage_overlay_legacy(gabor_input, detect_out)
-        archive_results(pack, _args.config)
+        stage_overlay_legacy(gabor_input, detect_out, out_dir=archive_dir)
+        archive_results(archive_dir, _args.config, serial=serial)
     else:
         raise ValueError(f"Unknown DETECTOR_TRACK={DETECTOR_TRACK!r}; "
                          "expected 'multi_phi', 'simple', or 'legacy'.")

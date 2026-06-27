@@ -38,7 +38,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).parent / "scripts"))
+sys.path.insert(0, str(Path(__file__).parent / "scripts" / "dataset"))
 from detect_paper_roi import detect_paper_roi_texture
 
 from paperdrm import ImagePack, Settings
@@ -147,7 +147,7 @@ def archive_results(archive_dir: Path, config_path: str, *, serial: str) -> Path
     # Generate plain-language reports
     try:
         import subprocess, sys
-        report_script = Path(__file__).parent / "scripts" / "generate_report.py"
+        report_script = Path(__file__).parent / "scripts" / "report" / "generate_report.py"
         subprocess.run(
             [sys.executable, str(report_script), "--serial", serial,
              "--results-dir", str(archive_dir.parent)],

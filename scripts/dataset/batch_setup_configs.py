@@ -3,8 +3,9 @@ Detect paper crop for each new MSI image, compute correct fov_width_cm,
 generate config yaml files, and print a summary table.
 """
 import sys, os, cv2
+import pathlib as _pl
 sys.path.insert(0, ".")
-sys.path.insert(0, "scripts")
+sys.path.insert(0, str(_pl.Path(__file__).resolve().parent))
 from detect_paper_roi import detect_paper_roi_texture
 import yaml, pathlib
 

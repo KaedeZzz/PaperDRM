@@ -285,6 +285,8 @@ def stage_detect_simple(image, *, line_dir_deg=90.0, fov_width_cm=None,
     period_px = result["dominant_period_px"]
     print(f"period={period_px:.2f} px  freq={result['dominant_freq_cpp']:.5f} cpp"
           f"  gabor_score={result['gabor_score']:.3f}")
+    if result["period_warning"]:
+        print(f"  [period-range warning] {result['period_warning']}")
     cm_per_px = (float(fov_width_cm) / float(image.shape[1])) if fov_width_cm else None
     if cm_per_px is not None:
         interval_cm = period_px * cm_per_px
@@ -425,6 +427,8 @@ def stage_detect_multi_phi(
     print(f"period={period_px:.2f} px  freq={result['dominant_freq_cpp']:.5f} cpp"
           f"  representative_phi_idx={rep}  anchor={result['anchor_index']}"
           + ("  [phase +T/2 auto-corrected]" if corrected else ""))
+    if result["period_warning"]:
+        print(f"  [period-range warning] {result['period_warning']}")
     print(f"  phase coherence: R_raw={R_raw:.3f} -> R_aligned={R:.3f}"
           f"  (circ_var={result['phase_circular_var']:.4f},"
           f"  polarity-flipped {n_flipped}/{n} phi)")

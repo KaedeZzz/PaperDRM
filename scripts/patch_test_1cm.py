@@ -74,7 +74,10 @@ for serial, gt, note in DATASETS:
     try:
         cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
         full_iv = json.loads(res_path.read_text())
-        full_lpc = full_iv["physical"]["lines_per_cm_mean"]
+        full_lpc = full_iv["physical"].get(
+            "spectral_lines_per_cm",
+            full_iv["physical"]["lines_per_cm_mean"],
+        )
     except Exception as e:
         print(f"{serial:<22}  -- {e}"); continue
 

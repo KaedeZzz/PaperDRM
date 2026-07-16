@@ -5,4 +5,4 @@ square_crop: False
 subtract_background: True
 theta_min_deg: 30
 fov_width_cm: 8.65  # [x, y, w, h] lower-left quadrant
-period_range_cm: [0.017, 0.106]   # [8px, 50px] equiv at fov=4.325cm/2048px; avoids 2nd-harmonic alias at ~73px
+period_range_cm: [0.017, 0.138]   # approximately 8–65 px; includes the ~55–57 px peak while excluding the ~73 px alias

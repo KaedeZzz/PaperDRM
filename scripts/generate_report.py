@@ -57,20 +57,31 @@ def interpret(data: dict, serial: str) -> dict:
     fq = data["fit_quality"]
 
     # Core measurements
-    lines_per_cm      = iv.get("physical", {}).get("lines_per_cm_mean", float("nan"))
-    lines_per_cm_med  = iv.get("physical", {}).get("lines_per_cm_median", float("nan"))
-    period_mm         = iv.get("physical", {}).get("mean_interval_cm", float("nan")) * 10
+    physical          = iv.get("physical") or {}
+    cm_per_px         = physical.get("cm_per_px", float("nan"))
+    spectral_interval_cm = physical.get("spectral_interval_cm")
+    if spectral_interval_cm is None:
+        period_px = iv.get("period_px_used", float("nan"))
+        spectral_interval_cm = period_px * cm_per_px
+    period_mm         = spectral_interval_cm * 10
+    lines_per_cm      = physical.get(
+        "spectral_lines_per_cm",
+        1.0 / spectral_interval_cm if spectral_interval_cm > 0 else float("nan"),
+    )
+    lines_per_cm_med  = physical.get("lines_per_cm_median", float("nan"))
+    local_median_mm   = physical.get("median_interval_cm", float("nan")) * 10
+    gap_iqr_cm        = physical.get("gap_iqr_cm")
+    if gap_iqr_cm is None:
+        gap_iqr_px = iv.get("px", {}).get("iqr", [float("nan"), float("nan")])
+        gap_iqr_cm = [gap_iqr_px[0] * cm_per_px, gap_iqr_px[1] * cm_per_px]
+    local_iqr_lo_mm   = gap_iqr_cm[0] * 10
+    local_iqr_hi_mm   = gap_iqr_cm[1] * 10
+    local_median_error_pct = physical.get(
+        "gap_median_relative_error_vs_spectral",
+        abs(local_median_mm - period_mm) / period_mm if period_mm > 0 else float("nan"),
+    ) * 100
     n_peaks           = iv.get("n_peaks", 0)
     n_gaps            = iv.get("n_gaps", 0)
-
-    # Interval 95% CI (t-distribution, mean of gap distribution)
-    _std_mm  = iv.get("physical", {}).get("std_interval_cm", float("nan")) * 10
-    _n_gaps  = max(n_gaps, 1)
-    import math
-    _t95 = 1.984 if _n_gaps > 80 else (2.042 if _n_gaps > 30 else 2.228)
-    _sem_mm  = _std_mm / math.sqrt(_n_gaps)
-    interval_ci_lo_mm = period_mm - _t95 * _sem_mm
-    interval_ci_hi_mm = period_mm + _t95 * _sem_mm
 
     fwhm_mm_median    = ww.get("physical", {}).get("fwhm_mm", {}).get("median", float("nan"))
     fwhm_mm_ci        = ww.get("physical", {}).get("fwhm_mm", {}).get("ci_t", [float("nan"), float("nan")])
@@ -89,9 +100,14 @@ def interpret(data: dict, serial: str) -> dict:
 
     r2_k4             = fq.get("r2_with_harmonics", float("nan"))
     fc                = fq.get("frequency_concentration", float("nan"))
+    period_at_boundary = bool(fq.get("period_at_search_boundary", False))
+    period_warning     = fq.get("period_warning")
 
     # Reliability labels
-    if z <= -2.0:
+    if period_at_boundary:
+        detect_confidence_en = "Search boundary hit"
+        detect_confidence_zh = "命中搜索边界"
+    elif z <= -2.0:
         detect_confidence_en = "Contradictory polarity"
         detect_confidence_zh = "极性矛盾"
     elif z >= 3.0:
@@ -134,8 +150,10 @@ def interpret(data: dict, serial: str) -> dict:
         lines_per_cm=lines_per_cm,
         lines_per_cm_med=lines_per_cm_med,
         period_mm=period_mm,
-        interval_ci_lo_mm=interval_ci_lo_mm,
-        interval_ci_hi_mm=interval_ci_hi_mm,
+        local_median_mm=local_median_mm,
+        local_iqr_lo_mm=local_iqr_lo_mm,
+        local_iqr_hi_mm=local_iqr_hi_mm,
+        local_median_error_pct=local_median_error_pct,
         n_gaps=n_gaps,
         n_peaks=n_peaks,
         fwhm_mm_median=fwhm_mm_median,
@@ -153,6 +171,8 @@ def interpret(data: dict, serial: str) -> dict:
         n_lines=n_lines,
         r2_k4=r2_k4,
         fc=fc,
+        period_at_boundary=period_at_boundary,
+        period_warning=period_warning,
         detect_confidence_en=detect_confidence_en,
         detect_confidence_zh=detect_confidence_zh,
         stability_en=stability_en,
@@ -192,6 +212,8 @@ tr:nth-child(even) td { background: #f8fafc; }
 .badge-blue  { background: #d0e4f5; color: #0c4a8c; }
 .badge-orange{ background: #fff3cd; color: #856404; }
 .badge-red   { background: #f8d7da; color: #721c24; }
+.warning-card { background: #f8d7da; color: #721c24; border-left: 4px solid #b02a37;
+                padding: 12px 16px; margin: 12px 0; line-height: 1.5; }
 img.overlay { width: 100%; max-width: 800px; border: 1px solid #ccc;
               border-radius: 4px; margin: 10px 0; }
 .note { font-size: 12px; color: #666; margin-top: 6px; }
@@ -234,12 +256,17 @@ def build_html_en(v: dict, img_b64: str | None) -> str:
     stability_badge = _badge(v["stability_en"], "green" if v["diff_std"] == 0.0 else "blue")
     if v["detect_confidence_en"] == "High":
         confidence_kind = "green"
-    elif v["detect_confidence_en"] == "Contradictory polarity":
+    elif v["detect_confidence_en"] in {"Contradictory polarity", "Search boundary hit"}:
         confidence_kind = "red"
     else:
         confidence_kind = "orange"
     confidence_badge = _badge(v["detect_confidence_en"], confidence_kind)
-    if v["detect_confidence_en"] == "Contradictory polarity":
+    if v["period_at_boundary"]:
+        spatial_interpretation = (
+            "The spectral maximum is pinned to the configured period-search boundary. "
+            "The spacing and density outputs are not validated until the range is corrected."
+        )
+    elif v["detect_confidence_en"] == "Contradictory polarity":
         spatial_interpretation = (
             "The grid aligns with the opposite intensity polarity from the configured "
             "wire model. Treat the detection as unconfirmed until polarity or phase is corrected."
@@ -248,6 +275,13 @@ def build_html_en(v: dict, img_b64: str | None) -> str:
         spatial_interpretation = (
             "The predicted grid lines align with the expected brighter/darker columns "
             "in the actual image, supporting the detected grid."
+        )
+    boundary_note = ""
+    if v["period_at_boundary"]:
+        warning = v["period_warning"] or "Detected period is pinned to the search boundary."
+        boundary_note = (
+            '<div class="warning-card"><b>Invalid period search range.</b> '
+            f"{warning}</div>"
         )
 
     return f"""<!DOCTYPE html>
@@ -274,14 +308,17 @@ directions and combining the images computationally.
 </p>
 
 <h2>Key Findings</h2>
+{boundary_note}
 
 <div class="grid-2">
   <div class="metric-card">
-    <div class="metric-label">Laid Line Spacing</div>
+    <div class="metric-label">Global Laid Line Spacing</div>
     <div class="metric-value">{_fmt(v['period_mm'], '.2f')}<span class="metric-unit"> mm</span></div>
-    <div class="metric-ci">95% CI &nbsp; {_fmt(v['interval_ci_lo_mm'], '.2f')} – {_fmt(v['interval_ci_hi_mm'], '.2f')} mm</div>
-    <div class="metric-sub">Mean of {v['n_gaps']} measured gaps &nbsp;|&nbsp;
-      = {_fmt(v['lines_per_cm'], '.1f')} lines/cm &nbsp;|&nbsp; {v['context_en']}</div>
+    <div class="metric-ci">Local gaps: median {_fmt(v['local_median_mm'], '.2f')} mm
+      &nbsp;|&nbsp; IQR {_fmt(v['local_iqr_lo_mm'], '.2f')} – {_fmt(v['local_iqr_hi_mm'], '.2f')} mm</div>
+    <div class="metric-sub">Global spectral estimate = {_fmt(v['lines_per_cm'], '.1f')} lines/cm
+      &nbsp;|&nbsp; local median differs by {_fmt(v['local_median_error_pct'], '.1f')}%
+      &nbsp;|&nbsp; {v['context_en']}</div>
   </div>
   <div class="metric-card">
     <div class="metric-label">Wire Shadow Width (FWHM)</div>
@@ -306,7 +343,7 @@ directions and combining the images computationally.
 
 <h2>Detection Reliability</h2>
 <p class="section-intro">
-Two independent checks verify that the detected grid genuinely corresponds to the manuscript's
+Two independent checks assess whether the detected grid corresponds to the manuscript's
 laid lines rather than noise or artefacts.
 </p>
 
@@ -318,7 +355,8 @@ laid lines rather than noise or artefacts.
         <span class="note">{_fmt(v['agree_05px'], '.0f')}% of {v['n_splits']} trials agree within ±0.5 px<br/>
         {_fmt(v['agree_1px'], '.0f')}% agree within ±1 px | based on {v['n_phi']} lighting directions</span></td>
     <td>The period measurement is stable regardless of which half of the
-        lighting directions are used — it is not driven by a small subset of images.</td>
+        lighting directions are used. This supports numerical repeatability,
+        but does not by itself establish that the selected period is correct.</td>
   </tr>
   <tr>
     <td><b>Spatial consistency<br/><span class="note">(grid-vs-image check)</span></b></td>
@@ -362,12 +400,17 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
     stability_badge = _badge(v["stability_zh"], "green" if v["diff_std"] == 0.0 else "blue")
     if v["detect_confidence_zh"] == "高":
         confidence_kind = "green"
-    elif v["detect_confidence_zh"] == "极性矛盾":
+    elif v["detect_confidence_zh"] in {"极性矛盾", "命中搜索边界"}:
         confidence_kind = "red"
     else:
         confidence_kind = "orange"
     confidence_badge = _badge(v["detect_confidence_zh"], confidence_kind)
-    if v["detect_confidence_zh"] == "极性矛盾":
+    if v["period_at_boundary"]:
+        spatial_interpretation = (
+            "谱峰位于配置的周期搜索边界。在修正搜索范围之前，"
+            "间距和密度结果不能视为已验证。"
+        )
+    elif v["detect_confidence_zh"] == "极性矛盾":
         spatial_interpretation = (
             "网格与配置的线影明暗极性相反。在修正极性或相位之前，"
             "该检测结果不能视为已确认。"
@@ -375,6 +418,12 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
     else:
         spatial_interpretation = (
             "预测网格与实际图像中预期的明暗列对齐，支持该纹线检测结果。"
+        )
+    boundary_note = ""
+    if v["period_at_boundary"]:
+        boundary_note = (
+            '<div class="warning-card"><b>周期搜索范围无效。</b>'
+            "检测峰命中搜索边界；请修正 period_range_cm 后重新运行。</div>"
         )
 
     return f"""<!DOCTYPE html>
@@ -397,14 +446,17 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
 </p>
 
 <h2>主要发现</h2>
+{boundary_note}
 
 <div class="grid-2">
   <div class="metric-card">
-    <div class="metric-label">帘纹线间距</div>
+    <div class="metric-label">全局帘纹线间距</div>
     <div class="metric-value">{_fmt(v['period_mm'], '.2f')}<span class="metric-unit"> mm</span></div>
-    <div class="metric-ci">95% 置信区间 &nbsp; {_fmt(v['interval_ci_lo_mm'], '.2f')} – {_fmt(v['interval_ci_hi_mm'], '.2f')} mm</div>
-    <div class="metric-sub">基于 {v['n_gaps']} 个实测间隔的均值 &nbsp;|&nbsp;
-      = {_fmt(v['lines_per_cm'], '.1f')} 条/cm &nbsp;|&nbsp; {v['context_zh']}</div>
+    <div class="metric-ci">局部间隔：中位数 {_fmt(v['local_median_mm'], '.2f')} mm
+      &nbsp;|&nbsp; IQR {_fmt(v['local_iqr_lo_mm'], '.2f')} – {_fmt(v['local_iqr_hi_mm'], '.2f')} mm</div>
+    <div class="metric-sub">全局频谱估计 = {_fmt(v['lines_per_cm'], '.1f')} 条/cm
+      &nbsp;|&nbsp; 局部中位数偏差 {_fmt(v['local_median_error_pct'], '.1f')}%
+      &nbsp;|&nbsp; {v['context_zh']}</div>
   </div>
   <div class="metric-card">
     <div class="metric-label">线影宽度（FWHM）</div>
@@ -429,7 +481,7 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
 
 <h2>检测可靠性</h2>
 <p class="section-intro">
-以下两项独立验证确认所检测的纹线网格确实对应手稿中真实的帘纹线，而非噪声或伪影。
+以下两项独立检验用于评估所检测的纹线网格是否对应手稿中真实的帘纹线，而非噪声或伪影。
 </p>
 
 <table>
@@ -440,7 +492,7 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
         <span class="note">{_fmt(v['agree_05px'], '.0f')}% 的 {v['n_splits']} 次随机试验结果差异 ≤ 0.5 像素<br/>
         {_fmt(v['agree_1px'], '.0f')}% 差异 ≤ 1 像素 | 基于 {v['n_phi']} 个光照方向</span></td>
     <td>无论随机选取哪一半光照方向进行分析，周期估计始终一致，
-        说明结果并非由少数特殊角度主导。</td>
+        说明结果并非由少数特殊角度主导；但重复性本身不能证明所选周期一定正确。</td>
   </tr>
   <tr>
     <td><b>空间一致性检验<br/><span class="note">（网格对图像验证）</span></b></td>

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from paperdrm.detection_diagnostics import period_boundary_diagnostic
 from paperdrm.stage3_detect.simple_detector import (
     _broadband_signal_1d,
     _rotate_to_vertical,
@@ -166,6 +167,12 @@ def detect_laid_lines_multi_phi(
     peak_idx = int(np.argmax(P_agg))
     peak_f = float(freqs[peak_idx])
     period_px = 1.0 / peak_f
+    boundary = period_boundary_diagnostic(
+        peak_idx,
+        int(freqs.size),
+        period_range_px,
+        period_px,
+    )
     omega = 2.0 * np.pi / period_px
 
     phases = np.zeros(len(images), dtype=np.float64)
@@ -270,6 +277,7 @@ def detect_laid_lines_multi_phi(
         "wire_is_darker": bool(wire_is_darker),
         "radial_freqs": freqs,
         "radial_power": P_agg,
+        **boundary,
         "gabor_score": gabor_score,
         "gabor_theta_deg": gabor_theta,
         "wire_sigma_px": width["sigma_px"],

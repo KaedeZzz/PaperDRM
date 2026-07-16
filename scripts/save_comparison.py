@@ -29,6 +29,8 @@ def load_pipeline(serial: str) -> dict:
     sh  = json.loads((base / "split_half_stability.json").read_text(encoding="utf-8"))
 
     phys    = iv.get("physical", {})
+    spectral_lpc = phys.get("spectral_lines_per_cm", phys.get("lines_per_cm_mean"))
+    spectral_interval_cm = phys.get("spectral_interval_cm", phys.get("mean_interval_cm"))
     ww_ph   = ww.get("physical", {})
     fwhm_d  = ww_ph.get("fwhm_mm", {})
     ci      = fwhm_d.get("ci_t", [None, None])
@@ -48,9 +50,9 @@ def load_pipeline(serial: str) -> dict:
         "serial":               serial,
         "fov_width_cm":         cfg.get("fov_width_cm"),
         "crop_roi":             cfg.get("crop_roi"),
-        "lines_per_cm_mean":    phys.get("lines_per_cm_mean"),
+        "lines_per_cm_mean":    spectral_lpc,
         "lines_per_cm_median":  phys.get("lines_per_cm_median"),
-        "interval_mm_mean":     phys.get("mean_interval_cm", 0) * 10,
+        "interval_mm_mean":     spectral_interval_cm * 10 if spectral_interval_cm is not None else None,
         "n_peaks":              iv.get("n_peaks"),
         "wire_fwhm_mm_median":  fwhm_d.get("median"),
         "wire_fwhm_mm_ci_lo":   ci[0],

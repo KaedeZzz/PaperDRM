@@ -27,6 +27,7 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+from paperdrm.detection_diagnostics import period_boundary_diagnostic
 from paperdrm.stage3_detect.gabor import _best_for_period, _normalize01
 from paperdrm.stage3_detect.wire_width import estimate_wire_width
 
@@ -97,12 +98,20 @@ def radial_fft_period(
 
     peak_idx = int(np.argmax(band_prof))
     peak_f = float(band_freqs[peak_idx])
+    period_px = 1.0 / peak_f
+    boundary = period_boundary_diagnostic(
+        peak_idx,
+        int(band_freqs.size),
+        period_range_px,
+        period_px,
+    )
 
     return {
-        "dominant_period_px": 1.0 / peak_f,
+        "dominant_period_px": period_px,
         "dominant_freq_cpp": peak_f,
         "radial_freqs": band_freqs,
         "radial_power": band_prof,
+        **boundary,
     }
 
 
@@ -427,6 +436,13 @@ def detect_laid_lines_simple(
         "wire_is_darker": bool(wire_is_darker),
         "radial_freqs": fft_result["radial_freqs"],
         "radial_power": fft_result["radial_power"],
+        "period_range_px": fft_result["period_range_px"],
+        "period_peak_index": fft_result["period_peak_index"],
+        "period_search_bins": fft_result["period_search_bins"],
+        "period_boundary_distance_bins": fft_result["period_boundary_distance_bins"],
+        "period_at_search_boundary": fft_result["period_at_search_boundary"],
+        "period_boundary_side": fft_result["period_boundary_side"],
+        "period_warning": fft_result["period_warning"],
         "gabor_score": gabor_score,
         "gabor_theta_deg": gabor_theta,
         "wire_sigma_px": width["sigma_px"],

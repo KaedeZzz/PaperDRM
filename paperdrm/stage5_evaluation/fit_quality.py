@@ -206,6 +206,18 @@ def fit_quality_report(
     best_period_by_r2 = float(curve_periods[best_idx])
     best_r2 = float(curve_r2[best_idx])
 
+    boundary_fields = {
+        key: detect_out.get(key)
+        for key in (
+            "period_range_px",
+            "period_peak_index",
+            "period_search_bins",
+            "period_boundary_distance_bins",
+            "period_at_search_boundary",
+            "period_boundary_side",
+            "period_warning",
+        )
+    }
     return {
         "period_px_used": period,
         "n_harmonics": int(n_harmonics),
@@ -220,6 +232,7 @@ def fit_quality_report(
         "best_period_by_r2": best_period_by_r2,
         "best_r2": best_r2,
         "agrees_with_dominant": bool(abs(best_period_by_r2 - period) <= 1.0),
+        **boundary_fields,
     }
 
 
@@ -232,13 +245,15 @@ def print_fit_quality(report: dict) -> None:
           f" | Gauss-comb R^2={report['r2_gaussian_comb']:.4f}")
     gap_h = report['r2_with_harmonics'] - report['r2_fundamental_only']
     gap_g = report['r2_with_harmonics'] - report['r2_gaussian_comb']
-    print(f"  harmonics contribute +{gap_h:+.4f}; Gaussian-fit gap = {gap_g:+.4f}"
+    print(f"  harmonics contribute {gap_h:+.4f}; Gaussian-fit gap = {gap_g:+.4f}"
           f" (positive => signal has non-Gaussian shape)")
     print(f"  FC (band ±{report['fc_band_frac']*100:.0f}%)={report['frequency_concentration']:.4f}")
     print(f"  argmax Fourier R^2 over [{int(min(report['curve_periods_px']))}, "
           f"{int(max(report['curve_periods_px']))}] px = {report['best_period_by_r2']:.1f} px"
           f" (R^2={report['best_r2']:.4f})"
           f" {'<- matches detected' if report['agrees_with_dominant'] else '<- DISAGREES with detected'}")
+    if report.get("period_warning"):
+        print(f"  WARNING: {report['period_warning']}")
 
 
 def save_fit_quality(report: dict, path: str | Path) -> None:

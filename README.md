@@ -126,6 +126,16 @@ Typical outputs:
 A negative self-contrast z-score is reported as a polarity contradiction, not
 converted to a positive confidence score.
 
+The fit-quality output also records whether the dominant spectral peak is
+pinned to either edge of the configured period range. A boundary hit is treated
+as an invalid search range and overrides otherwise favorable stability or
+contrast scores in the generated reports.
+
+The primary spacing/density measurement is the global spectral period. Local
+peak-to-peak gaps remain available as a descriptive distribution (median and
+IQR); their arithmetic mean is not used as the headline measurement because
+missed weak peaks create long-gap outliers.
+
 ## Cache behaviour
 
 The DRP memmap is stored under `<data_root>/cache/drp.dat`, with metadata in

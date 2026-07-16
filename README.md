@@ -1,123 +1,198 @@
 # PaperDRM
 
-PaperDRM is a Python toolkit for directional reflectance profile (DRP) image stacks, with a workflow focused on laid-line analysis.
+PaperDRM is a research codebase for measuring laid-line spacing in historical
+paper from directional reflectance photography (DRP) stacks or individual
+manuscript images.
 
-It includes:
-- image stack loading and optional background subtraction,
-- DRP stack caching to disk,
-- per-pixel DRP direction estimation,
-- patchwise trigonometric orientation masks,
-- patchwise Gabor frequency estimation,
-- orientation and score visualizations.
+The current recommended method aggregates the one-dimensional spectral power
+from multiple grazing-light azimuths, estimates the dominant laid-line period,
+aligns per-image phase and polarity, and reconstructs a line grid. A
+single-image spectral detector is also available for transmitted-light MSI
+images. The older trig-mask and patchwise-Gabor route remains only as a legacy
+ablation because it has a known half-period bias.
 
-## Current Pipeline
-`main.py` runs this sequence:
-1. Load settings from `exp_param.yaml`.
-2. Build/load an `ImagePack` (and cached DRP memmap).
-3. Compute DRP direction map (`deg_map`).
-4. Build:
-- baseline trig mask (`azimuth_to_laidline_gray`),
-- patchwise trig mask (`patchwise_trigonometric_mask`).
-5. Visualize:
-- raw azimuth vs patch dominant orientation,
-- trig baseline vs patchwise trig outputs,
-- patchwise Gabor confidence map.
-6. Run patchwise Gabor using the **patchwise trig enhanced grayscale image** as input.
-7. Overlay inferred laid-line grid and save `laid_lines_overlay_grid.png`.
+This repository is a research prototype. Period and line-density estimates are
+the most mature outputs. Wire-width estimates remain experimental and should
+not be treated as validated physical measurements without further calibration.
 
-## Repository Layout
-- `main.py`: end-to-end runnable pipeline.
-- `paperdrm/`: core library modules.
-- `paperdrm/imagepack.py`: image loading, background subtraction, angle slicing, DRP cache management.
-- `paperdrm/drp_compute.py`, `paperdrm/drp_direction.py`, `paperdrm/drp_plot.py`: DRP compute and direction/plot utilities.
-- `paperdrm/trig_mask.py`: trig-mask builders and orientation comparison map helpers.
-- `paperdrm/gabor_laidlines.py`: Gabor-based laid-line period/orientation estimation and overlay utilities.
-- `paperdrm/visualization.py`: plotting helpers used by the pipeline.
-- `scripts/rgb2grey.py`: convert `data/raw` images to grayscale in `data/processed`.
-- `scripts/bg_blur.py`: generate blurred backgrounds in `data/background`.
-- `exp_param.yaml`: DRP and runtime settings.
+## Quick start
 
-## Installation
-Python 3.10+ is required.
+Python 3.10 or newer is required.
 
-PowerShell:
-```powershell
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+python main.py --config exp_param.yaml
 ```
 
-## Data Preparation
-Expected folders under `data/`:
-- `data/raw`
-- `data/processed`
-- `data/background`
-- `data/cache` (auto-created)
+For an MSI/single-image configuration:
 
-Typical prep:
-```powershell
-python scripts/rgb2grey.py
-python scripts/bg_blur.py
+```bash
+python main.py --config configs/Kk1-5_f5v.yaml
+```
+
+If the YAML contains `image_path`, PaperDRM automatically selects the
+single-image route. Otherwise it loads a DRP stack.
+
+Run the lightweight regression tests with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+## Detection routes
+
+### Multi-phi DRP — recommended for DRP acquisitions
+
+1. Load and angularly filter the DRP image stack.
+2. Select the steepest grazing-light image at each azimuth.
+3. Compute and normalize the laid-line-normal spectrum for every image.
+4. Aggregate spectral power and estimate the dominant period.
+5. Fit per-image phase, correct opposite polarity by a half-period shift, and
+   combine phases with a circular mean.
+6. Reconstruct the laid-line grid and evaluate interval distribution,
+   split-half stability, self-contrast, spectral fit and wire-width diagnostics.
+
+### Single image — recommended for transmitted-light MSI
+
+1. Load the image, optionally detect/crop the paper ROI and subtract background.
+2. Estimate or use the configured laid-line direction.
+3. Estimate period spectrally and apply fixed-period Gabor refinement.
+4. Reconstruct the grid and run the available single-image diagnostics.
+
+### Legacy route
+
+The DRP direction-map, trigonometric-mask and patchwise-Gabor pipeline is kept
+for historical comparison only. It is slow and can detect half the true period.
+
+Select a DRP route with `--track`:
+
+```bash
+python main.py --config exp_param.yaml --track multi_phi
+python main.py --config exp_param.yaml --track simple
+python main.py --config exp_param.yaml --track legacy
 ```
 
 ## Configuration
-Edit `exp_param.yaml`.
 
-Important fields:
-- `th_min`, `th_max`, `th_num`: theta sampling.
-- `ph_min`, `ph_max`, `ph_num`: phi sampling.
-- `data_serial`: bump to force DRP cache rebuild when dataset changes.
-- `subtract_background`: enable/disable subtraction.
-- `square_crop`: optional center crop to square.
-- `theta_min_deg`: optional lower bound; keeps only theta samples greater than or equal to this value.
-- `fov_width_cm`: horizontal field-of-view width in centimeters (optional, used to report laid-line interval in cm).
+Important YAML fields include:
 
-`main.py` currently overrides settings with:
-- `angle_slice=(2, 2)`
-- `verbose=True`
+- `data_serial`: dataset identifier and result-directory name.
+- `folder`: DRP image directory. Filenames should encode phi and theta.
+- `image_path`: single-image input; its presence selects the single-image route.
+- `img_format`: image extension, default `jpg`.
+- `angle_slice`: `[phi_stride, theta_stride]`.
+- `theta_min_deg`: discard lower-elevation DRP samples.
+- `subtract_background`: enable background subtraction.
+- `subtraction_scale_percentile`: scaling percentile after subtraction.
+- `crop_roi`: `[x, y, width, height]`.
+- `square_crop`: optionally centre-crop DRP images to a square.
+- `fov_width_cm`: horizontal field of view used for physical-unit conversion.
+- `period_range_cm`: expected laid-line interval range in centimetres.
+- `line_dir_deg`: configured laid-line direction.
+- `auto_line_dir`: estimate direction near the expected portrait/landscape axis.
+- `wire_is_darker`: expected line polarity. Use `false` when wire marks appear
+  brighter, as in many transmitted-light images.
+- `use_cached_stack`: set to `false` to force a DRP cache rebuild.
 
-## Run
-```powershell
-python main.py
+If the six DRP acquisition fields (`th_min/max/num`, `ph_min/max/num`) are
+omitted, they are inferred from the image filenames. Partial acquisition
+definitions are rejected.
+
+## Outputs and result integrity
+
+Pipeline stages use temporary files in the repository root, archive them under
+`results/<data_serial>/`, and then remove the root staging files.
+
+The archive step uses an explicit artifact list for each detector route. Before
+copying, it removes old pipeline-managed outputs from that dataset directory so
+that a stale split-half result or image from another run cannot enter a new
+report. User-managed files such as `manual_gt.json`, bounding boxes and manual
+overlays are preserved.
+
+Typical outputs:
+
+- `interval_distribution.json`
+- `fit_quality.json`
+- `self_contrast.json`
+- `split_half_stability.json` for multi-phi runs
+- `wire_width_stats.json`
+- `laid_lines_overlay.png`
+- `laid_lines_overlay_bands.png`
+- `report_en.html` and `report_zh.html`
+
+A negative self-contrast z-score is reported as a polarity contradiction, not
+converted to a positive confidence score.
+
+## Cache behaviour
+
+The DRP memmap is stored under `<data_root>/cache/drp.dat`, with metadata in
+`data_config.yaml`.
+
+Cache reuse requires a fingerprint match covering:
+
+- selected image paths, sizes and modification times;
+- any selected background files;
+- angular slicing and theta filtering;
+- background-subtraction mode and scaling;
+- ROI and square cropping;
+- filtered acquisition geometry and final stack shape.
+
+Changing any of these inputs invalidates the cache. Older cache metadata has no
+fingerprint and is rebuilt automatically on first use.
+
+## Repository layout
+
+- `main.py` — pipeline entry point and detector-route orchestration.
+- `paperdrm/stage0_loader/` — settings, image loading and cache management.
+- `paperdrm/stage0_drp/` — DRP slicing and stack operations.
+- `paperdrm/stage1_features/` — DRP direction estimation used by the legacy route.
+- `paperdrm/stage2_enhance/` — legacy trigonometric enhancement.
+- `paperdrm/stage3_detect/` — multi-phi, single-image and legacy detectors.
+- `paperdrm/stage4_viz/` — visualization helpers.
+- `paperdrm/stage5_evaluation/` — interval, stability, contrast and fit metrics.
+- `configs/` — dataset-specific configurations.
+- `scripts/` — data preparation, benchmarking and report utilities.
+- `tests/` — lightweight regression tests.
+- `results/` — archived experimental outputs.
+- `report/` and `logbook/` — report source and project logbook.
+
+## Data preparation
+
+To create a local DRP dataset bundle from an existing folder:
+
+```bash
+python scripts/fetch_dataset.py \
+  --from-local /path/to/images \
+  --serial example \
+  --fov 8.65
 ```
 
-Outputs:
-- orientation comparison plot,
-- trig mask comparison plot,
-- patchwise Gabor score heatmap,
-- console estimates of laid-line interval (`cm`) and density (`lines/cm`) when `fov_width_cm` is set,
-- saved overlay image: `laid_lines_overlay_grid.png`.
+Google Drive ingestion is also supported:
 
-## Library Usage Example
-```python
-from paperdrm import ImagePack, Settings
-from paperdrm.drp_direction import drp_direction_map
-from paperdrm.trig_mask import patchwise_trigonometric_mask
-from paperdrm.gabor_laidlines import estimate_laidline_frequency_gabor_patches
-
-settings = Settings.from_yaml("exp_param.yaml").with_overrides(angle_slice=(2, 2))
-imp = ImagePack(settings=settings)
-
-_, deg_map = drp_direction_map(imp, verbose=False)
-_, patch_img, _, _ = patchwise_trigonometric_mask(deg_map, patch_size=(512, 512), stride=(256, 256))
-
-out = estimate_laidline_frequency_gabor_patches(
-    patch_img,
-    line_dir_deg=90.0,
-    patch_size=(512, 512),
-    stride=(256, 256),
-    periods_px=list(range(6, 41, 2)),
-)
-print(out["dominant_period_px"], out["dominant_freq_cpp"])
+```bash
+python scripts/fetch_dataset.py \
+  "https://drive.google.com/drive/folders/..." \
+  --serial example \
+  --fov 8.65
 ```
 
-## Caching Notes
-- DRP stack is stored at `data/cache/drp.dat` (NumPy memmap).
-- Cache metadata is stored in `data/cache/data_config.yaml`.
-- Cache rebuild occurs when serial/slice/shape expectations do not match.
+The script creates `data/drp/<serial>/` with raw, processed, background and
+cache directories plus a configuration file.
 
-## Troubleshooting
-- No images loaded: verify `data/processed` contains files matching configured format.
-- Background mismatch errors: regenerate `data/background` from the same processed set.
-- Unexpected stale results: bump `data_serial` or clear `data/cache`.
-- `cv2.imshow` window issues (headless environments): comment GUI display lines in `main.py` and rely on saved outputs.
+## Known limitations
+
+- There is not yet a full end-to-end test using a versioned real-image fixture.
+- The current benchmark set is small and contains manually configured physical
+  scales and ROIs.
+- Period aliases remain possible outside the validated frequency range.
+- Split-half agreement measures repeatability, not correctness; stable aliases
+  are possible.
+- Self-contrast depends on correct phase and polarity configuration.
+- Wire-width estimation is sensitive to line profile, period and image SNR.
+- Report values must be regenerated after algorithm or configuration changes;
+  committed historical results are not automatically updated.
+
+See `report/README.md` for building the written project report.

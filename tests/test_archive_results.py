@@ -2,10 +2,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from result_archive import archive_results
+from paperdrm.result_archive import archive_results, repository_root
 
 
 class ArchiveResultsTests(unittest.TestCase):
+    def test_default_root_is_the_repository_containing_main(self):
+        self.assertEqual(
+            repository_root(),
+            Path(__file__).resolve().parents[1],
+        )
+
     def test_archives_only_current_run_and_removes_stale_managed_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -44,10 +50,17 @@ class ArchiveResultsTests(unittest.TestCase):
             self.assertFalse((result_dir / "self_contrast.json").exists())
             self.assertTrue((result_dir / "manual_gt.json").exists())
             self.assertTrue((result_dir / "dataset-b.yaml").exists())
+            self.assertFalse((root / "interval_distribution.json").exists())
+            self.assertFalse((root / "laid_lines_overlay.png").exists())
+            self.assertFalse((root / "self_contrast.json").exists())
 
     def test_missing_declared_artifact_fails_fast(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            result_dir = root / "results" / "dataset"
+            result_dir.mkdir(parents=True)
+            existing = result_dir / "interval_distribution.json"
+            existing.write_text('{"keep": true}')
             config = root / "dataset.yaml"
             config.write_text("data_serial: dataset\n")
 
@@ -60,6 +73,8 @@ class ArchiveResultsTests(unittest.TestCase):
                     root=root,
                     generate_reports=False,
                 )
+
+            self.assertEqual(existing.read_text(), '{"keep": true}')
 
 
 if __name__ == "__main__":

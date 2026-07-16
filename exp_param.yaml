@@ -1,5 +1,6 @@
 data_serial: 4
-folder: E:\Downloads\zz477\manuscript 4\samples
+data_root: data
+folder: processed
 square_crop: False
 subtract_background: True
 theta_min_deg: 30

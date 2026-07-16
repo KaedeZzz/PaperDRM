@@ -1,7 +1,7 @@
 """
 End-to-end laid-line detection pipeline (three tracks).
 
-Tracks are selected by the DETECTOR_TRACK constant below:
+DRP tracks are selected with ``--track``; MULTI_PHI is the default:
 
 MULTI_PHI TRACK (default, recommended when a DRP stack is available)
   N grazing images (one per phi) -> per-image radial FFT ->
@@ -103,7 +103,7 @@ from paperdrm.stage5_evaluation.self_contrast import (
     save_self_contrast,
     self_consistency_contrast,
 )
-from result_archive import (
+from paperdrm.result_archive import (
     LEGACY_ARTIFACTS,
     MULTI_PHI_ARTIFACTS,
     SINGLE_IMAGE_ARTIFACTS,
@@ -513,7 +513,14 @@ if __name__ == "__main__":
         help="Path to a single image for the single_image track. "
              "Overrides image_path in the yaml.",
     )
+    _parser.add_argument(
+        "--track",
+        choices=("multi_phi", "simple", "legacy"),
+        default=DETECTOR_TRACK,
+        help=f"DRP detector route (default: {DETECTOR_TRACK}).",
+    )
     _args = _parser.parse_args()
+    _track = _args.track
 
     # Single-image track: bypass ImagePack entirely.
     # Triggered by --image CLI arg or by image_path being set in the config yaml.
@@ -608,7 +615,7 @@ if __name__ == "__main__":
     else:
         _period_range_px = (8.0, 80.0)
 
-    if DETECTOR_TRACK == "multi_phi":
+    if _track == "multi_phi":
         images, phi_deg = collect_grazing_per_phi(pack)
         rep_overlay_idx = 0  # raw image used for the visual overlay
         raw_image, _ = pick_grazing_image_raw(pack, phi_index=rep_overlay_idx)
@@ -652,7 +659,7 @@ if __name__ == "__main__":
         stage_overlay_simple(raw_image, detect_out)
         stage_overlay_simple_bands(raw_image, detect_out, ww)
         archive_results(pack, _args.config, artifacts=MULTI_PHI_ARTIFACTS)
-    elif DETECTOR_TRACK == "simple":
+    elif _track == "simple":
         image, idx = pick_grazing_image(pack, phi_index=0)
         raw_image, _ = pick_grazing_image_raw(pack, phi_index=0)
         line_dir_deg = pack.settings.line_dir_deg
@@ -686,7 +693,7 @@ if __name__ == "__main__":
         stage_overlay_simple(raw_image, detect_out)
         stage_overlay_simple_bands(raw_image, detect_out, ww)
         archive_results(pack, _args.config, artifacts=SINGLE_IMAGE_ARTIFACTS)
-    elif DETECTOR_TRACK == "legacy":
+    elif _track == "legacy":
         _mag, deg_map = stage_direction(pack)
         patch_size, stride = (512, 512), (256, 256)
         gabor_input = stage_enhance(deg_map, patch_size=patch_size, stride=stride)
@@ -702,5 +709,5 @@ if __name__ == "__main__":
         stage_overlay_legacy(gabor_input, detect_out)
         archive_results(pack, _args.config, artifacts=LEGACY_ARTIFACTS)
     else:
-        raise ValueError(f"Unknown DETECTOR_TRACK={DETECTOR_TRACK!r}; "
+        raise ValueError(f"Unknown detector track={_track!r}; "
                          "expected 'multi_phi', 'simple', or 'legacy'.")

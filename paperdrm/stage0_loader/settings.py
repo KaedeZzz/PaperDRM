@@ -6,6 +6,8 @@ from typing import Any
 
 import yaml
 
+from paperdrm.cache_identity import CACHE_SCHEMA_VERSION
+
 
 # Unified DRP acquisition/cache config (moved from config.py for central access).
 @dataclass
@@ -56,6 +58,9 @@ class CacheConfig:
     ph_slice: int = 1
     th_slice: int = 1
     data_serial: str | int | None = None
+    stack_shape: tuple[int, int, int, int] | None = None
+    fingerprint: str | None = None
+    schema_version: int = CACHE_SCHEMA_VERSION
 
 
 def load_drp_config(path: Path) -> DRPConfig:
@@ -103,14 +108,20 @@ def load_cache_config(path: Path) -> CacheConfig:
         ph_slice=data.get("ph_slice", 1),
         th_slice=data.get("th_slice", 1),
         data_serial=data.get("data_serial"),
+        stack_shape=tuple(data["stack_shape"]) if data.get("stack_shape") else None,
+        fingerprint=data.get("fingerprint"),
+        schema_version=int(data.get("schema_version", 0)),
     )
 
 
 def save_cache_config(path: Path, cfg: CacheConfig) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    payload = asdict(cfg)
+    if payload["stack_shape"] is not None:
+        payload["stack_shape"] = list(payload["stack_shape"])
     with path.open("w") as fh:
-        yaml.dump(asdict(cfg), fh)
+        yaml.safe_dump(payload, fh, sort_keys=False)
 
 
 def save_drp_config(path: Path, cfg: DRPConfig) -> None:

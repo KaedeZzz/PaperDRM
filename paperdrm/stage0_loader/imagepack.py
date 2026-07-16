@@ -1,25 +1,20 @@
 from pathlib import Path
-import warnings
 
 import cv2
 import numpy as np
 
 from dataclasses import replace
 
+from paperdrm.cache_identity import build_cache_fingerprint
 from paperdrm.stage0_loader.settings import (
-    CacheConfig,
     DRPConfig,
     Settings,
-    load_drp_config,
     resolve_drp_from_yaml,
-    save_cache_config,
 )
 from paperdrm.stage0_loader.image_io import (
-    open_drp_memmap,
     prepare_cache,
     resolve_config_path,
     resolve_image_folder,
-    load_images,
     load_images_from_paths,
 )
 from paperdrm.stage0_loader.inference import infer_drp_config_from_folder, verify_drp_match
@@ -130,6 +125,27 @@ class ImagePack:
             f"(angle_slice={self.settings.angle_slice}, theta_min={self.settings.theta_min_deg})"
         )
 
+        bg_folder: Path | None = None
+        background_paths: list[Path] = []
+        if self.settings.subtract_background:
+            sibling_bg = self.folder / "background"
+            global_bg = self.paths.root / "background"
+            if sibling_bg.exists():
+                bg_folder = sibling_bg
+            elif global_bg.exists():
+                bg_folder = global_bg
+
+            if bg_folder is not None:
+                missing = [p for p in load_paths if not (bg_folder / p.name).exists()]
+                if missing:
+                    self._log(
+                        f"Background folder {bg_folder} is missing {len(missing)} file(s) "
+                        f"(e.g. {missing[0].name}) — falling back to Gaussian blur on-the-fly"
+                    )
+                    bg_folder = None
+                else:
+                    background_paths = [bg_folder / p.name for p in load_paths]
+
         # Load only the selected images
         self._log(f"Loading {len(load_paths)} images ({self.settings.img_format}) from {self.folder}")
         self.images = load_images_from_paths(load_paths, num_workers=self.settings.load_workers)
@@ -139,26 +155,6 @@ class ImagePack:
         # If a pre-computed background folder exists, load from disk (streaming).
         # Otherwise compute Gaussian blur on-the-fly — no manual bg_blur.py run needed.
         if self.settings.subtract_background:
-            sibling_bg = self.folder / "background"
-            global_bg = self.paths.root / "background"
-            if sibling_bg.exists():
-                bg_folder: Path | None = sibling_bg
-            elif global_bg.exists():
-                bg_folder = global_bg
-            else:
-                bg_folder = None
-
-            # Validate that all required background files exist; fall back to
-            # on-the-fly blur if any are missing (e.g. after a dataset swap).
-            if bg_folder is not None:
-                missing = [p for p in load_paths if not (bg_folder / p.name).exists()]
-                if missing:
-                    self._log(
-                        f"Background folder {bg_folder} is missing {len(missing)} file(s) "
-                        f"(e.g. {missing[0].name}) — falling back to Gaussian blur on-the-fly"
-                    )
-                    bg_folder = None
-
             if bg_folder is not None:
                 self._log(f"Subtracting backgrounds from {bg_folder} (streaming)")
             else:
@@ -212,48 +208,41 @@ class ImagePack:
         )
 
         stack_shape = (self.h, self.w, self.param.ph_num, self.param.th_num)
-        self._log(f"Preparing cache for angle_slice={self.angle_slice} stack_shape={stack_shape}")
-        self.drp_stack, cache_cfg, stack_needs_build = prepare_cache(
-            self.paths, self.angle_slice, stack_shape, self.data_serial
+        cache_fingerprint = build_cache_fingerprint(
+            [*load_paths, *background_paths],
+            {
+                "data_serial": self.data_serial,
+                "img_format": self.settings.img_format,
+                "angle_slice": self.angle_slice,
+                "theta_min_deg": self.settings.theta_min_deg,
+                "subtract_background": self.settings.subtract_background,
+                "background_mode": (
+                    f"files:{bg_folder.resolve()}" if bg_folder is not None else
+                    ("gaussian:sigma=100" if self.settings.subtract_background else "none")
+                ),
+                "subtraction_scale_percentile": self.settings.subtraction_scale_percentile,
+                "crop_roi": self.settings.crop_roi,
+                "square_crop": self.settings.square_crop,
+                "stack_shape": stack_shape,
+                "filtered_drp_config": {
+                    "th_min": self.param.th_min,
+                    "th_max": self.param.th_max,
+                    "th_num": self.param.th_num,
+                    "ph_min": self.param.ph_min,
+                    "ph_max": self.param.ph_max,
+                    "ph_num": self.param.ph_num,
+                },
+            },
         )
-
-        cache_slice = (cache_cfg.ph_slice, cache_cfg.th_slice)
-        if cache_slice != self.angle_slice:
-            self._log(f"Cache slice {cache_slice} != requested {self.angle_slice}; recreating memmap")
-            self._close_memmap(self.drp_stack)
-            self.drp_stack = open_drp_memmap(
-                self.paths.cache / "drp.dat",
-                mode="w+",
-                shape=stack_shape,
-            )
-            save_cache_config(
-                self.paths.cache / "data_config.yaml",
-                CacheConfig(
-                    ph_slice=self.angle_slice[0],
-                    th_slice=self.angle_slice[1],
-                    data_serial=self.data_serial,
-                ),
-            )
-            stack_needs_build = True
-
-        if self.drp_stack.shape != stack_shape or not self.settings.use_cached_stack:
-            reason = "shape mismatch" if self.drp_stack.shape != stack_shape else "use_cached_stack=False"
-            self._log(f"Recreating DRP memmap due to {reason}; expected {stack_shape}, found {self.drp_stack.shape}")
-            self._close_memmap(self.drp_stack)
-            self.drp_stack = open_drp_memmap(
-                self.paths.cache / "drp.dat",
-                mode="w+",
-                shape=stack_shape,
-            )
-            save_cache_config(
-                self.paths.cache / "data_config.yaml",
-                CacheConfig(
-                    ph_slice=self.angle_slice[0],
-                    th_slice=self.angle_slice[1],
-                    data_serial=self.data_serial,
-                ),
-            )
-            stack_needs_build = True
+        self._log(f"Preparing cache for angle_slice={self.angle_slice} stack_shape={stack_shape}")
+        self.drp_stack, _, stack_needs_build = prepare_cache(
+            self.paths,
+            self.angle_slice,
+            stack_shape,
+            self.data_serial,
+            cache_fingerprint,
+            force_rebuild=not self.settings.use_cached_stack,
+        )
 
         if stack_needs_build:
             self._log("Building DRP stack into cache")
@@ -309,18 +298,6 @@ class ImagePack:
 
     def get_drp_stack(self):
         return self.drp_stack
-
-    @staticmethod
-    def _close_memmap(memmap_obj):
-        """
-        Close a NumPy memmap's underlying mmap, ignoring errors.
-        """
-        try:
-            if hasattr(memmap_obj, "_mmap") and memmap_obj._mmap is not None:
-                memmap_obj._mmap.close()
-        except Exception:
-            pass
-
 
 def _data_serial_from_folder(folder: Path) -> str | int | None:
     """

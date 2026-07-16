@@ -56,6 +56,10 @@ LEGACY_ARTIFACTS = (
 )
 
 
+def repository_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
 def archive_results(
     pack: _PackWithSerial | None,
     config_path: str | Path,
@@ -76,9 +80,18 @@ def archive_results(
         value = pack.data_serial if pack is not None else None
         serial = str(value) if value is not None else "unknown"
 
-    root = Path(__file__).resolve().parent.parent if root is None else Path(root)
+    root = repository_root() if root is None else Path(root)
     archive_dir = root / "results" / serial
     archive_dir.mkdir(parents=True, exist_ok=True)
+
+    sources = []
+    for artifact in artifacts:
+        src = Path(artifact)
+        if not src.is_absolute():
+            src = root / src
+        if not src.is_file():
+            raise FileNotFoundError(f"Expected pipeline artifact was not created: {src}")
+        sources.append(src)
 
     removed = []
     for name in sorted(MANAGED_RESULT_FILES):
@@ -88,12 +101,7 @@ def archive_results(
             removed.append(name)
 
     copied = []
-    for artifact in artifacts:
-        src = Path(artifact)
-        if not src.is_absolute():
-            src = root / src
-        if not src.is_file():
-            raise FileNotFoundError(f"Expected pipeline artifact was not created: {src}")
+    for src in sources:
         shutil.copy2(src, archive_dir / src.name)
         copied.append(src.name)
 
@@ -104,9 +112,17 @@ def archive_results(
             shutil.copy2(cfg_src, cfg_dst)
             copied.append(cfg_src.name)
 
+    cleaned = []
+    for name in sorted(MANAGED_RESULT_FILES):
+        staged = root / name
+        if staged.is_file():
+            staged.unlink()
+            cleaned.append(name)
+
     print(
         f"[Archive] removed {len(removed)} stale managed files; "
-        f"copied {len(copied)} current files -> results/{serial}/"
+        f"copied {len(copied)} current files -> results/{serial}/; "
+        f"cleaned {len(cleaned)} root staging files"
         f"  ({', '.join(copied)})"
     )
 

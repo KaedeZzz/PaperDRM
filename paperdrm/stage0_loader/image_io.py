@@ -86,6 +86,9 @@ def prepare_cache(
     angle_slice: tuple[int, int],
     stack_shape: tuple[int, int, int, int],
     data_serial: str | int | None,
+    fingerprint: str,
+    *,
+    force_rebuild: bool = False,
 ) -> tuple[np.memmap, CacheConfig, bool]:
     """
     Prepare the DRP cache. Returns (memmap, cache_cfg, is_new_stack).
@@ -94,24 +97,18 @@ def prepare_cache(
     data_config_path = paths.cache / "data_config.yaml"
     drp_path = paths.cache / "drp.dat"
     cache_cfg = CacheConfig(
-            ph_slice=angle_slice[0], 
-            th_slice=angle_slice[1], 
-            data_serial=data_serial
+        ph_slice=angle_slice[0],
+        th_slice=angle_slice[1],
+        data_serial=data_serial,
+        stack_shape=stack_shape,
+        fingerprint=fingerprint,
     )
-    if data_config_path.exists() and drp_path.exists():
-        # DRP data exists; check if data serial matches
+    if not force_rebuild and data_config_path.exists() and drp_path.exists():
         existing_cfg = load_cache_config(data_config_path)
-        if existing_cfg.data_serial == data_serial:
-            # Use existing data
-            cache_cfg = existing_cfg
+        if existing_cfg == cache_cfg:
             memmap = open_drp_memmap(drp_path, stack_shape, mode="r+")
-            return memmap, cache_cfg, False
-        # Data serial changed: overwrite in-place without deleting (avoids Windows file-lock issues)
-        save_cache_config(data_config_path, cache_cfg)
-        memmap = open_drp_memmap(drp_path, stack_shape, mode="w+")
-        return memmap, cache_cfg, True
+            return memmap, existing_cfg, False
 
-    # Create new cache
     save_cache_config(data_config_path, cache_cfg)
     memmap = open_drp_memmap(drp_path, stack_shape, mode="w+")
     return memmap, cache_cfg, True

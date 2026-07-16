@@ -201,29 +201,22 @@ def spreadsheet_scatter() -> None:
     """Figure 4.7: pipeline vs spreadsheet density scatter (9 folios)."""
     with open(RESULTS / "pipeline_vs_spreadsheet.json") as f:
         data = json.load(f)
-    manual_serials = {"Kk1-5_f5v", "Kk1-5_f9v"}
 
     spread_x, spread_y, spread_s = [], [], []
-    manual_x, manual_y, manual_s = [], [], []
     for r in data:
-        x = r["gt_lines_per_cm"]
+        x = r.get("spreadsheet_gt_lines_per_cm", r["gt_lines_per_cm"])
         y = r["lines_per_cm_mean"]
         s = r["serial"].replace("_", "\n", 1)  # break long folio names
-        if r["serial"] in manual_serials:
-            manual_x.append(x); manual_y.append(y); manual_s.append(s)
-        else:
-            spread_x.append(x); spread_y.append(y); spread_s.append(s)
+        spread_x.append(x); spread_y.append(y); spread_s.append(s)
 
     fig, ax = plt.subplots(figsize=(5.5, 5.0))
-    lo = min(min(spread_x + manual_x), min(spread_y + manual_y)) - 1
-    hi = max(max(spread_x + manual_x), max(spread_y + manual_y)) + 1
+    lo = min(min(spread_x), min(spread_y)) - 1
+    hi = max(max(spread_x), max(spread_y)) + 1
     ax.plot([lo, hi], [lo, hi], color=GREY, linewidth=0.6, linestyle="--",
             label="y = x (perfect agreement)")
     ax.scatter(spread_x, spread_y, marker="o", color=BLACK, s=40,
-               label="spreadsheet GT")
-    ax.scatter(manual_x, manual_y, marker="^", color=ACCENT, s=80,
-               label="manual GT", zorder=5)
-    for x, y, s in zip(spread_x + manual_x, spread_y + manual_y, spread_s + manual_s):
+               label="spreadsheet reference")
+    for x, y, s in zip(spread_x, spread_y, spread_s):
         ax.annotate(s, (x, y), fontsize=6.5,
                     xytext=(5, 5), textcoords="offset points")
     ax.set_xlabel("Ground-truth density (lines/cm)")
@@ -254,7 +247,7 @@ def three_way_comparison() -> None:
         if s not in manuals:
             continue
         serials.append(s)
-        ss.append(r["gt_lines_per_cm"])
+        ss.append(r.get("spreadsheet_gt_lines_per_cm", r["gt_lines_per_cm"]))
         pipe.append(r["lines_per_cm_mean"])
         man.append(manuals[s])
 
@@ -277,26 +270,26 @@ def three_way_comparison() -> None:
 
 
 def manual_gt_bars() -> None:
-    """Figure 4.8 panel A: bar chart pipeline vs manual GT for two calibrated folios."""
+    """Figure 4.8 panel A: bar chart pipeline vs per-folio manual GT."""
     with open(RESULTS / "pipeline_vs_spreadsheet.json") as f:
         data = json.load(f)
-    rows = [r for r in data if r["serial"] in {"Kk1-5_f5v", "Kk1-5_f9v"}]
+    rows = [r for r in data if r.get("manual_gt_lines_per_cm") is not None]
     labels = [r["serial"].replace("_", " ") for r in rows]
     pipeline = [r["lines_per_cm_mean"] for r in rows]
-    gt = [r["gt_lines_per_cm"] for r in rows]
+    gt = [r["manual_gt_lines_per_cm"] for r in rows]
     err = [r["error_pct"] for r in rows]
 
     x = np.arange(len(labels))
     w = 0.35
-    fig, ax = plt.subplots(figsize=(5.0, 3.3))
+    fig, ax = plt.subplots(figsize=(8.0, 3.8))
     ax.bar(x - w/2, gt, width=w, color=GREY, label="manual GT")
     ax.bar(x + w/2, pipeline, width=w, color=BLACK, label="pipeline")
     for i, (p, e) in enumerate(zip(pipeline, err)):
         ax.text(i + w/2, p + 0.1, f"{e:+.2f}%", ha="center", fontsize=8)
     ax.set_xticks(x)
-    ax.set_xticklabels(labels)
+    ax.set_xticklabels(labels, rotation=30, ha="right", fontsize=7)
     ax.set_ylabel("Density (lines/cm)")
-    ax.set_title("Pipeline vs manual count on the two calibrated folios")
+    ax.set_title("Pipeline vs per-folio manual counts")
     ax.set_ylim(0, max(max(pipeline), max(gt)) * 1.18)
     ax.legend(loc="upper right")
     _save(fig, "manual_gt_bars.pdf")

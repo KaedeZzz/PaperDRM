@@ -74,10 +74,15 @@ for serial, gt, note in DATASETS:
     try:
         cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
         full_iv = json.loads(res_path.read_text())
-        full_lpc = full_iv["physical"].get(
-            "spectral_lines_per_cm",
-            full_iv["physical"]["lines_per_cm_mean"],
-        )
+        full_physical = full_iv["physical"]
+        full_lpc = full_physical.get("spectral_lines_per_cm")
+        if full_lpc is None:
+            full_period_px = full_iv.get("period_px_used")
+            full_cm_per_px = full_physical.get("cm_per_px")
+            if full_period_px is not None and full_cm_per_px is not None:
+                full_lpc = 1.0 / (full_period_px * full_cm_per_px)
+            else:
+                full_lpc = full_physical["lines_per_cm_mean"]
     except Exception as e:
         print(f"{serial:<22}  -- {e}"); continue
 

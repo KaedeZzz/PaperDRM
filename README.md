@@ -15,6 +15,10 @@ This repository is a research prototype. Period and line-density estimates are
 the most mature outputs. Wire-width estimates remain experimental and should
 not be treated as validated physical measurements without further calibration.
 
+The current technical audit, manual-GT benchmark interpretation, literature
+review and proposed research roadmap are documented in
+[`docs/repo_audit_and_research_roadmap_zh.md`](docs/repo_audit_and_research_roadmap_zh.md).
+
 ## Quick start
 
 Python 3.10 or newer is required.

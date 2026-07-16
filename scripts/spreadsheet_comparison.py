@@ -69,8 +69,17 @@ def load_pipeline(serial: str) -> dict:
     fq  = json.loads((base / "fit_quality.json").read_text())
 
     phys    = iv.get("physical", {})
-    spectral_lpc = phys.get("spectral_lines_per_cm", phys.get("lines_per_cm_mean"))
-    spectral_interval_cm = phys.get("spectral_interval_cm", phys.get("mean_interval_cm"))
+    spectral_interval_cm = phys.get("spectral_interval_cm")
+    if spectral_interval_cm is None:
+        period_px = iv.get("period_px_used")
+        cm_per_px = phys.get("cm_per_px")
+        if period_px is not None and cm_per_px is not None:
+            spectral_interval_cm = period_px * cm_per_px
+        else:
+            spectral_interval_cm = phys.get("mean_interval_cm")
+    spectral_lpc = phys.get("spectral_lines_per_cm")
+    if spectral_lpc is None and spectral_interval_cm:
+        spectral_lpc = 1.0 / spectral_interval_cm
     ww_phys = ww.get("physical", {})
     fwhm_mm = ww_phys.get("fwhm_mm", {})
     ci      = fwhm_mm.get("ci_t", [None, None])

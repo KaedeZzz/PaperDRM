@@ -31,7 +31,6 @@ Stages used by each track:
                           + patch consistency           (legacy only)
 """
 
-import shutil
 import sys
 from pathlib import Path
 
@@ -104,60 +103,18 @@ from paperdrm.stage5_evaluation.self_contrast import (
     save_self_contrast,
     self_consistency_contrast,
 )
+from result_archive import (
+    LEGACY_ARTIFACTS,
+    MULTI_PHI_ARTIFACTS,
+    SINGLE_IMAGE_ARTIFACTS,
+    archive_results,
+)
 
 
 # ---------------------------------------------------------------------------
 # Track selector: "multi_phi" | "simple" | "legacy" | "single_image"
 # ---------------------------------------------------------------------------
 DETECTOR_TRACK = "multi_phi"
-
-
-# ---------------------------------------------------------------------------
-# Result archiving
-# ---------------------------------------------------------------------------
-def archive_results(pack: "ImagePack | None", config_path: str, *, serial: str | None = None) -> Path:
-    """
-    Copy all pipeline output files (JSON + PNG) from the repo root into
-    results/<serial>/ and save a snapshot of the config yaml.
-    Returns the archive directory.
-    """
-    if serial is None:
-        serial = str(pack.data_serial) if pack is not None and pack.data_serial is not None else "unknown"
-    root = Path(__file__).parent
-    archive_dir = root / "results" / serial
-    archive_dir.mkdir(parents=True, exist_ok=True)
-
-    copied = []
-    for src in sorted(root.glob("*.json")) + sorted(root.glob("*.png")):
-        dst = archive_dir / src.name
-        shutil.copy2(src, dst)
-        copied.append(src.name)
-
-    # Config snapshot. Skip if --config already points inside archive_dir
-    # (e.g. results/<serial>/exp_param.yaml): copying a file onto itself
-    # raises PermissionError on Windows.
-    cfg_src = Path(config_path)
-    if cfg_src.exists():
-        cfg_dst = archive_dir / cfg_src.name
-        if cfg_src.resolve() != cfg_dst.resolve():
-            shutil.copy2(cfg_src, cfg_dst)
-            copied.append(cfg_src.name)
-
-    print(f"[Archive] {len(copied)} files -> results/{serial}/  ({', '.join(copied)})")
-
-    # Generate plain-language reports
-    try:
-        import subprocess, sys
-        report_script = root / "scripts" / "generate_report.py"
-        subprocess.run(
-            [sys.executable, str(report_script), "--serial", serial,
-             "--results-dir", str(root / "results")],
-            check=True,
-        )
-    except Exception as exc:
-        print(f"[Archive] Report generation failed: {exc}")
-
-    return archive_dir
 
 
 # ---------------------------------------------------------------------------
@@ -626,7 +583,12 @@ if __name__ == "__main__":
         stage_self_contrast(_image, _detect_out)
         stage_overlay_simple(_raw_image, _detect_out)
         stage_overlay_simple_bands(_raw_image, _detect_out, _ww)
-        archive_results(None, _args.config, serial=_serial)
+        archive_results(
+            None,
+            _args.config,
+            serial=_serial,
+            artifacts=SINGLE_IMAGE_ARTIFACTS,
+        )
         raise SystemExit(0)
 
     pack = stage_load(_args.config)
@@ -650,12 +612,26 @@ if __name__ == "__main__":
         images, phi_deg = collect_grazing_per_phi(pack)
         rep_overlay_idx = 0  # raw image used for the visual overlay
         raw_image, _ = pick_grazing_image_raw(pack, phi_index=rep_overlay_idx)
+        line_dir_deg = pack.settings.line_dir_deg
+        if pack.settings.auto_line_dir:
+            h_img, w_img = images[0].shape[:2]
+            center_deg = 0.0 if h_img >= w_img else 90.0
+            line_dir_deg = _auto_detect_line_dir(
+                images[0],
+                period_range_px=_period_range_px,
+                center_deg=center_deg,
+            )
+            print(
+                f"[Main] auto_line_dir (center={center_deg:.0f}°±20°) "
+                f"-> {line_dir_deg:.1f} deg"
+            )
         print(f"[Main] MULTI_PHI track: {len(images)} grazing phi images "
               f"(phi range {phi_deg[0]:.1f}..{phi_deg[-1]:.1f} deg)")
         detect_out = stage_detect_multi_phi(
             images,
-            line_dir_deg=90.0,
+            line_dir_deg=line_dir_deg,
             period_range_px=_period_range_px,
+            wire_is_darker=pack.settings.wire_is_darker,
             fov_width_cm=pack.settings.fov_width_cm,
         )
         ref_image = images[detect_out["representative_index"]]
@@ -667,6 +643,7 @@ if __name__ == "__main__":
         )
         stage_split_half(
             images,
+            line_dir_deg=line_dir_deg,
             period_range_px=_period_range_px,
             fov_width_cm=pack.settings.fov_width_cm,
             n_splits=200,
@@ -674,14 +651,29 @@ if __name__ == "__main__":
         stage_self_contrast(ref_image, detect_out)
         stage_overlay_simple(raw_image, detect_out)
         stage_overlay_simple_bands(raw_image, detect_out, ww)
-        archive_results(pack, _args.config)
+        archive_results(pack, _args.config, artifacts=MULTI_PHI_ARTIFACTS)
     elif DETECTOR_TRACK == "simple":
         image, idx = pick_grazing_image(pack, phi_index=0)
         raw_image, _ = pick_grazing_image_raw(pack, phi_index=0)
+        line_dir_deg = pack.settings.line_dir_deg
+        if pack.settings.auto_line_dir:
+            h_img, w_img = image.shape[:2]
+            center_deg = 0.0 if h_img >= w_img else 90.0
+            line_dir_deg = _auto_detect_line_dir(
+                image,
+                period_range_px=_period_range_px,
+                center_deg=center_deg,
+            )
+            print(
+                f"[Main] auto_line_dir (center={center_deg:.0f}°±20°) "
+                f"-> {line_dir_deg:.1f} deg"
+            )
         print(f"[Main] SIMPLE track: image index {idx} (phi=0 column, steepest theta)")
         detect_out = stage_detect_simple(
-            image, line_dir_deg=90.0,
+            image,
+            line_dir_deg=line_dir_deg,
             period_range_px=_period_range_px,
+            wire_is_darker=pack.settings.wire_is_darker,
             fov_width_cm=pack.settings.fov_width_cm,
         )
         _, _, _, ww = stage_evaluate(
@@ -690,14 +682,10 @@ if __name__ == "__main__":
             fov_width_cm=pack.settings.fov_width_cm,
             image_width_px=image.shape[1],
         )
-        stage_self_contrast(
-            image, detect_out,
-            out_path="self_contrast.simple.json",
-            plot_path="self_contrast.simple.png",
-        )
+        stage_self_contrast(image, detect_out)
         stage_overlay_simple(raw_image, detect_out)
         stage_overlay_simple_bands(raw_image, detect_out, ww)
-        archive_results(pack, _args.config)
+        archive_results(pack, _args.config, artifacts=SINGLE_IMAGE_ARTIFACTS)
     elif DETECTOR_TRACK == "legacy":
         _mag, deg_map = stage_direction(pack)
         patch_size, stride = (512, 512), (256, 256)
@@ -712,7 +700,7 @@ if __name__ == "__main__":
             image_width_px=gabor_input.shape[1],
         )
         stage_overlay_legacy(gabor_input, detect_out)
-        archive_results(pack, _args.config)
+        archive_results(pack, _args.config, artifacts=LEGACY_ARTIFACTS)
     else:
         raise ValueError(f"Unknown DETECTOR_TRACK={DETECTOR_TRACK!r}; "
                          "expected 'multi_phi', 'simple', or 'legacy'.")

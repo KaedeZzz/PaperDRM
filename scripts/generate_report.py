@@ -91,10 +91,13 @@ def interpret(data: dict, serial: str) -> dict:
     fc                = fq.get("frequency_concentration", float("nan"))
 
     # Reliability labels
-    if abs(z) >= 3.0:
+    if z <= -2.0:
+        detect_confidence_en = "Contradictory polarity"
+        detect_confidence_zh = "极性矛盾"
+    elif z >= 3.0:
         detect_confidence_en = "High"
         detect_confidence_zh = "高"
-    elif abs(z) >= 2.0:
+    elif z >= 2.0:
         detect_confidence_en = "Moderate"
         detect_confidence_zh = "中"
     else:
@@ -146,6 +149,7 @@ def interpret(data: dict, serial: str) -> dict:
         agree_1px=agree_1px * 100,
         agree_05px=agree_05px * 100,
         z=z,
+        contrast_rel=contrast_rel,
         n_lines=n_lines,
         r2_k4=r2_k4,
         fc=fc,
@@ -187,6 +191,7 @@ tr:nth-child(even) td { background: #f8fafc; }
 .badge-green { background: #d4edda; color: #155724; }
 .badge-blue  { background: #d0e4f5; color: #0c4a8c; }
 .badge-orange{ background: #fff3cd; color: #856404; }
+.badge-red   { background: #f8d7da; color: #721c24; }
 img.overlay { width: 100%; max-width: 800px; border: 1px solid #ccc;
               border-radius: 4px; margin: 10px 0; }
 .note { font-size: 12px; color: #666; margin-top: 6px; }
@@ -227,7 +232,23 @@ def build_html_en(v: dict, img_b64: str | None) -> str:
         img_tag = f'<img class="overlay" src="data:image/png;base64,{img_b64}" alt="Overlay"/>'
 
     stability_badge = _badge(v["stability_en"], "green" if v["diff_std"] == 0.0 else "blue")
-    confidence_badge = _badge(v["detect_confidence_en"], "green" if v["detect_confidence_en"] == "High" else "orange")
+    if v["detect_confidence_en"] == "High":
+        confidence_kind = "green"
+    elif v["detect_confidence_en"] == "Contradictory polarity":
+        confidence_kind = "red"
+    else:
+        confidence_kind = "orange"
+    confidence_badge = _badge(v["detect_confidence_en"], confidence_kind)
+    if v["detect_confidence_en"] == "Contradictory polarity":
+        spatial_interpretation = (
+            "The grid aligns with the opposite intensity polarity from the configured "
+            "wire model. Treat the detection as unconfirmed until polarity or phase is corrected."
+        )
+    else:
+        spatial_interpretation = (
+            "The predicted grid lines align with the expected brighter/darker columns "
+            "in the actual image, supporting the detected grid."
+        )
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -302,10 +323,9 @@ laid lines rather than noise or artefacts.
   <tr>
     <td><b>Spatial consistency<br/><span class="note">(grid-vs-image check)</span></b></td>
     <td>{confidence_badge}<br/>
-        <span class="note">z = {_fmt(abs(v['z']), '.2f')} (|contrast| = {_fmt(abs(v['z'] * 100 / max(1,abs(v['z']))), '.0f')}%,
+        <span class="note">z = {_fmt(v['z'], '+.2f')} (relative contrast = {_fmt(v['contrast_rel'] * 100, '+.1f')}%,
         across {v['n_lines']} lines)</span></td>
-    <td>The predicted grid lines systematically align with brighter/darker
-        columns in the actual image, confirming the grid is real.</td>
+    <td>{spatial_interpretation}</td>
   </tr>
 </table>
 
@@ -340,7 +360,22 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
         img_tag = f'<img class="overlay" src="data:image/png;base64,{img_b64}" alt="叠加图"/>'
 
     stability_badge = _badge(v["stability_zh"], "green" if v["diff_std"] == 0.0 else "blue")
-    confidence_badge = _badge(v["detect_confidence_zh"], "green" if v["detect_confidence_zh"] == "高" else "orange")
+    if v["detect_confidence_zh"] == "高":
+        confidence_kind = "green"
+    elif v["detect_confidence_zh"] == "极性矛盾":
+        confidence_kind = "red"
+    else:
+        confidence_kind = "orange"
+    confidence_badge = _badge(v["detect_confidence_zh"], confidence_kind)
+    if v["detect_confidence_zh"] == "极性矛盾":
+        spatial_interpretation = (
+            "网格与配置的线影明暗极性相反。在修正极性或相位之前，"
+            "该检测结果不能视为已确认。"
+        )
+    else:
+        spatial_interpretation = (
+            "预测网格与实际图像中预期的明暗列对齐，支持该纹线检测结果。"
+        )
 
     return f"""<!DOCTYPE html>
 <html lang="zh">
@@ -410,9 +445,9 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
   <tr>
     <td><b>空间一致性检验<br/><span class="note">（网格对图像验证）</span></b></td>
     <td>{confidence_badge}<br/>
-        <span class="note">z = {_fmt(abs(v['z']), '.2f')}（跨 {v['n_lines']} 条线统计）</span></td>
-    <td>预测的网格线位置与实际图像中的明暗列系统性对齐，
-        证明所检测的网格是真实存在的。</td>
+        <span class="note">z = {_fmt(v['z'], '+.2f')}（相对对比度 {_fmt(v['contrast_rel'] * 100, '+.1f')}%，
+        跨 {v['n_lines']} 条线统计）</span></td>
+    <td>{spatial_interpretation}</td>
   </tr>
 </table>
 
@@ -473,7 +508,7 @@ def main():
     print()
     print(f"  Lines/cm  : {v['lines_per_cm']:.2f}  |  Spacing: {v['period_mm']:.2f} mm")
     print(f"  Wire FWHM : {v['fwhm_mm_median']:.3f} mm  |  Stability: {v['stability_en']}")
-    print(f"  Confidence: {v['detect_confidence_en']}  (z = {abs(v['z']):.2f})")
+    print(f"  Confidence: {v['detect_confidence_en']}  (z = {v['z']:+.2f})")
 
 
 if __name__ == "__main__":

@@ -17,6 +17,8 @@ dependencies = [
     "tqdm",
     "pillow",
     "PyYAML",
+    "gdown",
+    "openpyxl",
 ]
 
 [tool.setuptools.packages.find]

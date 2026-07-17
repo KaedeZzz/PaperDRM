@@ -69,15 +69,28 @@ def gap_distribution_from_signal(
     if fov_width_cm is not None and image_width_px is not None and image_width_px > 0:
         cm_per_px = float(fov_width_cm) / float(image_width_px)
         gaps_cm = gaps_px * cm_per_px
+        spectral_interval_cm = float(period_px) * cm_per_px
+        gap_iqr_cm = [float(px["iqr"][0] * cm_per_px), float(px["iqr"][1] * cm_per_px)]
+        mean_relative_error = float(abs(px["mean"] - period_px) / period_px)
+        median_relative_error = float(abs(px["median"] - period_px) / period_px)
         physical = {
             "fov_width_cm": float(fov_width_cm),
             "image_width_px": int(image_width_px),
             "cm_per_px": cm_per_px,
+            "spectral_interval_cm": spectral_interval_cm,
+            "spectral_lines_per_cm": (
+                float(1.0 / spectral_interval_cm)
+                if spectral_interval_cm > 0 else float("inf")
+            ),
             "mean_interval_cm": float(np.mean(gaps_cm)),
             "median_interval_cm": float(np.median(gaps_cm)),
+            "gap_iqr_cm": gap_iqr_cm,
             "std_interval_cm": float(np.std(gaps_cm, ddof=1)) if gaps_cm.size > 1 else 0.0,
             "lines_per_cm_mean": float(1.0 / np.mean(gaps_cm)) if np.mean(gaps_cm) > 0 else float("inf"),
             "lines_per_cm_median": float(1.0 / np.median(gaps_cm)) if np.median(gaps_cm) > 0 else float("inf"),
+            "gap_mean_relative_error_vs_spectral": mean_relative_error,
+            "gap_median_relative_error_vs_spectral": median_relative_error,
+            "gap_median_agrees_with_spectral": bool(median_relative_error <= 0.15),
         }
 
     return {
@@ -156,9 +169,11 @@ def print_gap_distribution(stats: dict) -> None:
           f" | min={px['min']:.0f} max={px['max']:.0f} range={px['range']:.0f}")
     if stats["physical"] is not None:
         ph = stats["physical"]
-        print(f"  cm    : mean_interval={ph['mean_interval_cm']:.4f} cm"
-              f" | density_mean={ph['lines_per_cm_mean']:.2f} lines/cm"
-              f" | density_median={ph['lines_per_cm_median']:.2f} lines/cm")
+        print(f"  cm    : spectral_interval={ph['spectral_interval_cm']:.4f} cm"
+              f" | spectral_density={ph['spectral_lines_per_cm']:.2f} lines/cm")
+        print(f"          local median={ph['median_interval_cm']:.4f} cm"
+              f" | IQR=[{ph['gap_iqr_cm'][0]:.4f},{ph['gap_iqr_cm'][1]:.4f}] cm"
+              f" | median error vs spectral={ph['gap_median_relative_error_vs_spectral'] * 100:.1f}%")
 
 
 def save_gap_distribution(stats: dict, path: str | Path) -> None:

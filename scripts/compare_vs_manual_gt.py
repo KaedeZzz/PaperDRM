@@ -55,7 +55,17 @@ def main(targets):
         ss   = SS_GT.get(serial)
 
         gt_lpc = gt["lpc_mean"]                         if gt else None
-        pl_lpc = iv["physical"]["lines_per_cm_mean"]    if iv else None
+        pl_lpc = None
+        if iv:
+            physical = iv["physical"]
+            pl_lpc = physical.get("spectral_lines_per_cm")
+            if pl_lpc is None:
+                period_px = iv.get("period_px_used")
+                cm_per_px = physical.get("cm_per_px")
+                if period_px is not None and cm_per_px is not None:
+                    pl_lpc = 1.0 / (period_px * cm_per_px)
+                else:
+                    pl_lpc = physical.get("lines_per_cm_mean")
 
         err_m  = (pl_lpc - gt_lpc) / gt_lpc * 100 if (gt_lpc and pl_lpc) else None
         err_ss = (pl_lpc - ss)     / ss     * 100 if (ss     and pl_lpc) else None

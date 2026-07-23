@@ -148,5 +148,10 @@ specified in
 Complete runs are published under `runs/<dataset>/<run-id>/` with a strict JSON
 result, versioned manifest and integrity metadata for copied artifacts. Existing
 runs are immutable, path traversal is rejected and failed writes do not expose
-a partial final directory. Backwards-readable V1 export and stored-result report
-rendering remain the next Phase 4 slices.
+a partial final directory.
+
+The one-way compatibility view in
+[`ADR-005-v1-export-is-a-derived-view.md`](ADR-005-v1-export-is-a-derived-view.md)
+now verifies stored-run identity and artifact integrity before deriving a fresh
+flat V1 result directory. V2 remains the only source of truth; direct report
+rendering from the stored policy remains the next Phase 4 slice.

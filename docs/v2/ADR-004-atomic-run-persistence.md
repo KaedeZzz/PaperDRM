@@ -74,5 +74,5 @@ the whole run one visibility boundary and preserves previous runs by default.
 
 - [x] Implement atomic run persistence and immutable overwrite semantics.
 - [x] Add failure-cleanup, traversal, integrity and strict-JSON tests.
-- [ ] Add a backwards-readable V1 export adapter.
+- [x] Add a backwards-readable V1 export adapter.
 - [ ] Make report generation consume the stored policy version.

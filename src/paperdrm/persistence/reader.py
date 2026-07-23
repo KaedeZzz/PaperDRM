@@ -76,6 +76,26 @@ class StoredRun:
     artifacts: dict[str, Path]
 
 
+def read_verified_artifact(stored: StoredRun, relative_path: str) -> bytes:
+    """Read one artifact and verify the bytes against its manifest entry."""
+
+    try:
+        path = stored.artifacts[relative_path]
+    except KeyError as exc:
+        raise KeyError(f"artifact is not declared by the run: {relative_path}") from exc
+    metadata = next(
+        entry
+        for entry in stored.manifest["artifacts"]
+        if entry["path"] == relative_path
+    )
+    payload = path.read_bytes()
+    if len(payload) != metadata["size_bytes"]:
+        raise ValueError(f"artifact size mismatch while reading: {relative_path}")
+    if hashlib.sha256(payload).hexdigest() != metadata["sha256"]:
+        raise ValueError(f"artifact checksum mismatch while reading: {relative_path}")
+    return payload
+
+
 def load_run(
     run_directory: str | Path,
     *,

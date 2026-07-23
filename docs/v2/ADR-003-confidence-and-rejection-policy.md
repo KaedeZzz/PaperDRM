@@ -107,5 +107,5 @@ larger labelled set without changing historical decisions silently.
 - [x] Add typed disposition, confidence and reason codes.
 - [x] Implement pure policy `v1` and precedence tests.
 - [x] Attach assessments to native V2 results.
-- [ ] Make report generation consume the versioned policy in Phase 4.
+- [x] Make report generation consume the versioned policy in Phase 4.
 - [ ] Recalibrate only after expanding the labelled benchmark.

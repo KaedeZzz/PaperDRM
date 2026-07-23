@@ -1,6 +1,25 @@
+import tempfile
 import unittest
+from pathlib import Path
 
-from scripts.generate_report import build_html_en, interpret
+from paperdrm.config import PipelineConfig
+from paperdrm.models import (
+    ConfidenceAssessment,
+    ConfidenceLevel,
+    ConfidenceReason,
+    DetectionDiagnostics,
+    DetectorTrack,
+    PipelineResult,
+    ResultDisposition,
+    SpacingMeasurement,
+)
+from paperdrm.persistence import RunStore
+from paperdrm.reporting import report_values_from_v2
+from scripts.generate_report import (
+    build_html_en,
+    generate_reports_from_run,
+    interpret,
+)
 
 
 def _report_data(z: float, *, boundary: bool = False) -> dict:
@@ -75,6 +94,86 @@ class GenerateReportTests(unittest.TestCase):
         html = build_html_en(values, None)
         self.assertIn("Invalid period search range", html)
         self.assertIn("not validated", html)
+
+    def test_v2_report_uses_stored_policy_instead_of_reclassifying_z(self):
+        result = PipelineResult(
+            dataset_id="folio",
+            track=DetectorTrack.SIMPLE,
+            measurement=SpacingMeasurement.from_period(20.0, cm_per_px=0.005),
+            diagnostics=DetectionDiagnostics(self_contrast_z=10.0),
+            confidence=ConfidenceAssessment(
+                disposition=ResultDisposition.REVIEW_REQUIRED,
+                level=ConfidenceLevel.LOW,
+                primary_reason=ConfidenceReason.WEAK_SELF_CONTRAST,
+                warnings=(ConfidenceReason.FIT_PERIOD_DISAGREEMENT,),
+                policy_version="v-test",
+            ),
+        )
+
+        values = report_values_from_v2(result.to_dict())
+
+        self.assertEqual(values["z"], 10.0)
+        self.assertEqual(values["detect_confidence_en"], "Low")
+        self.assertEqual(values["confidence_policy_version"], "v-test")
+        html = build_html_en(values, None)
+        self.assertIn("Policy v-test · review_required · weak_self_contrast", html)
+        self.assertIn("warnings: fit_period_disagreement", html)
+        self.assertNotIn(">High<", html)
+
+    def test_v2_report_is_written_outside_and_does_not_mutate_run(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            config = PipelineConfig(
+                dataset_id="folio",
+                track=DetectorTrack.SIMPLE,
+            )
+            result = PipelineResult(
+                dataset_id="folio",
+                track=DetectorTrack.SIMPLE,
+                measurement=SpacingMeasurement.from_period(
+                    20.0,
+                    cm_per_px=0.005,
+                ),
+                diagnostics=DetectionDiagnostics(self_contrast_z=3.5),
+                confidence=ConfidenceAssessment(
+                    disposition=ResultDisposition.ACCEPTED,
+                    level=ConfidenceLevel.HIGH,
+                    primary_reason=ConfidenceReason.STRONG_SELF_CONTRAST,
+                    policy_version="v-test",
+                ),
+            )
+            run = RunStore(root / "runs").save(
+                result,
+                config,
+                run_id="run-001",
+            )
+            before = {
+                path.relative_to(run): path.read_bytes()
+                for path in run.rglob("*")
+                if path.is_file()
+            }
+
+            english, chinese, values = generate_reports_from_run(
+                run,
+                root / "reports" / "folio-run-001",
+            )
+
+            self.assertTrue(english.is_file())
+            self.assertTrue(chinese.is_file())
+            self.assertIn("Policy v-test", english.read_text(encoding="utf-8"))
+            self.assertEqual(values["detect_confidence_en"], "High")
+            after = {
+                path.relative_to(run): path.read_bytes()
+                for path in run.rglob("*")
+                if path.is_file()
+            }
+            self.assertEqual(after, before)
+
+            with self.assertRaisesRegex(FileExistsError, "already exists"):
+                generate_reports_from_run(
+                    run,
+                    root / "reports" / "folio-run-001",
+                )
 
 
 if __name__ == "__main__":

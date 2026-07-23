@@ -153,5 +153,8 @@ a partial final directory.
 The one-way compatibility view in
 [`ADR-005-v1-export-is-a-derived-view.md`](ADR-005-v1-export-is-a-derived-view.md)
 now verifies stored-run identity and artifact integrity before deriving a fresh
-flat V1 result directory. V2 remains the only source of truth; direct report
-rendering from the stored policy remains the next Phase 4 slice.
+flat V1 result directory. V2 remains the only source of truth. The bilingual
+HTML report can now read a verified run directly and displays its stored policy
+version, disposition and reason code without reclassifying the underlying
+metrics. Reports regenerated from immutable runs are written to a new external
+directory rather than modifying the run in place.

@@ -62,5 +62,5 @@ the known loss of low-level V1 detail explicit.
 
 - [x] Add verified stored-run loading.
 - [x] Add atomic, non-overwriting V1 compatibility export.
-- [ ] Make report generation consume the stored V2 policy directly.
+- [x] Make report generation consume the stored V2 policy directly.
 - [ ] Migrate comparison tools away from flat V1 files.

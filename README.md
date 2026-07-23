@@ -170,6 +170,8 @@ fingerprint and is rebuilt automatically on first use.
 - `src/paperdrm/stage3_detect/` — multi-phi, single-image and legacy detectors.
 - `src/paperdrm/stage4_viz/` — visualization helpers.
 - `src/paperdrm/stage5_evaluation/` — interval, stability, contrast and fit metrics.
+- `src/paperdrm/persistence/` — atomic V2 run storage and integrity verification.
+- `src/paperdrm/reporting/` — canonical V2 result-to-report presentation views.
 - `configs/` — dataset-specific configurations.
 - `scripts/` — data preparation, benchmarking and report utilities.
 - `tests/` — lightweight regression tests.
@@ -198,6 +200,19 @@ python scripts/fetch_dataset.py \
 
 The script creates `data/drp/<serial>/` with raw, processed, background and
 cache directories plus a configuration file.
+
+To regenerate bilingual HTML reports from an immutable V2 run without changing
+the run itself:
+
+```bash
+python scripts/generate_report.py \
+  --run-dir runs/example/run-001 \
+  --output-dir generated-reports/example-run-001
+```
+
+The output directory must not already exist. The report displays the stored
+confidence policy version, disposition and reason code rather than recomputing
+classification thresholds in presentation code.
 
 ## Known limitations
 

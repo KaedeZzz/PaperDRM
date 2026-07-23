@@ -170,6 +170,8 @@ fingerprint and is rebuilt automatically on first use.
 - `src/paperdrm/stage3_detect/` — multi-phi, single-image and legacy detectors.
 - `src/paperdrm/stage4_viz/` — visualization helpers.
 - `src/paperdrm/stage5_evaluation/` — interval, stability, contrast and fit metrics.
+- `src/paperdrm/application.py` — native V2 execution and persistence sequencing.
+- `src/paperdrm/io/` — minimum-image loading and preprocessing for native tracks.
 - `src/paperdrm/persistence/` — atomic V2 run storage and integrity verification.
 - `src/paperdrm/reporting/` — canonical V2 result-to-report presentation views.
 - `configs/` — dataset-specific configurations.

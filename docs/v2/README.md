@@ -158,3 +158,10 @@ HTML report can now read a verified run directly and displays its stored policy
 version, disposition and reason code without reclassifying the underlying
 metrics. Reports regenerated from immutable runs are written to a new external
 directory rather than modifying the run in place.
+
+The application boundary in
+[`ADR-006-application-runner-owns-effects.md`](ADR-006-application-runner-owns-effects.md)
+now sequences minimum-image loading, native execution, optional artifact
+building and atomic storage. Active DRP routes load only the steepest-theta
+image for each selected phi; the full DRP cache and root staging workflow remain
+available only through the V1 compatibility entry point during migration.

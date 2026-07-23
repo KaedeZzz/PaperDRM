@@ -165,3 +165,7 @@ now sequences minimum-image loading, native execution, optional artifact
 building and atomic storage. Active DRP routes load only the steepest-theta
 image for each selected phi; the full DRP cache and root staging workflow remain
 available only through the V1 compatibility entry point during migration.
+The standard V2 builder renders its overlays and canonical bilingual reports
+inside the private artifact workspace before `RunStore` publishes the run.
+Report files therefore share the same all-or-nothing publication and manifest
+integrity guarantees as every other V2 artifact.

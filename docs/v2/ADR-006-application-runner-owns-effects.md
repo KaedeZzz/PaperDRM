@@ -29,6 +29,11 @@ Add three explicit application-side interfaces:
    workspace. `RunStore` copies declared outputs before that workspace is
    removed.
 
+The standard builder produces both detector overlays and package-owned
+bilingual V2 reports in that workspace. Reports consume the result's stored
+confidence policy and never recompute classification thresholds. A rendering
+failure occurs before `RunStore.save`, so no partial run becomes visible.
+
 Legacy execution and the full DRP cache remain behind the V1 compatibility
 entry point. The new runner does not change `main.py` routing yet.
 
@@ -57,8 +62,8 @@ failure isolation and deterministic tests.
 - Artifact generation can evolve without becoming a detector dependency.
 - Automatic ROI detection is intentionally absent; V2 runs require an explicit
   ROI or no crop until that heuristic has its own validated boundary.
-- A dedicated CLI and concrete overlay/report artifact builder remain follow-up
-  work before switching the default entry point.
+- The dedicated V2 CLI publishes standard overlays and bilingual reports as
+  integrity-checked artifacts of the same immutable run.
 
 ## Action items
 
@@ -66,4 +71,4 @@ failure isolation and deterministic tests.
 - [x] Add the injected application runner and temporary artifact workspace.
 - [x] Add a concrete overlay artifact builder.
 - [x] Add a dedicated V2 CLI before changing `main.py`.
-- [ ] Add report generation as a pre-persistence artifact builder.
+- [x] Add report generation as a pre-persistence artifact builder.

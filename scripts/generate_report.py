@@ -30,7 +30,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from paperdrm.persistence import load_run, read_verified_artifact
-from paperdrm.reporting import report_values_from_v2
+from paperdrm.reporting import render_bilingual_reports, report_values_from_v2
 
 
 # ---------------------------------------------------------------------------
@@ -658,15 +658,12 @@ def generate_reports_from_run(
         serial=stored.manifest["dataset_id"],
         technical_location=str(stored.directory),
     )
-    image = (
-        base64.b64encode(
-            read_verified_artifact(stored, overlay_relative)
-        ).decode()
+    overlay = (
+        read_verified_artifact(stored, overlay_relative)
         if overlay_relative is not None
         else None
     )
-    english = build_html_en(values, image)
-    chinese = build_html_zh(values, image)
+    english, chinese = render_bilingual_reports(values, overlay)
 
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.parent / f".{output.name}.tmp-{uuid4().hex}"

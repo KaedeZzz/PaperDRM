@@ -5,6 +5,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 import cv2
 import numpy as np
@@ -339,6 +340,67 @@ class ApplicationRunnerTests(unittest.TestCase):
             )
             self.assertTrue(
                 (run / "artifacts/overlays/laid_lines_overlay_bands.png").is_file()
+            )
+            english = run / "artifacts/reports/report_en.html"
+            chinese = run / "artifacts/reports/report_zh.html"
+            self.assertTrue(english.is_file())
+            self.assertTrue(chinese.is_file())
+            self.assertIn(
+                f"Policy {stored.result['confidence']['policy_version']}",
+                english.read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                set(stored.artifacts),
+                {
+                    "artifacts/overlays/laid_lines_overlay.png",
+                    "artifacts/overlays/laid_lines_overlay_bands.png",
+                    "artifacts/reports/report_en.html",
+                    "artifacts/reports/report_zh.html",
+                },
+            )
+
+    def test_report_failure_does_not_publish_partial_run(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            image_path = root / "laid-lines.png"
+            config_path = root / "config.yaml"
+            runs_root = root / "runs"
+            self.assertTrue(cv2.imwrite(str(image_path), _laid_lines()))
+            config_path.write_text(
+                "\n".join(
+                    (
+                        "data_serial: report-failure",
+                        "subtract_background: false",
+                        "fov_width_cm: 1.28",
+                        "period_range_cm: [0.12, 0.24]",
+                        "line_dir_deg: 90.0",
+                        "wire_is_darker: true",
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with patch(
+                "paperdrm.artifacts.render_bilingual_reports",
+                side_effect=RuntimeError("simulated report failure"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "simulated report failure"):
+                    v2_main(
+                        [
+                            "--config",
+                            str(config_path),
+                            "--image",
+                            str(image_path),
+                            "--run-id",
+                            "run-001",
+                            "--runs-root",
+                            str(runs_root),
+                        ]
+                    )
+
+            self.assertFalse(
+                (runs_root / "report-failure" / "run-001").exists()
             )
 
     def test_v2_cli_exposes_only_native_drp_tracks(self):

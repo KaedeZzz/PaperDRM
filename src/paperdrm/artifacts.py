@@ -8,6 +8,7 @@ import cv2
 
 from paperdrm.io import PreparedInput
 from paperdrm.models import PipelineResult
+from paperdrm.reporting import render_bilingual_reports, report_values_from_v2
 from paperdrm.stage3_detect.simple_detector import overlay_grid, overlay_grid_bands
 
 
@@ -17,7 +18,7 @@ def _write_image(path: Path, image) -> None:
 
 
 class StandardArtifactBuilder:
-    """Build the standard grid and optional wire-width band overlays."""
+    """Build standard overlays and canonical bilingual V2 reports."""
 
     def build(
         self,
@@ -42,6 +43,7 @@ class StandardArtifactBuilder:
         )
         _write_image(grid_path, grid)
         artifacts = {"overlays/laid_lines_overlay.png": grid_path}
+        report_overlay = grid_path
 
         wire_width = result.wire_width
         if wire_width is not None:
@@ -62,4 +64,23 @@ class StandardArtifactBuilder:
                 )
                 _write_image(bands_path, bands)
                 artifacts["overlays/laid_lines_overlay_bands.png"] = bands_path
+                report_overlay = bands_path
+
+        values = report_values_from_v2(
+            result.to_dict(),
+            serial=result.dataset_id,
+            technical_location=(
+                "manifest.json and result.json in this immutable run"
+            ),
+        )
+        english, chinese = render_bilingual_reports(
+            values,
+            report_overlay.read_bytes(),
+        )
+        english_path = directory / "report_en.html"
+        chinese_path = directory / "report_zh.html"
+        english_path.write_text(english, encoding="utf-8")
+        chinese_path.write_text(chinese, encoding="utf-8")
+        artifacts["reports/report_en.html"] = english_path
+        artifacts["reports/report_zh.html"] = chinese_path
         return artifacts

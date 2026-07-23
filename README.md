@@ -216,8 +216,8 @@ The output directory must not already exist. The report displays the stored
 confidence policy version, disposition and reason code rather than recomputing
 classification thresholds in presentation code.
 
-To execute the native V2 pipeline and publish a new immutable run with standard
-overlays:
+To execute the native V2 pipeline and atomically publish a new immutable run
+with standard overlays and bilingual HTML reports:
 
 ```bash
 python scripts/run_v2.py \
@@ -228,7 +228,9 @@ python scripts/run_v2.py \
 ```
 
 Passing `--image /path/to/image.png` selects the single-image route. Run IDs
-are explicit, and an existing run is never overwritten.
+are explicit, and an existing run is never overwritten. The reports are stored
+under `artifacts/reports/` and covered by the run manifest's size and SHA-256
+integrity metadata.
 
 ## Known limitations
 

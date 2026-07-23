@@ -14,7 +14,7 @@ from paperdrm.models import (
     SpacingMeasurement,
 )
 from paperdrm.persistence import RunStore
-from paperdrm.reporting import report_values_from_v2
+from paperdrm.reporting import render_bilingual_reports, report_values_from_v2
 from scripts.generate_report import (
     build_html_en,
     generate_reports_from_run,
@@ -115,10 +115,30 @@ class GenerateReportTests(unittest.TestCase):
         self.assertEqual(values["z"], 10.0)
         self.assertEqual(values["detect_confidence_en"], "Low")
         self.assertEqual(values["confidence_policy_version"], "v-test")
-        html = build_html_en(values, None)
-        self.assertIn("Policy v-test · review_required · weak_self_contrast", html)
-        self.assertIn("warnings: fit_period_disagreement", html)
-        self.assertNotIn(">High<", html)
+        english, chinese = render_bilingual_reports(values)
+        self.assertIn(
+            "Policy v-test · review_required · weak_self_contrast",
+            english,
+        )
+        self.assertIn("warnings: fit_period_disagreement", english)
+        self.assertIn(
+            "策略 v-test · review_required · weak_self_contrast",
+            chinese,
+        )
+        self.assertNotIn(">High<", english)
+
+    def test_v2_renderer_escapes_text_and_embeds_overlay(self):
+        values = report_values_from_v2({}, serial="<script>alert(1)</script>")
+        values["confidence_warnings"] = ["<unsafe>"]
+        values["technical_location"] = 'run/<bad>&"'
+
+        english, chinese = render_bilingual_reports(values, b"png-bytes")
+
+        for html in (english, chinese):
+            self.assertNotIn("<script>alert(1)</script>", html)
+            self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
+            self.assertIn("&lt;unsafe&gt;", html)
+            self.assertIn("data:image/png;base64,cG5nLWJ5dGVz", html)
 
     def test_v2_report_is_written_outside_and_does_not_mutate_run(self):
         with tempfile.TemporaryDirectory() as temporary:

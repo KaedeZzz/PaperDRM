@@ -34,10 +34,15 @@ Stages used by each track:
 import sys
 from pathlib import Path
 
+_REPOSITORY_ROOT = Path(__file__).resolve().parent
+_SOURCE_ROOT = _REPOSITORY_ROOT / "src"
+if str(_SOURCE_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SOURCE_ROOT))
+
 import cv2
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).parent / "scripts"))
+sys.path.insert(0, str(_REPOSITORY_ROOT / "scripts"))
 from detect_paper_roi import detect_paper_roi_texture
 
 from paperdrm import ImagePack, Settings
@@ -503,27 +508,9 @@ def stage_self_contrast(
 # Entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    import argparse
+    from paperdrm.cli import parse_args
 
-    _parser = argparse.ArgumentParser(description="PaperDRM pipeline entry point.")
-    _parser.add_argument(
-        "--config",
-        default="exp_param.yaml",
-        help="Path to the settings yaml (default: exp_param.yaml).",
-    )
-    _parser.add_argument(
-        "--image",
-        default=None,
-        help="Path to a single image for the single_image track. "
-             "Overrides image_path in the yaml.",
-    )
-    _parser.add_argument(
-        "--track",
-        choices=("multi_phi", "simple", "legacy"),
-        default=DETECTOR_TRACK,
-        help=f"DRP detector route (default: {DETECTOR_TRACK}).",
-    )
-    _args = _parser.parse_args()
+    _args = parse_args(default_track=DETECTOR_TRACK)
     _track = _args.track
 
     # Single-image track: bypass ImagePack entirely.

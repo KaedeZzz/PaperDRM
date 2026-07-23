@@ -18,6 +18,8 @@ not be treated as validated physical measurements without further calibration.
 The current technical audit, manual-GT benchmark interpretation, literature
 review and proposed research roadmap are documented in
 [`docs/repo_audit_and_research_roadmap_zh.md`](docs/repo_audit_and_research_roadmap_zh.md).
+The incremental V2 rewrite is specified in [`docs/v2/`](docs/v2/); its Phase 0
+contract freezes V1 behaviour before any package or algorithm migration.
 
 ## Quick start
 
@@ -28,6 +30,7 @@ python -m venv .venv
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install -r requirements.txt
+python -m pip install --no-deps -e .
 python main.py --config exp_param.yaml
 ```
 
@@ -160,13 +163,17 @@ fingerprint and is rebuilt automatically on first use.
 ## Repository layout
 
 - `main.py` — pipeline entry point and detector-route orchestration.
-- `paperdrm/stage0_loader/` — settings, image loading and cache management.
-- `paperdrm/stage0_drp/` — DRP slicing and stack operations.
-- `paperdrm/stage1_features/` — DRP direction estimation used by the legacy route.
-- `paperdrm/stage2_enhance/` — legacy trigonometric enhancement.
-- `paperdrm/stage3_detect/` — multi-phi, single-image and legacy detectors.
-- `paperdrm/stage4_viz/` — visualization helpers.
-- `paperdrm/stage5_evaluation/` — interval, stability, contrast and fit metrics.
+- `src/paperdrm/stage0_loader/` — settings, image loading and cache management.
+- `src/paperdrm/stage0_drp/` — DRP slicing and stack operations.
+- `src/paperdrm/stage1_features/` — DRP direction estimation used by the legacy route.
+- `src/paperdrm/stage2_enhance/` — legacy trigonometric enhancement.
+- `src/paperdrm/stage3_detect/` — multi-phi, single-image and legacy detectors.
+- `src/paperdrm/stage4_viz/` — visualization helpers.
+- `src/paperdrm/stage5_evaluation/` — interval, stability, contrast and fit metrics.
+- `src/paperdrm/application.py` — native V2 execution and persistence sequencing.
+- `src/paperdrm/io/` — minimum-image loading and preprocessing for native tracks.
+- `src/paperdrm/persistence/` — atomic V2 run storage and integrity verification.
+- `src/paperdrm/reporting/` — canonical V2 result-to-report presentation views.
 - `configs/` — dataset-specific configurations.
 - `scripts/` — data preparation, benchmarking and report utilities.
 - `tests/` — lightweight regression tests.
@@ -195,6 +202,50 @@ python scripts/fetch_dataset.py \
 
 The script creates `data/drp/<serial>/` with raw, processed, background and
 cache directories plus a configuration file.
+
+To regenerate bilingual HTML reports from an immutable V2 run without changing
+the run itself:
+
+```bash
+python scripts/generate_report.py \
+  --run-dir runs/example/run-001 \
+  --output-dir generated-reports/example-run-001
+```
+
+The output directory must not already exist. The report displays the stored
+confidence policy version, disposition and reason code rather than recomputing
+classification thresholds in presentation code.
+
+To evaluate a complete set of immutable V2 runs against the frozen nine-folio
+manual-GT benchmark:
+
+```bash
+python scripts/benchmark_v2.py \
+  --runs-root runs \
+  --run-id benchmark-001 \
+  --output generated-benchmarks/v2-benchmark-001.json
+```
+
+All nine runs are required; missing or integrity-invalid runs fail instead of
+being skipped. See
+[`docs/v2/benchmark-gate.md`](docs/v2/benchmark-gate.md) for the exact gate
+rules.
+
+To execute the native V2 pipeline and atomically publish a new immutable run
+with standard overlays and bilingual HTML reports:
+
+```bash
+python scripts/run_v2.py \
+  --config configs/example.yaml \
+  --track multi_phi \
+  --run-id initial-v2 \
+  --runs-root runs
+```
+
+Passing `--image /path/to/image.png` selects the single-image route. Run IDs
+are explicit, and an existing run is never overwritten. The reports are stored
+under `artifacts/reports/` and covered by the run manifest's size and SHA-256
+integrity metadata.
 
 ## Known limitations
 

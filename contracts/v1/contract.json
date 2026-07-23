@@ -1,0 +1,148 @@
+{
+  "contract_version": 1,
+  "baseline_ref": "baseline-v1",
+  "baseline_commit": "0c43240",
+  "compatibility_policy": {
+    "unknown_json_fields_allowed": true,
+    "array_lengths_are_variable": true,
+    "paths_are_relative_to_repository_root": true
+  },
+  "cli": {
+    "entry_point": "main.py",
+    "arguments": {
+      "--config": {"default": "exp_param.yaml", "takes_value": true},
+      "--image": {"default": null, "takes_value": true},
+      "--track": {
+        "default": "multi_phi",
+        "takes_value": true,
+        "choices": ["multi_phi", "simple", "legacy"]
+      }
+    },
+    "routing": {
+      "single_image": "--image or a non-null image_path in YAML overrides --track",
+      "drp": "without image input, --track selects multi_phi, simple, or legacy"
+    },
+    "success_exit_code": 0
+  },
+  "configuration": {
+    "accepted_settings_fields": [
+      "data_root",
+      "folder",
+      "image_path",
+      "img_format",
+      "angle_slice",
+      "use_cached_stack",
+      "subtract_background",
+      "subtraction_scale_percentile",
+      "load_workers",
+      "config_path",
+      "drp",
+      "data_serial_hint",
+      "square_crop",
+      "theta_min_deg",
+      "fov_width_cm",
+      "crop_roi",
+      "period_range_cm",
+      "line_dir_deg",
+      "auto_line_dir",
+      "wire_is_darker",
+      "verbose"
+    ],
+    "route_discriminator": "image_path",
+    "result_directory_key": "data_serial"
+  },
+  "artifacts": {
+    "single_image": [
+      "interval_distribution.json",
+      "fit_quality.json",
+      "wire_width_stats.json",
+      "wire_width_segments.png",
+      "self_contrast.json",
+      "self_contrast.png",
+      "laid_lines_overlay.png",
+      "laid_lines_overlay_bands.png"
+    ],
+    "simple": [
+      "interval_distribution.json",
+      "fit_quality.json",
+      "wire_width_stats.json",
+      "wire_width_segments.png",
+      "self_contrast.json",
+      "self_contrast.png",
+      "laid_lines_overlay.png",
+      "laid_lines_overlay_bands.png"
+    ],
+    "multi_phi": [
+      "interval_distribution.json",
+      "fit_quality.json",
+      "wire_width_stats.json",
+      "wire_width_segments.png",
+      "self_contrast.json",
+      "self_contrast.png",
+      "laid_lines_overlay.png",
+      "laid_lines_overlay_bands.png",
+      "split_half_stability.json",
+      "split_half_stability.png"
+    ],
+    "legacy": [
+      "evaluation_report.json",
+      "interval_distribution.json",
+      "fit_quality.json",
+      "laid_lines_overlay_legacy.png"
+    ]
+  },
+  "result_json_required_paths": {
+    "interval_distribution.json": [
+      "period_px_used",
+      "n_peaks",
+      "n_gaps",
+      "px.median",
+      "px.iqr",
+      "physical.cm_per_px",
+      "physical.lines_per_cm_mean",
+      "physical.lines_per_cm_median"
+    ],
+    "fit_quality.json": [
+      "period_px_used",
+      "r2_fundamental_only",
+      "r2_with_harmonics",
+      "frequency_concentration",
+      "best_period_by_r2",
+      "best_r2",
+      "agrees_with_dominant"
+    ],
+    "self_contrast.json": [
+      "n_lines",
+      "contrast_rel",
+      "contrast_z",
+      "wire_is_darker",
+      "period_px_used",
+      "warning"
+    ],
+    "split_half_stability.json": [
+      "n_images",
+      "n_splits",
+      "seed",
+      "period_pooled_mean",
+      "period_diff_std",
+      "agree_rate_within_1px"
+    ],
+    "wire_width_stats.json": [
+      "period_px",
+      "line_dir_deg",
+      "global.model_ok",
+      "global.fwhm_px",
+      "aggregate.fwhm_px.n_valid",
+      "aggregate.fwhm_px.median",
+      "physical.fwhm_mm.median"
+    ]
+  },
+  "scientific_invariants": [
+    "global spectral period is the primary spacing measurement",
+    "local gap statistics do not replace the spectral headline",
+    "period search boundary hit invalidates confidence",
+    "negative self-contrast is a polarity contradiction",
+    "split-half stability is repeatability, not correctness",
+    "wire width is experimental"
+  ]
+}

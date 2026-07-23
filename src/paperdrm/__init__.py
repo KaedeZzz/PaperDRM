@@ -17,10 +17,54 @@ submodules do not require the full image-processing dependency stack.
 
 from typing import TYPE_CHECKING, Any
 
+from paperdrm.config import PipelineConfig
+from paperdrm.models import (
+    ArtifactManifestEntry,
+    ConfidenceAssessment,
+    ConfidenceLevel,
+    ConfidenceReason,
+    ContrastEvaluation,
+    DetectionDiagnostics,
+    DetectorTrack,
+    EvaluationSummary,
+    FitEvaluation,
+    GridEstimate,
+    IntervalEvaluation,
+    PipelineResult,
+    ResultDisposition,
+    RunManifest,
+    SpacingMeasurement,
+    SplitHalfEvaluation,
+    WireWidthEstimate,
+)
+from paperdrm.persistence import RunStore
+
 if TYPE_CHECKING:
     from paperdrm.stage0_loader import ImagePack, Settings
 
-__all__ = ["ImagePack", "Settings"]
+__all__ = [
+    "ImagePack",
+    "Settings",
+    "PipelineConfig",
+    "ArtifactManifestEntry",
+    "ConfidenceAssessment",
+    "ConfidenceLevel",
+    "ConfidenceReason",
+    "ContrastEvaluation",
+    "DetectionDiagnostics",
+    "DetectorTrack",
+    "EvaluationSummary",
+    "FitEvaluation",
+    "GridEstimate",
+    "IntervalEvaluation",
+    "PipelineResult",
+    "ResultDisposition",
+    "RunManifest",
+    "RunStore",
+    "SpacingMeasurement",
+    "SplitHalfEvaluation",
+    "WireWidthEstimate",
+]
 
 
 def __getattr__(name: str) -> Any:

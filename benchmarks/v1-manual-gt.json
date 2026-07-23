@@ -1,0 +1,80 @@
+{
+  "benchmark_version": 1,
+  "baseline_ref": "baseline-v1",
+  "baseline_commit": "0c43240",
+  "recorded_on": "2026-07-21",
+  "primary_ground_truth": "manual_gt.json lpc_mean",
+  "pipeline_metric": "1 / (interval_distribution.period_px_used * interval_distribution.physical.cm_per_px)",
+  "acceptance_threshold_abs_error_pct": 10.0,
+  "summary": {
+    "dataset_count": 9,
+    "within_threshold": 8,
+    "known_failures": 1
+  },
+  "datasets": [
+    {
+      "serial": "Kk1-5_f5v",
+      "manual_lines_per_cm": 9.3524,
+      "pipeline_lines_per_cm": 9.137045846,
+      "relative_error_pct": -2.302662,
+      "status": "within_threshold"
+    },
+    {
+      "serial": "Kk1-5_f9v",
+      "manual_lines_per_cm": 9.3513,
+      "pipeline_lines_per_cm": 9.289331058,
+      "relative_error_pct": -0.662677,
+      "status": "within_threshold"
+    },
+    {
+      "serial": "Hh2-12_f190",
+      "manual_lines_per_cm": 8.9093,
+      "pipeline_lines_per_cm": 8.863628676,
+      "relative_error_pct": -0.512625,
+      "status": "within_threshold"
+    },
+    {
+      "serial": "Ee5-22_f328r",
+      "manual_lines_per_cm": 7.5698,
+      "pipeline_lines_per_cm": 7.666672061,
+      "relative_error_pct": 1.279718,
+      "status": "within_threshold"
+    },
+    {
+      "serial": "Ff2-6_f140r",
+      "manual_lines_per_cm": 10.158,
+      "pipeline_lines_per_cm": 9.7143001,
+      "relative_error_pct": -4.367985,
+      "status": "within_threshold"
+    },
+    {
+      "serial": "Ff4-9_f42r",
+      "manual_lines_per_cm": 5.9013,
+      "pipeline_lines_per_cm": 5.47619529,
+      "relative_error_pct": -7.203577,
+      "status": "within_threshold"
+    },
+    {
+      "serial": "Ff4-15_f24r",
+      "manual_lines_per_cm": 12.0764,
+      "pipeline_lines_per_cm": 5.368403829,
+      "relative_error_pct": -55.546323,
+      "status": "known_failure",
+      "note": "Catastrophic alias/failure retained as an explicit V1 regression oracle."
+    },
+    {
+      "serial": "Hh2-10_f24r",
+      "manual_lines_per_cm": 11.518,
+      "pipeline_lines_per_cm": 11.073200268,
+      "relative_error_pct": -3.861779,
+      "status": "within_threshold"
+    },
+    {
+      "serial": "Ii3-8_f135v",
+      "manual_lines_per_cm": 7.4019,
+      "pipeline_lines_per_cm": 7.311317605,
+      "relative_error_pct": -1.223772,
+      "status": "within_threshold"
+    }
+  ]
+}

@@ -4,10 +4,16 @@ Generate plain-language analysis reports (English + Chinese) for a PaperDRM data
 Usage:
     python scripts/generate_report.py --serial 10
     python scripts/generate_report.py --serial 10 --results-dir results
+    python scripts/generate_report.py \
+        --run-dir runs/10/run-001 \
+        --output-dir generated-reports/10-run-001
 
 Reads JSON results from results/<serial>/ and writes:
     results/<serial>/report_en.html
     results/<serial>/report_zh.html
+
+For a canonical V2 run, verifies the run and writes both reports into the new
+external --output-dir. It never modifies the immutable run directory.
 
 The HTML files are self-contained (overlay image is base64-embedded) and can be
 printed to PDF from any browser with Ctrl+P → Save as PDF.
@@ -16,8 +22,15 @@ printed to PDF from any browser with Ctrl+P → Save as PDF.
 import argparse
 import base64
 import json
+import shutil
 from datetime import date
+from html import escape
+from math import isfinite
 from pathlib import Path
+from uuid import uuid4
+
+from paperdrm.persistence import load_run, read_verified_artifact
+from paperdrm.reporting import render_bilingual_reports, report_values_from_v2
 
 
 # ---------------------------------------------------------------------------
@@ -179,6 +192,27 @@ def interpret(data: dict, serial: str) -> dict:
         stability_zh=stability_zh,
         context_en=context_en,
         context_zh=context_zh,
+        confidence_disposition=(
+            "rejected"
+            if period_at_boundary or z <= -2.0
+            else "accepted"
+            if z >= 2.0
+            else "review_required"
+        ),
+        confidence_reason=(
+            "period_search_boundary"
+            if period_at_boundary
+            else "polarity_contradiction"
+            if z <= -2.0
+            else "strong_self_contrast"
+            if z >= 3.0
+            else "moderate_self_contrast"
+            if z >= 2.0
+            else "weak_self_contrast"
+        ),
+        confidence_policy_version=None,
+        confidence_warnings=[],
+        technical_location=f"results/{serial}/",
     )
 
 
@@ -243,12 +277,23 @@ def _badge(label: str, kind: str) -> str:
 
 def _fmt(val, fmt=".2f", fallback="—") -> str:
     try:
-        return format(float(val), fmt)
+        number = float(val)
+        return format(number, fmt) if isfinite(number) else fallback
     except (TypeError, ValueError):
         return fallback
 
 
 def build_html_en(v: dict, img_b64: str | None) -> str:
+    v = {
+        **v,
+        "serial": escape(str(v["serial"])),
+        "technical_location": escape(str(v["technical_location"])),
+        "period_warning": (
+            escape(str(v["period_warning"]))
+            if v.get("period_warning") is not None
+            else None
+        ),
+    }
     img_tag = ""
     if img_b64:
         img_tag = f'<img class="overlay" src="data:image/png;base64,{img_b64}" alt="Overlay"/>'
@@ -256,32 +301,54 @@ def build_html_en(v: dict, img_b64: str | None) -> str:
     stability_badge = _badge(v["stability_en"], "green" if v["diff_std"] == 0.0 else "blue")
     if v["detect_confidence_en"] == "High":
         confidence_kind = "green"
-    elif v["detect_confidence_en"] in {"Contradictory polarity", "Search boundary hit"}:
+    elif v["confidence_disposition"] == "rejected":
         confidence_kind = "red"
     else:
         confidence_kind = "orange"
     confidence_badge = _badge(v["detect_confidence_en"], confidence_kind)
-    if v["period_at_boundary"]:
+    if v["confidence_reason"] == "period_search_boundary":
         spatial_interpretation = (
             "The spectral maximum is pinned to the configured period-search boundary. "
             "The spacing and density outputs are not validated until the range is corrected."
         )
-    elif v["detect_confidence_en"] == "Contradictory polarity":
+    elif v["confidence_reason"] == "polarity_contradiction":
         spatial_interpretation = (
             "The grid aligns with the opposite intensity polarity from the configured "
             "wire model. Treat the detection as unconfirmed until polarity or phase is corrected."
         )
-    else:
+    elif v["confidence_disposition"] in {"accepted", "review_required"}:
         spatial_interpretation = (
             "The predicted grid lines align with the expected brighter/darker columns "
             "in the actual image, supporting the detected grid."
         )
+    elif v["confidence_disposition"] == "rejected":
+        spatial_interpretation = (
+            "The versioned confidence policy rejected this result. Review the "
+            "reason code and diagnostics before interpreting the measurement."
+        )
+    else:
+        spatial_interpretation = (
+            "The versioned confidence policy does not contain enough evidence "
+            "to validate this result."
+        )
     boundary_note = ""
-    if v["period_at_boundary"]:
+    if v["confidence_reason"] == "period_search_boundary":
         warning = v["period_warning"] or "Detected period is pinned to the search boundary."
         boundary_note = (
             '<div class="warning-card"><b>Invalid period search range.</b> '
             f"{warning}</div>"
+        )
+    policy_note = ""
+    if v.get("confidence_policy_version"):
+        warnings = ", ".join(
+            escape(str(value)) for value in v.get("confidence_warnings") or []
+        )
+        warning_note = f" · warnings: {warnings}" if warnings else ""
+        policy_note = (
+            "<br/>Policy "
+            f"{escape(str(v['confidence_policy_version']))} · "
+            f"{escape(str(v['confidence_disposition']))} · "
+            f"{escape(str(v['confidence_reason']))}{warning_note}"
         )
 
     return f"""<!DOCTYPE html>
@@ -362,7 +429,7 @@ laid lines rather than noise or artefacts.
     <td><b>Spatial consistency<br/><span class="note">(grid-vs-image check)</span></b></td>
     <td>{confidence_badge}<br/>
         <span class="note">z = {_fmt(v['z'], '+.2f')} (relative contrast = {_fmt(v['contrast_rel'] * 100, '+.1f')}%,
-        across {v['n_lines']} lines)</span></td>
+        across {v['n_lines']} lines){policy_note}</span></td>
     <td>{spatial_interpretation}</td>
   </tr>
 </table>
@@ -386,13 +453,23 @@ reflects the measured wire thickness.
 
 <footer>
   Generated by PaperDRM &nbsp;|&nbsp; Dataset {v['serial']} &nbsp;|&nbsp; {v['today']}<br/>
-  For technical details see the accompanying JSON files in results/{v['serial']}/.
+  Technical source: {v['technical_location']}.
 </footer>
 
 </body></html>"""
 
 
 def build_html_zh(v: dict, img_b64: str | None) -> str:
+    v = {
+        **v,
+        "serial": escape(str(v["serial"])),
+        "technical_location": escape(str(v["technical_location"])),
+        "period_warning": (
+            escape(str(v["period_warning"]))
+            if v.get("period_warning") is not None
+            else None
+        ),
+    }
     img_tag = ""
     if img_b64:
         img_tag = f'<img class="overlay" src="data:image/png;base64,{img_b64}" alt="叠加图"/>'
@@ -400,30 +477,48 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
     stability_badge = _badge(v["stability_zh"], "green" if v["diff_std"] == 0.0 else "blue")
     if v["detect_confidence_zh"] == "高":
         confidence_kind = "green"
-    elif v["detect_confidence_zh"] in {"极性矛盾", "命中搜索边界"}:
+    elif v["confidence_disposition"] == "rejected":
         confidence_kind = "red"
     else:
         confidence_kind = "orange"
     confidence_badge = _badge(v["detect_confidence_zh"], confidence_kind)
-    if v["period_at_boundary"]:
+    if v["confidence_reason"] == "period_search_boundary":
         spatial_interpretation = (
             "谱峰位于配置的周期搜索边界。在修正搜索范围之前，"
             "间距和密度结果不能视为已验证。"
         )
-    elif v["detect_confidence_zh"] == "极性矛盾":
+    elif v["confidence_reason"] == "polarity_contradiction":
         spatial_interpretation = (
             "网格与配置的线影明暗极性相反。在修正极性或相位之前，"
             "该检测结果不能视为已确认。"
         )
-    else:
+    elif v["confidence_disposition"] in {"accepted", "review_required"}:
         spatial_interpretation = (
             "预测网格与实际图像中预期的明暗列对齐，支持该纹线检测结果。"
         )
+    elif v["confidence_disposition"] == "rejected":
+        spatial_interpretation = (
+            "版本化置信策略已拒绝此结果。解释测量值前，应先检查原因代码和诊断证据。"
+        )
+    else:
+        spatial_interpretation = "版本化置信策略尚无足够证据验证此结果。"
     boundary_note = ""
-    if v["period_at_boundary"]:
+    if v["confidence_reason"] == "period_search_boundary":
         boundary_note = (
             '<div class="warning-card"><b>周期搜索范围无效。</b>'
             "检测峰命中搜索边界；请修正 period_range_cm 后重新运行。</div>"
+        )
+    policy_note = ""
+    if v.get("confidence_policy_version"):
+        warnings = ", ".join(
+            escape(str(value)) for value in v.get("confidence_warnings") or []
+        )
+        warning_note = f" · 警告：{warnings}" if warnings else ""
+        policy_note = (
+            "<br/>策略 "
+            f"{escape(str(v['confidence_policy_version']))} · "
+            f"{escape(str(v['confidence_disposition']))} · "
+            f"{escape(str(v['confidence_reason']))}{warning_note}"
         )
 
     return f"""<!DOCTYPE html>
@@ -498,7 +593,7 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
     <td><b>空间一致性检验<br/><span class="note">（网格对图像验证）</span></b></td>
     <td>{confidence_badge}<br/>
         <span class="note">z = {_fmt(v['z'], '+.2f')}（相对对比度 {_fmt(v['contrast_rel'] * 100, '+.1f')}%，
-        跨 {v['n_lines']} 条线统计）</span></td>
+        跨 {v['n_lines']} 条线统计）{policy_note}</span></td>
     <td>{spatial_interpretation}</td>
   </tr>
 </table>
@@ -521,10 +616,70 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
 
 <footer>
   由 PaperDRM 自动生成 &nbsp;|&nbsp; 数据集 {v['serial']} &nbsp;|&nbsp; {v['today']}<br/>
-  技术细节详见 results/{v['serial']}/ 目录下的 JSON 文件。
+  技术数据来源：{v['technical_location']}。
 </footer>
 
 </body></html>"""
+
+
+# ---------------------------------------------------------------------------
+# V2 stored-run rendering
+# ---------------------------------------------------------------------------
+
+def generate_reports_from_run(
+    run_directory: str | Path,
+    output_directory: str | Path,
+) -> tuple[Path, Path, dict]:
+    """Render a verified immutable run into a new external report directory."""
+
+    stored = load_run(run_directory)
+    output = Path(output_directory)
+    if output.exists() or output.is_symlink():
+        raise FileExistsError(f"Report output directory already exists: {output}")
+
+    overlay_relative = None
+    for preferred_name in (
+        "laid_lines_overlay_bands.png",
+        "laid_lines_overlay.png",
+    ):
+        overlay_relative = next(
+            (
+                relative
+                for relative in stored.artifacts
+                if Path(relative).name == preferred_name
+            ),
+            None,
+        )
+        if overlay_relative is not None:
+            break
+
+    values = report_values_from_v2(
+        stored.result,
+        serial=stored.manifest["dataset_id"],
+        technical_location=str(stored.directory),
+    )
+    overlay = (
+        read_verified_artifact(stored, overlay_relative)
+        if overlay_relative is not None
+        else None
+    )
+    english, chinese = render_bilingual_reports(values, overlay)
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.parent / f".{output.name}.tmp-{uuid4().hex}"
+    try:
+        temporary.mkdir()
+        (temporary / "report_en.html").write_text(english, encoding="utf-8")
+        (temporary / "report_zh.html").write_text(chinese, encoding="utf-8")
+        if output.exists() or output.is_symlink():
+            raise FileExistsError(
+                f"Report output directory already exists: {output}"
+            )
+        temporary.rename(output)
+    finally:
+        if temporary.exists():
+            shutil.rmtree(temporary)
+    return output / "report_en.html", output / "report_zh.html", values
 
 
 # ---------------------------------------------------------------------------
@@ -533,9 +688,36 @@ def build_html_zh(v: dict, img_b64: str | None) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Generate plain-language HTML reports from PaperDRM results.")
-    parser.add_argument("--serial", required=True, help="Data serial number (e.g. 10)")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--serial", help="V1 data serial number (e.g. 10)")
+    source.add_argument("--run-dir", help="Canonical V2 run directory")
     parser.add_argument("--results-dir", default="results", help="Root results directory (default: results)")
+    parser.add_argument(
+        "--output-dir",
+        help="New external report directory (required with --run-dir)",
+    )
     args = parser.parse_args()
+
+    if args.run_dir is not None:
+        if args.output_dir is None:
+            parser.error("--output-dir is required with --run-dir")
+        en_path, zh_path, v = generate_reports_from_run(
+            args.run_dir,
+            args.output_dir,
+        )
+        print("Reports written:")
+        print(f"  English : {en_path}")
+        print(f"  Chinese : {zh_path}")
+        print()
+        print(
+            f"  Lines/cm  : {v['lines_per_cm']:.2f}  |  "
+            f"Spacing: {v['period_mm']:.2f} mm"
+        )
+        print(
+            f"  Confidence: {v['detect_confidence_en']}  "
+            f"({v['confidence_policy_version']})"
+        )
+        return
 
     results_dir = Path(args.results_dir) / args.serial
     if not results_dir.exists():

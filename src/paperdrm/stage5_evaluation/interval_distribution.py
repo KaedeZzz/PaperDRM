@@ -133,9 +133,17 @@ def _describe(arr: np.ndarray) -> dict:
     counts = Counter(int(round(v)) for v in arr)
     mode_val = float(max(counts.items(), key=lambda kv: kv[1])[0])
 
-    # Higher moments (n>=4 needed for kurtosis with bias correction)
-    skewness = float(sp_stats.skew(arr, bias=False)) if n >= 3 else float("nan")
-    kurtosis_excess = float(sp_stats.kurtosis(arr, fisher=True, bias=False)) if n >= 4 else float("nan")
+    # Higher moments are undefined for a constant distribution. Handle that
+    # explicitly to avoid SciPy precision-loss warnings while preserving NaN.
+    is_constant = bool(np.all(arr == arr[0]))
+    skewness = (
+        float(sp_stats.skew(arr, bias=False))
+        if n >= 3 and not is_constant else float("nan")
+    )
+    kurtosis_excess = (
+        float(sp_stats.kurtosis(arr, fisher=True, bias=False))
+        if n >= 4 and not is_constant else float("nan")
+    )
 
     return {
         "mean": mean,

@@ -169,3 +169,9 @@ The standard V2 builder renders its overlays and canonical bilingual reports
 inside the private artifact workspace before `RunStore` publishes the run.
 Report files therefore share the same all-or-nothing publication and manifest
 integrity guarantees as every other V2 artifact.
+
+The read-only [nine-folio V2 benchmark gate](benchmark-gate.md) now evaluates
+verified immutable runs against the frozen manual GT. It refuses missing runs,
+detects regressions on the eight previously accurate folios and requires the
+known catastrophic failure either to improve or to be explicitly non-accepted
+by the stored confidence policy.

@@ -216,6 +216,21 @@ The output directory must not already exist. The report displays the stored
 confidence policy version, disposition and reason code rather than recomputing
 classification thresholds in presentation code.
 
+To evaluate a complete set of immutable V2 runs against the frozen nine-folio
+manual-GT benchmark:
+
+```bash
+python scripts/benchmark_v2.py \
+  --runs-root runs \
+  --run-id benchmark-001 \
+  --output generated-benchmarks/v2-benchmark-001.json
+```
+
+All nine runs are required; missing or integrity-invalid runs fail instead of
+being skipped. See
+[`docs/v2/benchmark-gate.md`](docs/v2/benchmark-gate.md) for the exact gate
+rules.
+
 To execute the native V2 pipeline and atomically publish a new immutable run
 with standard overlays and bilingual HTML reports:
 

@@ -272,6 +272,25 @@ class PipelineResult:
 
 
 @dataclass(frozen=True)
+class ArtifactManifestEntry:
+    """Integrity metadata for one artifact inside an immutable run."""
+
+    path: str
+    size_bytes: int
+    sha256: str
+
+    def __post_init__(self) -> None:
+        if not self.path:
+            raise ValueError("artifact path must not be empty")
+        if self.size_bytes < 0:
+            raise ValueError("artifact size must be non-negative")
+        if len(self.sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in self.sha256
+        ):
+            raise ValueError("artifact sha256 must be 64 lowercase hex characters")
+
+
+@dataclass(frozen=True)
 class RunManifest:
     run_id: str
     dataset_id: str
@@ -279,6 +298,10 @@ class RunManifest:
     config: dict[str, Any]
     inputs: tuple[str, ...] = ()
     result_file: str = "result.json"
+    created_at_utc: str | None = None
+    result_schema_version: int = field(default=RESULT_SCHEMA_VERSION, init=False)
+    policy_version: str | None = None
+    artifacts: tuple[ArtifactManifestEntry, ...] = ()
     manifest_schema_version: int = field(default=MANIFEST_SCHEMA_VERSION, init=False)
 
     def __post_init__(self) -> None:
@@ -291,4 +314,5 @@ class RunManifest:
         value = asdict(self)
         value["track"] = self.track.value
         value["inputs"] = list(self.inputs)
+        value["artifacts"] = [asdict(artifact) for artifact in self.artifacts]
         return value

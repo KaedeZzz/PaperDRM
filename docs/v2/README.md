@@ -139,3 +139,14 @@ Native V2 results carry both a disposition and a confidence level plus stable
 reason codes. Hard rejection is limited to invalid period-search boundaries and
 strong polarity contradiction. Fit, local-gap and split-half anomalies remain
 review warnings until a larger labelled benchmark supports calibration.
+
+## Phase 4 status
+
+Atomic V2 persistence is implemented by `paperdrm.persistence.RunStore` and
+specified in
+[`ADR-004-atomic-run-persistence.md`](ADR-004-atomic-run-persistence.md).
+Complete runs are published under `runs/<dataset>/<run-id>/` with a strict JSON
+result, versioned manifest and integrity metadata for copied artifacts. Existing
+runs are immutable, path traversal is rejected and failed writes do not expose
+a partial final directory. Backwards-readable V1 export and stored-result report
+rendering remain the next Phase 4 slices.

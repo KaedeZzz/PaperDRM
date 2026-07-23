@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 from paperdrm.config import PipelineConfig
 from paperdrm.models import (
+    ArtifactManifestEntry,
     ConfidenceAssessment,
     ConfidenceLevel,
     ConfidenceReason,
@@ -36,6 +37,7 @@ from paperdrm.models import (
     SplitHalfEvaluation,
     WireWidthEstimate,
 )
+from paperdrm.persistence import RunStore
 
 if TYPE_CHECKING:
     from paperdrm.stage0_loader import ImagePack, Settings
@@ -44,6 +46,7 @@ __all__ = [
     "ImagePack",
     "Settings",
     "PipelineConfig",
+    "ArtifactManifestEntry",
     "ConfidenceAssessment",
     "ConfidenceLevel",
     "ConfidenceReason",
@@ -57,6 +60,7 @@ __all__ = [
     "PipelineResult",
     "ResultDisposition",
     "RunManifest",
+    "RunStore",
     "SpacingMeasurement",
     "SplitHalfEvaluation",
     "WireWidthEstimate",

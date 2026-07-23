@@ -18,6 +18,8 @@ not be treated as validated physical measurements without further calibration.
 The current technical audit, manual-GT benchmark interpretation, literature
 review and proposed research roadmap are documented in
 [`docs/repo_audit_and_research_roadmap_zh.md`](docs/repo_audit_and_research_roadmap_zh.md).
+The incremental V2 rewrite is specified in [`docs/v2/`](docs/v2/); its Phase 0
+contract freezes V1 behaviour before any package or algorithm migration.
 
 ## Quick start
 
@@ -28,6 +30,7 @@ python -m venv .venv
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install -r requirements.txt
+python -m pip install --no-deps -e .
 python main.py --config exp_param.yaml
 ```
 
@@ -160,13 +163,13 @@ fingerprint and is rebuilt automatically on first use.
 ## Repository layout
 
 - `main.py` — pipeline entry point and detector-route orchestration.
-- `paperdrm/stage0_loader/` — settings, image loading and cache management.
-- `paperdrm/stage0_drp/` — DRP slicing and stack operations.
-- `paperdrm/stage1_features/` — DRP direction estimation used by the legacy route.
-- `paperdrm/stage2_enhance/` — legacy trigonometric enhancement.
-- `paperdrm/stage3_detect/` — multi-phi, single-image and legacy detectors.
-- `paperdrm/stage4_viz/` — visualization helpers.
-- `paperdrm/stage5_evaluation/` — interval, stability, contrast and fit metrics.
+- `src/paperdrm/stage0_loader/` — settings, image loading and cache management.
+- `src/paperdrm/stage0_drp/` — DRP slicing and stack operations.
+- `src/paperdrm/stage1_features/` — DRP direction estimation used by the legacy route.
+- `src/paperdrm/stage2_enhance/` — legacy trigonometric enhancement.
+- `src/paperdrm/stage3_detect/` — multi-phi, single-image and legacy detectors.
+- `src/paperdrm/stage4_viz/` — visualization helpers.
+- `src/paperdrm/stage5_evaluation/` — interval, stability, contrast and fit metrics.
 - `configs/` — dataset-specific configurations.
 - `scripts/` — data preparation, benchmarking and report utilities.
 - `tests/` — lightweight regression tests.

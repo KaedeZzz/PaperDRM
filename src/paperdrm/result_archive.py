@@ -57,7 +57,12 @@ LEGACY_ARTIFACTS = (
 
 
 def repository_root() -> Path:
-    return Path(__file__).resolve().parent.parent
+    """Locate the source checkout without assuming a flat package layout."""
+
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "pyproject.toml").is_file() and (parent / "main.py").is_file():
+            return parent
+    raise RuntimeError("Could not locate the PaperDRM repository root")
 
 
 def archive_results(

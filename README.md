@@ -216,6 +216,20 @@ The output directory must not already exist. The report displays the stored
 confidence policy version, disposition and reason code rather than recomputing
 classification thresholds in presentation code.
 
+To execute the native V2 pipeline and publish a new immutable run with standard
+overlays:
+
+```bash
+python scripts/run_v2.py \
+  --config configs/example.yaml \
+  --track multi_phi \
+  --run-id initial-v2 \
+  --runs-root runs
+```
+
+Passing `--image /path/to/image.png` selects the single-image route. Run IDs
+are explicit, and an existing run is never overwritten.
+
 ## Known limitations
 
 - There is not yet a full end-to-end test using a versioned real-image fixture.

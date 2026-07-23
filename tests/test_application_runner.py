@@ -1,6 +1,8 @@
 import json
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import replace
 from pathlib import Path
 
@@ -13,6 +15,8 @@ from paperdrm.io import FilesystemInputProvider, PreparedInput
 from paperdrm.models import DetectorTrack, PipelineResult, SpacingMeasurement
 from paperdrm.persistence import RunStore, load_run
 from paperdrm.pipeline import Pipeline, SingleImageInput
+from paperdrm.v2_cli import build_parser as build_v2_parser
+from paperdrm.v2_cli import main as v2_main
 
 
 def _laid_lines(shape=(128, 128), period=16.0):
@@ -212,6 +216,24 @@ class ApplicationRunnerTests(unittest.TestCase):
                 runner.run(self._config(), run_id="run-001")
             self.assertFalse((root / "runs").exists())
 
+    def test_invalid_run_id_fails_before_input_or_pipeline_work(self):
+        class Provider:
+            def prepare(self, config):
+                raise AssertionError("input provider must not run")
+
+        class Backend:
+            def execute(self, request):
+                raise AssertionError("pipeline must not run")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            runner = ApplicationRunner(
+                Pipeline(Backend()),
+                RunStore(Path(temporary) / "runs"),
+                Provider(),
+            )
+            with self.assertRaisesRegex(ValueError, "run_id"):
+                runner.run(self._config(), run_id="../unsafe")
+
     def test_artifact_builder_cannot_escape_workspace(self):
         class Backend:
             def execute(self, request):
@@ -270,6 +292,64 @@ class ApplicationRunnerTests(unittest.TestCase):
                 16.0,
             )
             self.assertEqual(stored.result["schema_version"], 2)
+
+    def test_v2_cli_publishes_native_run_with_standard_overlays(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            image_path = root / "laid-lines.png"
+            config_path = root / "config.yaml"
+            runs_root = root / "runs"
+            self.assertTrue(cv2.imwrite(str(image_path), _laid_lines()))
+            config_path.write_text(
+                "\n".join(
+                    (
+                        "data_serial: cli-synthetic",
+                        "subtract_background: false",
+                        "fov_width_cm: 1.28",
+                        "period_range_cm: [0.12, 0.24]",
+                        "line_dir_deg: 90.0",
+                        "wire_is_darker: true",
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with redirect_stdout(io.StringIO()) as output:
+                exit_code = v2_main(
+                    [
+                        "--config",
+                        str(config_path),
+                        "--image",
+                        str(image_path),
+                        "--run-id",
+                        "run-001",
+                        "--runs-root",
+                        str(runs_root),
+                    ]
+                )
+
+            run = runs_root / "cli-synthetic" / "run-001"
+            stored = load_run(run)
+            self.assertEqual(exit_code, 0)
+            self.assertIn("Run published:", output.getvalue())
+            self.assertEqual(stored.result["track"], "single_image")
+            self.assertTrue(
+                (run / "artifacts/overlays/laid_lines_overlay.png").is_file()
+            )
+            self.assertTrue(
+                (run / "artifacts/overlays/laid_lines_overlay_bands.png").is_file()
+            )
+
+    def test_v2_cli_exposes_only_native_drp_tracks(self):
+        parser = build_v2_parser()
+        args = parser.parse_args(["--run-id", "run-001"])
+        self.assertEqual(args.track, "multi_phi")
+        with redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                parser.parse_args(
+                    ["--run-id", "run-001", "--track", "legacy"]
+                )
 
 
 if __name__ == "__main__":

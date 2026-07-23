@@ -101,6 +101,28 @@ class RunStore:
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
 
+    def ensure_available(self, dataset_id: str, run_id: str) -> Path:
+        """Validate a destination and fail fast when it is already claimed."""
+
+        dataset_id = _validate_identifier(dataset_id, label="dataset_id")
+        run_id = _validate_identifier(run_id, label="run_id")
+        dataset_directory = self.root / dataset_id
+        if dataset_directory.is_symlink():
+            raise ValueError(
+                f"dataset directory must not be a symbolic link: {dataset_directory}"
+            )
+        final_directory = dataset_directory / run_id
+        lock_path = dataset_directory / f".{run_id}.lock"
+        if final_directory.exists() or final_directory.is_symlink():
+            raise FileExistsError(
+                f"run already exists and will not be overwritten: {dataset_id}/{run_id}"
+            )
+        if lock_path.exists() or lock_path.is_symlink():
+            raise FileExistsError(
+                f"run is already being written: {dataset_id}/{run_id}"
+            )
+        return final_directory
+
     def save(
         self,
         result: PipelineResult,

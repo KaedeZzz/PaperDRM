@@ -64,5 +64,6 @@ failure isolation and deterministic tests.
 
 - [x] Add filesystem input preparation for native tracks.
 - [x] Add the injected application runner and temporary artifact workspace.
-- [ ] Add concrete overlay/report artifact builders.
-- [ ] Add a dedicated V2 CLI before changing `main.py`.
+- [x] Add a concrete overlay artifact builder.
+- [x] Add a dedicated V2 CLI before changing `main.py`.
+- [ ] Add report generation as a pre-persistence artifact builder.

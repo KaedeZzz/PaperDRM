@@ -105,6 +105,9 @@ def _to_result(
         "detector": config.track.value,
         "line_direction_deg": grid.line_direction_deg,
         "period_range_px": list(_period_range_px(request, image_width)),
+        "representative_index": int(
+            detector_output.get("representative_index", 0)
+        ),
     }
     return PipelineResult(
         dataset_id=config.dataset_id,

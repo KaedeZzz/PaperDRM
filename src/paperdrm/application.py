@@ -68,6 +68,7 @@ class ApplicationRunner:
         )
 
     def run(self, config: PipelineConfig, *, run_id: str) -> ApplicationRun:
+        self._store.ensure_available(config.dataset_id, run_id)
         prepared = self._input_provider.prepare(config)
         if prepared.config.dataset_id != config.dataset_id:
             raise ValueError("input provider changed dataset_id")
